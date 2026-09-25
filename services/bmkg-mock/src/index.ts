@@ -64,6 +64,41 @@ function generateSeedData() {
 
 generateSeedData();
 
+// Periodically generate new reports to simulate live data
+setInterval(() => {
+  const event_id = randomUUID();
+  const isTsunami = Math.random() > 0.8;
+  const magnitude = 4.0 + Math.random() * 4.0;
+  const occurred_at = new Date().toISOString();
+  
+  const event: SeismicEvent = {
+    event_id,
+    magnitude: parseFloat(magnitude.toFixed(1)),
+    depth_km: Math.floor(10 + Math.random() * 100),
+    epicenter_lat: parseFloat((-10 + Math.random() * 15).toFixed(4)),
+    epicenter_lon: parseFloat((95 + Math.random() * 45).toFixed(4)),
+    region_name: `Live Region ${Math.floor(Math.random() * 100)}`,
+    occurred_at,
+    potential_tsunami: isTsunami
+  };
+  seismicEvents.push(event);
+
+  if (isTsunami) {
+    let threat_level: 'Waspada' | 'Siaga' | 'Awas' = 'Waspada';
+    if (magnitude >= 7.0) threat_level = 'Awas';
+    else if (magnitude >= 6.0) threat_level = 'Siaga';
+
+    const warning: TsunamiWarning = {
+      warning_id: randomUUID(),
+      related_event_id: event_id,
+      threat_level,
+      affected_zones: [`Live Zone A`, `Live Zone B`],
+      estimated_arrival: new Date(new Date(occurred_at).getTime() + 2 * 3600000).toISOString()
+    };
+    tsunamiWarnings.push(warning);
+  }
+}, 10000); // every 10 seconds
+
 // Delay middleware
 app.addHook('preHandler', async (request, reply) => {
   // skip delay for health
