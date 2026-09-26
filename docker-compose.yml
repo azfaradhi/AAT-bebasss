@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  bmkg-mock:
+    build:
+      context: .
+      dockerfile: services/bmkg-mock/Dockerfile
+    ports:
+      - "${BMKG_PORT:-8081}:8081"
+    env_file:
+      - .env
+    environment:
+      - BMKG_PORT=8081
+    networks:
+      - bnpb_network
+
+  pvmbg-mock:
+    build:
+      context: .
+      dockerfile: services/pvmbg-mock/Dockerfile
+    ports:
+      - "${PVMBG_PORT:-8082}:8082"
+    env_file:
+      - .env
+    environment:
+      - PVMBG_PORT=8082
+    networks:
+      - bnpb_network
+
+networks:
+  bnpb_network:
+    driver: bridge
