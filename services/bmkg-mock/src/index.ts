@@ -14,8 +14,8 @@ const DELAY_MIN = parseInt(process.env.BMKG_DELAY_MIN_MS || '50', 10);
 const DELAY_MAX = parseInt(process.env.BMKG_DELAY_MAX_MS || '150', 10);
 
 // Shared types (we assume they are available at compile/runtime. In docker we will copy them or use relative paths. For now, since it's a monorepo we can just import relatively)
-import { SeismicEvent, TsunamiWarning } from '../../shared-types/src/seismic';
-import { ErrorEnvelope, HealthResponse } from '../../shared-types/src/envelopes';
+import { SeismicEvent, TsunamiWarning } from '../../../shared-types/src/seismic';
+import { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
 
 const seismicEvents: SeismicEvent[] = [];
 const tsunamiWarnings: TsunamiWarning[] = [];

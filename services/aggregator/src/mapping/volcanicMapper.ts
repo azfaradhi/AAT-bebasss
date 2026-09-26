@@ -30,7 +30,7 @@ export function mapVolcanicReportToHazardEvent(
   };
 
   return {
-    hazard_id: '', // Will be assigned by Aggregator (Member 2)
+    hazard_id: '', // assigned downstream by the aggregator
     source: 'PVMBG',
     source_ref_id: report_id,
     hazard_type: 'VOLCANIC',
