@@ -41,7 +41,7 @@ export function mapSeismicEventToHazardEvent(
   }
 
   return {
-    hazard_id: '', // Will be assigned by Aggregator (Member 2) or we can leave it empty string to be populated
+    hazard_id: '', // assigned downstream by the aggregator
     source: 'BMKG',
     source_ref_id: event_id,
     hazard_type: 'SEISMIC',

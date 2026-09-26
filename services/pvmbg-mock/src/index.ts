@@ -14,8 +14,8 @@ const JWT_SECRET = process.env.PVMBG_JWT_SECRET || 'changeme-pvmbg-secret';
 const DELAY_MIN = parseInt(process.env.PVMBG_DELAY_MIN_MS || '500', 10);
 const DELAY_MAX = parseInt(process.env.PVMBG_DELAY_MAX_MS || '3000', 10);
 
-import { VolcanicReport } from '../../shared-types/src/volcanic';
-import { ErrorEnvelope, HealthResponse } from '../../shared-types/src/envelopes';
+import { VolcanicReport } from '../../../shared-types/src/volcanic';
+import { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
 
 const volcanicReports: VolcanicReport[] = [];
 let schemaConfidenceLevelEnabled = false;
