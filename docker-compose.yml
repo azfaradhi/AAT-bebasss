@@ -27,6 +27,65 @@ services:
     networks:
       - bnpb_network
 
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - bnpb_network
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    ports:
+      - "${AUTH_SERVICE_PORT:-8091}:8091"
+    env_file:
+      - .env
+    environment:
+      - AUTH_SERVICE_PORT=8091
+    networks:
+      - bnpb_network
+
+  dashboard-updater:
+    build:
+      context: .
+      dockerfile: services/consumers/dashboard-updater/Dockerfile
+    ports:
+      - "${DASHBOARD_CONSUMER_PORT:-8092}:8092"
+    env_file:
+      - .env
+    environment:
+      - DASHBOARD_CONSUMER_PORT=8092
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bnpb_network
+
+  notifier:
+    build:
+      context: .
+      dockerfile: services/consumers/notifier/Dockerfile
+    ports:
+      - "${NOTIFIER_CONSUMER_PORT:-8093}:8093"
+    env_file:
+      - .env
+    environment:
+      - NOTIFIER_CONSUMER_PORT=8093
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bnpb_network
+
 networks:
   bnpb_network:
     driver: bridge
