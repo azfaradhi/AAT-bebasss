@@ -27,6 +27,19 @@ services:
     networks:
       - bnpb_network
 
+  aggregator:
+    build:
+      context: .
+      dockerfile: services/aggregator/Dockerfile
+    ports:
+      - "${AGGREGATOR_PORT:-8090}:8090"
+    env_file:
+      - .env
+    environment:
+      - AGGREGATOR_PORT=8090
+    networks:
+      - bnpb_network
+
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     ports:
