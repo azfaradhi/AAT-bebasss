@@ -3,7 +3,7 @@ import { currentCorrelationId } from './context';
 
 export type { Logger };
 
-// One log-line shape everywhere: { timestamp, service, correlation_id, level, message, latency_ms?, ... }
+// log shape: timestamp, service, correlation_id, level, message, latency_ms?
 export function createLogger(service: string, level = 'info'): Logger {
   return pino({
     level,

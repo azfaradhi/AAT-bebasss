@@ -26,10 +26,8 @@ function parseEnvelope(content: Buffer): HazardEventMessage | null {
   return m as HazardEventMessage;
 }
 
-// At-least-once delivery means redelivery is normal, not exceptional: dedup on payload.hazard_id BEFORE any side effect.
-// - ack:     processed, or already processed earlier (duplicate)
-// - requeue: the side effect failed, so let the broker redeliver it (at-least-once)
-// - drop:    the message can never be processed (unparseable / unknown shape); requeueing would loop forever
+// Dedup on hazard_id before any side effect; redelivery is expected (at-least-once).
+// ack = done or duplicate, requeue = side effect failed, drop = unparseable message
 export async function processMessage(content: Buffer, deps: HandlerDeps): Promise<Outcome> {
   const message = parseEnvelope(content);
   if (!message) {

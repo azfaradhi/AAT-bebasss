@@ -13,8 +13,7 @@ export interface ConsumerOptions {
   reconnectMaxMs?: number;
 }
 
-// Owns one durable queue on the fanout exchange. Manual ack, one message in flight (prefetch 1): messages are
-// handled sequentially, so two deliveries of the same hazard_id can never race past the dedup check.
+// Manual ack, prefetch 1 so messages are handled one at a time (dedup can't race).
 export class HazardEventConsumer {
   private connection: Connection | null = null;
   private connected = false;
