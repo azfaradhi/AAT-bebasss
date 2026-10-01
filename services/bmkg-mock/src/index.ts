@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { FastifyError } from 'fastify';
 import dotenv from 'dotenv';
 import { randomUUID } from 'crypto';
 
@@ -16,6 +16,21 @@ const DELAY_MAX = parseInt(process.env.BMKG_DELAY_MAX_MS || '150', 10);
 // Shared types (we assume they are available at compile/runtime. In docker we will copy them or use relative paths. For now, since it's a monorepo we can just import relatively)
 import { SeismicEvent, TsunamiWarning } from '../../../shared-types/src/seismic';
 import { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
+
+// ErrorEnvelope for every non-2xx response, including Fastify's own default errors.
+app.setNotFoundHandler((request, reply) => {
+  const err: ErrorEnvelope = { error: { code: 'NOT_FOUND', message: `Route ${request.method}:${request.url} not found` } };
+  return reply.code(404).send(err);
+});
+
+app.setErrorHandler((error: FastifyError, request, reply) => {
+  const statusCode = error.statusCode ?? 500;
+  const err: ErrorEnvelope = {
+    error: { code: statusCode >= 500 ? 'INTERNAL_ERROR' : 'BAD_REQUEST', message: error.message },
+  };
+  if (statusCode >= 500) app.log.error(error);
+  return reply.code(statusCode).send(err);
+});
 
 const seismicEvents: SeismicEvent[] = [];
 const tsunamiWarnings: TsunamiWarning[] = [];

@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { FastifyError } from 'fastify';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
@@ -16,6 +16,21 @@ const DELAY_MAX = parseInt(process.env.PVMBG_DELAY_MAX_MS || '3000', 10);
 
 import { VolcanicReport } from '../../../shared-types/src/volcanic';
 import { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
+
+// ErrorEnvelope for every non-2xx response, including Fastify's own default errors.
+app.setNotFoundHandler((request, reply) => {
+  const err: ErrorEnvelope = { error: { code: 'NOT_FOUND', message: `Route ${request.method}:${request.url} not found` } };
+  return reply.code(404).send(err);
+});
+
+app.setErrorHandler((error: FastifyError, request, reply) => {
+  const statusCode = error.statusCode ?? 500;
+  const err: ErrorEnvelope = {
+    error: { code: statusCode >= 500 ? 'INTERNAL_ERROR' : 'BAD_REQUEST', message: error.message },
+  };
+  if (statusCode >= 500) app.log.error(error);
+  return reply.code(statusCode).send(err);
+});
 
 const volcanicReports: VolcanicReport[] = [];
 let schemaConfidenceLevelEnabled = false;
@@ -120,14 +135,27 @@ app.get('/volcanic-reports', async (request, reply) => {
 });
 
 app.post('/admin/schema-version', async (request, reply) => {
-  const { enabled } = request.body as { enabled: boolean };
-  schemaConfidenceLevelEnabled = enabled;
+  const body = request.body as { enabled?: unknown } | undefined;
+  if (typeof body?.enabled !== 'boolean') {
+    const err: ErrorEnvelope = { error: { code: 'BAD_REQUEST', message: '"enabled" (boolean) is required' } };
+    return reply.code(400).send(err);
+  }
+  schemaConfidenceLevelEnabled = body.enabled;
   return reply.send({ confidence_level_enabled: schemaConfidenceLevelEnabled });
 });
 
 app.post('/admin/outage', async (request, reply) => {
-  const { enabled, duration_seconds } = request.body as { enabled: boolean, duration_seconds?: number };
-  
+  const body = request.body as { enabled?: unknown; duration_seconds?: unknown } | undefined;
+  if (typeof body?.enabled !== 'boolean') {
+    const err: ErrorEnvelope = { error: { code: 'BAD_REQUEST', message: '"enabled" (boolean) is required' } };
+    return reply.code(400).send(err);
+  }
+  if (body.duration_seconds !== undefined && typeof body.duration_seconds !== 'number') {
+    const err: ErrorEnvelope = { error: { code: 'BAD_REQUEST', message: '"duration_seconds", if given, must be a number' } };
+    return reply.code(400).send(err);
+  }
+  const { enabled, duration_seconds } = body as { enabled: boolean; duration_seconds?: number };
+
   if (outageTimeout) {
     clearTimeout(outageTimeout);
     outageTimeout = null;
