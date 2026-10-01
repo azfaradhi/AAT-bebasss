@@ -20,7 +20,7 @@ export function buildApp(logger: FastifyBaseLogger, isBrokerConnected: () => boo
   });
 
   app.get('/health', async (): Promise<HealthResponse> => ({
-    // 'degraded' = process is up but not attached to the broker (still reachable, so the container is not restarted).
+    // degraded = up but not attached to the broker
     status: isBrokerConnected() ? 'ok' : 'degraded',
     service: SERVICE_NAME,
     timestamp: new Date().toISOString(),

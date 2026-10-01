@@ -9,7 +9,7 @@ export interface EventPublisher {
   publish(event: HazardEvent, correlationId: string): Promise<void>;
 }
 
-// Structurally compatible with a pino logger, so the aggregator can pass its own without this module importing it.
+// Structurally compatible with a pino logger, so we don't need to import one here.
 export interface PublisherLogger {
   info(obj: object, msg: string): void;
   warn(obj: object, msg: string): void;
@@ -35,8 +35,7 @@ export interface RabbitMqPublisherOptions {
 type Connection = Awaited<ReturnType<typeof amqp.connect>>;
 type ConfirmChannel = Awaited<ReturnType<Connection['createConfirmChannel']>>;
 
-// Publishes HazardEventMessage envelopes to the fanout exchange. It never addresses a consumer:
-// who is listening (or down) is invisible here.
+// Publishes to the fanout exchange without ever addressing a consumer directly.
 export class RabbitMqEventPublisher implements EventPublisher {
   private connection: Connection | null = null;
   private channel: ConfirmChannel | null = null;
@@ -55,8 +54,7 @@ export class RabbitMqEventPublisher implements EventPublisher {
     this.retryDelayMs = this.reconnectMinMs;
   }
 
-  // Never throws: a broker that is slow to come up must not crash the aggregator. It keeps retrying in the
-  // background, and publish() rejects fast with BrokerUnavailableError until a channel exists.
+  // Never throws; retries in the background. publish() rejects fast until a channel exists.
   async start(): Promise<void> {
     await this.tryConnect();
   }
@@ -97,7 +95,7 @@ export class RabbitMqEventPublisher implements EventPublisher {
     await connection?.close().catch(() => undefined);
   }
 
-  // Resolves only after the broker confirms it persisted the message, so a resolved publish() means "safely queued".
+  // Resolves only after the broker confirms the message was persisted.
   private publishAndConfirm(channel: ConfirmChannel, message: HazardEventMessage): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(

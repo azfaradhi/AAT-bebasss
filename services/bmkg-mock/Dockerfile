@@ -1,22 +1,21 @@
-FROM node:20-alpine
-
+FROM node:20-alpine AS builder
 WORKDIR /app
-
-# Copy shared-types first
 COPY shared-types ./shared-types
-
-# Copy service package.json
-COPY services/bmkg-mock/package*.json ./services/bmkg-mock/
-
 WORKDIR /app/services/bmkg-mock
-RUN npm install
-
-# Copy service source
+COPY services/bmkg-mock/package*.json ./
+RUN npm ci
 COPY services/bmkg-mock/tsconfig.json ./
 COPY services/bmkg-mock/src ./src
+RUN npm run build
 
-# Expose port
+FROM node:20-alpine
+ENV NODE_ENV=production
+WORKDIR /app/services/bmkg-mock
+COPY services/bmkg-mock/package*.json ./
+RUN npm ci --omit=dev
+COPY --from=builder /app/services/bmkg-mock/dist ./dist
+USER node
 EXPOSE 8081
-
-# Run with tsx (or we could build and run node dist/index.js)
-CMD ["npx", "tsx", "src/index.ts"]
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:${BMKG_PORT:-8081}/health || exit 1
+CMD ["node", "dist/services/bmkg-mock/src/index.js"]

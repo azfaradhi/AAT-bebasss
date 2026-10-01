@@ -4,6 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "build": "tsc -p .",
+    "start": "node dist/services/pvmbg-mock/src/index.js",
+    "dev": "tsx --env-file=../../.env src/index.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
