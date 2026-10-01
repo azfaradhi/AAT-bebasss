@@ -40,6 +40,24 @@ services:
     networks:
       - bnpb_network
 
+  client-api:
+    build:
+      context: .
+      dockerfile: services/client-api/Dockerfile
+    ports:
+      - "${CLIENT_API_PORT:-8080}:8080"
+    env_file:
+      - .env
+    environment:
+      - CLIENT_API_PORT=8080
+    depends_on:
+      aggregator:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+    networks:
+      - bnpb_network
+
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
     ports:
