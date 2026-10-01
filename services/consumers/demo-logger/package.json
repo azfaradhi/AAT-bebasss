@@ -1,0 +1,15 @@
+{
+  "name": "demo-logger",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Ad-hoc third consumer proving the fanout exchange supports new subscribers without any change to the publisher. Not part of the compose service list; run manually (npx tsx index.ts).",
+  "dependencies": {
+    "amqplib": "^0.10.9"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.10.7",
+    "@types/node": "^20.19.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
