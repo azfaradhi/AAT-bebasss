@@ -1,9 +1,16 @@
 import Fastify, { FastifyBaseLogger, FastifyError, FastifyInstance } from 'fastify';
 import type { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
+import type { CanonicalStore } from './storage/canonical-store';
+import { registerInternalHazardsRoute } from './internal-api/hazards-route';
 
 export const SERVICE_NAME = 'aggregator';
 
-export function buildApp(logger: FastifyBaseLogger): FastifyInstance {
+export interface AppDeps {
+  store: CanonicalStore;
+  internalServiceKey: string;
+}
+
+export function buildApp(logger: FastifyBaseLogger, deps: AppDeps): FastifyInstance {
   const app = Fastify({ loggerInstance: logger });
 
   app.setNotFoundHandler((_request, reply) => {
@@ -22,6 +29,7 @@ export function buildApp(logger: FastifyBaseLogger): FastifyInstance {
     service: SERVICE_NAME,
     timestamp: new Date().toISOString(),
   }));
+  registerInternalHazardsRoute(app, deps.store, deps.internalServiceKey);
 
   return app;
 }

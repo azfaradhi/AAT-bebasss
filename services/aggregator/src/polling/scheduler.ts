@@ -1,16 +1,19 @@
-// Drafted with LLM assistance; the committing team member must review and understand this code.
 import { randomUUID } from 'node:crypto';
+import type { EventPublisher } from '../publisher/eventPublisher';
 import { contextStorage } from '../context';
 import type { Logger } from '../logger';
-import type { PollingSource } from '../sources/stub-source-client';
+import type { HazardSourceClient } from '../sources/source-client';
+import type { CanonicalStore } from '../storage/canonical-store';
 
 export interface PollingSchedulerOptions {
-  sources: readonly PollingSource[];
+  bmkg: HazardSourceClient;
+  pvmbg: HazardSourceClient;
+  store: CanonicalStore;
+  publisher: EventPublisher;
   intervalMs: number;
   logger: Logger;
 }
 
-// Phase 1 scheduler: it proves the non-blocking polling shape before real source clients and storage are added.
 export class PollingScheduler {
   private timer: NodeJS.Timeout | null = null;
   private tickInFlight = false;
@@ -39,10 +42,10 @@ export class PollingScheduler {
     try {
       await contextStorage.run({ correlationId: randomUUID() }, async () => {
         const started = Date.now();
-        const results = await Promise.allSettled(this.opts.sources.map((source) => this.pollSource(source)));
+        const results = await Promise.allSettled([this.pollSource(this.opts.bmkg), this.pollSource(this.opts.pvmbg)]);
         const failedSources = results.filter((result) => result.status === 'rejected').length;
         this.opts.logger.info(
-          { source_count: this.opts.sources.length, failed_sources: failedSources, latency_ms: Date.now() - started },
+          { source_count: 2, failed_sources: failedSources, latency_ms: Date.now() - started },
           'polling tick completed',
         );
       });
@@ -51,15 +54,30 @@ export class PollingScheduler {
     }
   }
 
-  private async pollSource(source: PollingSource): Promise<void> {
+  private async pollSource(source: HazardSourceClient): Promise<void> {
     const started = Date.now();
-    this.opts.logger.info({ source: source.name }, 'source poll started');
+    this.opts.logger.info({ source: source.sourceName }, 'source poll started');
     try {
-      await source.poll();
-      this.opts.logger.info({ source: source.name, latency_ms: Date.now() - started }, 'source poll completed');
+      const events = await source.poll();
+      await this.opts.store.markSourceFresh(source.sourceName);
+      for (const event of events) {
+        const stored = await this.opts.store.upsert(event);
+        if (stored.created) {
+          try {
+            await this.opts.publisher.publish(stored.event, contextStorage.getStore()?.correlationId ?? randomUUID());
+          } catch (err) {
+            this.opts.logger.error(
+              { source: source.sourceName, hazard_id: stored.event.hazard_id, err: err instanceof Error ? err.message : String(err) },
+              'hazard event could not be published',
+            );
+          }
+        }
+      }
+      this.opts.logger.info({ source: source.sourceName, latency_ms: Date.now() - started }, 'source poll completed');
     } catch (err) {
+      await this.opts.store.markSourceStale(source.sourceName);
       this.opts.logger.error(
-        { source: source.name, latency_ms: Date.now() - started, err: err instanceof Error ? err.message : String(err) },
+        { source: source.sourceName, latency_ms: Date.now() - started, err: err instanceof Error ? err.message : String(err) },
         'source poll failed',
       );
       throw err;
