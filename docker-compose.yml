@@ -37,6 +37,34 @@ services:
       - .env
     environment:
       - AGGREGATOR_PORT=8090
+      - BMKG_BASE_URL=http://bmkg-mock:8081
+      - PVMBG_BASE_URL=http://pvmbg-mock:8082
+    depends_on:
+      bmkg-mock:
+        condition: service_healthy
+      pvmbg-mock:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bnpb_network
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: bnpb
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: pass
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d bnpb"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     networks:
       - bnpb_network
 
@@ -50,6 +78,7 @@ services:
       - .env
     environment:
       - CLIENT_API_PORT=8080
+      - AGGREGATOR_BASE_URL=http://aggregator:8090
     depends_on:
       aggregator:
         condition: service_healthy
@@ -120,3 +149,6 @@ services:
 networks:
   bnpb_network:
     driver: bridge
+
+volumes:
+  postgres_data:
