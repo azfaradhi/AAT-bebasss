@@ -2,13 +2,15 @@ import Fastify, { FastifyBaseLogger, FastifyError, FastifyInstance } from 'fasti
 import type { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
 import { bindCorrelationId } from './middleware/correlationId';
 import { createAuthMiddleware } from './middleware/auth';
-import { registerDevStubHazardsRoute } from './dev-stub-hazards-route';
+import type { AggregatorClient } from './clients/aggregator-client';
+import { registerHazardsRoute } from './routes/hazards';
 import { AppError } from './errors';
 
 export const SERVICE_NAME = 'client-api';
 
 export interface AppDeps {
   clientJwtSecret: string;
+  aggregatorClient: AggregatorClient;
 }
 
 export function buildApp(logger: FastifyBaseLogger | undefined, deps: AppDeps): FastifyInstance {
@@ -40,7 +42,7 @@ export function buildApp(logger: FastifyBaseLogger | undefined, deps: AppDeps): 
   // Child context so the auth hook doesn't also apply to /health above.
   app.register(async (protectedRoutes) => {
     protectedRoutes.addHook('preHandler', createAuthMiddleware(deps.clientJwtSecret));
-    registerDevStubHazardsRoute(protectedRoutes);
+    registerHazardsRoute(protectedRoutes, deps.aggregatorClient);
   });
 
   return app;

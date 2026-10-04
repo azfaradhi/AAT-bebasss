@@ -1,10 +1,14 @@
 import { buildApp, SERVICE_NAME } from './app';
 import { config } from './config';
 import { createLogger } from './logger';
+import { HttpAggregatorClient } from './clients/aggregator-client';
 
 async function main(): Promise<void> {
   const logger = createLogger(SERVICE_NAME);
-  const app = buildApp(logger, { clientJwtSecret: config.clientJwtSecret });
+  const app = buildApp(logger, {
+    clientJwtSecret: config.clientJwtSecret,
+    aggregatorClient: new HttpAggregatorClient(config.aggregatorBaseUrl, config.internalServiceKey, logger),
+  });
 
   const shutdown = async (): Promise<void> => {
     await app.close();
