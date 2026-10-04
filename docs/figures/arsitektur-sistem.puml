@@ -1,0 +1,40 @@
+@startuml
+title Arsitektur Platform Koordinasi Kebencanaan BNPB - Milestone 1
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+skinparam defaultTextAlignment center
+
+actor "Client Downstream\n(Media / Lapangan / Internal)" as client
+
+package "Sumber Data" {
+  component "BMKG Mock\nREST" as bmkg
+  component "PVMBG Mock\nREST" as pvmbg
+}
+
+package "BNPB Platform" {
+  component "Client-Facing API\nREST" as clientapi
+  component "Auth Service\nREST" as auth
+  component "Aggregator\nREST internal" as aggregator
+  database "PostgreSQL\nCanonical Store\nJSONB" as postgres
+  queue "RabbitMQ\nAMQP" as rabbit
+  component "Dashboard Updater" as dashboard
+  component "Notifier" as notifier
+}
+
+client --> auth : POST /auth/token\nPOST /auth/refresh
+client --> clientapi : GET /hazard-events\nBearer JWT
+clientapi --> aggregator : GET /internal/hazard-events\nInternal service key
+aggregator --> bmkg : Polling REST\nX-BMKG-Key
+aggregator --> pvmbg : Polling REST\nBearer token
+aggregator --> postgres : Upsert dan baca\nHazardEvent
+aggregator --> rabbit : Publish event baru\nAMQP
+rabbit --> dashboard : Subscribe
+rabbit --> notifier : Subscribe
+
+note right of postgres
+  Hanya Aggregator yang
+  mengakses Canonical Store
+  secara langsung.
+end note
+@enduml

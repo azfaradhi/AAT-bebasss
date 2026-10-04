@@ -1,0 +1,50 @@
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[indonesian]{babel}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{geometry}
+\usepackage{setspace}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage[most]{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{titlesec}
+\usepackage{hyperref}
+\usepackage{url}
+
+\geometry{top=2.5cm,bottom=2.5cm,left=3cm,right=2.5cm}
+\setstretch{1.15}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.55em}
+\setlist{nosep,leftmargin=*}
+
+\definecolor{itbblue}{HTML}{163A63}
+\definecolor{softblue}{HTML}{EAF2F8}
+\definecolor{softgray}{HTML}{F5F6F7}
+\definecolor{codegreen}{HTML}{2E7D32}
+\definecolor{codepurple}{HTML}{6A1B9A}
+
+\hypersetup{colorlinks=true,linkcolor=itbblue,citecolor=itbblue,urlcolor=itbblue,pdftitle={Laporan Milestone 1 IF4031},pdfauthor={\NamaSatu, \NamaDua, dan \NamaTiga}}
+\def\UrlBreaks{\do\/\do-\do\_}
+\Urlmuskip=0mu plus 1mu
+
+\pagestyle{fancy}
+\fancyhf{}
+\lhead{IF4031 Arsitektur Aplikasi Terdistribusi}
+\rhead{Milestone 1}
+\cfoot{Halaman \thepage\ dari \pageref{LastPage}}
+\setlength{\headheight}{14pt}
+
+\titleformat{\section}{\Large\bfseries\color{itbblue}}{\thesection}{0.7em}{}
+\titleformat{\subsection}{\large\bfseries\color{itbblue}}{\thesubsection}{0.7em}{}
+
+\lstdefinestyle{code}{basicstyle=\ttfamily\small,backgroundcolor=\color{softgray},frame=single,rulecolor=\color{black!20},numbers=left,numberstyle=\tiny\color{black!55},breaklines=true,showstringspaces=false,tabsize=4,keywordstyle=\color{itbblue}\bfseries,commentstyle=\color{codegreen},stringstyle=\color{codepurple},columns=fullflexible}
+\newtcolorbox{infobox}[1]{colback=softblue,colframe=itbblue,title={#1},fonttitle=\bfseries,breakable}

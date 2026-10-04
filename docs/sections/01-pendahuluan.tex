@@ -1,0 +1,95 @@
+\section{Pendahuluan}
+\label{sec:pendahuluan}
+
+\subsection{Latar Belakang}
+
+Penanggulangan bencana melibatkan lembaga-lembaga yang bekerja secara otonom,
+memiliki sumber data, format informasi, dan karakteristik infrastruktur yang
+berbeda. Dalam skenario tugas ini, BMKG menyediakan informasi kejadian seismik
+dan potensi tsunami, sedangkan PVMBG menyediakan laporan aktivitas vulkanik.
+BNPB membutuhkan kedua aliran informasi tersebut untuk membangun gambaran
+situasi yang terpadu dan menyajikannya kepada pihak yang berwenang. Namun,
+perbedaan format data, latensi layanan, dan batas kepercayaan antarlembaga
+membuat integrasi langsung menjadi tidak memadai.
+
+Masalah tersebut tidak hanya berkaitan dengan pertukaran data. Ketika satu
+layanan sumber melambat atau gagal, layanan lain tetap dapat menghasilkan data
+yang bernilai bagi pengguna. Demikian pula, lonjakan permintaan pada saat status
+bencana meningkat tidak boleh membuat seluruh sistem berhenti merespons.
+Sistem juga perlu membedakan hak akses antara Media, Tim Lapangan, dan BNPB
+Internal agar data mentah seperti koordinat presisi serta atribut spesifik sumber
+tidak bocor kepada pihak yang hanya membutuhkan ringkasan.
+
+Oleh sebab itu, proyek ini membangun proof-of-concept platform koordinasi
+kebencanaan BNPB sebagai aplikasi terdistribusi. Platform menyatukan data
+heterogen dari BMKG dan PVMBG melalui komunikasi jaringan, mengubahnya ke
+format kanonik \textit{HazardEvent}, menyimpannya pada \textit{Canonical Store},
+dan mendistribusikan informasi tersebut melalui API serta mekanisme
+\textit{publish-subscribe}.
+
+\subsection{Tujuan}
+
+Tujuan utama pengembangan sistem adalah membuktikan bahwa beberapa layanan
+otonom dapat diintegrasikan menjadi satu platform koordinasi tanpa menghilangkan
+batas kepemilikan dan karakteristik masing-masing layanan. Secara khusus,
+Milestone 1 bertujuan untuk:
+
+\begin{enumerate}
+  \item menyatukan data seismik dan vulkanik dari dua instansi ke dalam format
+  kanonik yang konsisten serta tetap menerima perubahan skema aditif;
+  \item menjaga ketersediaan data penting melalui pemrosesan asinkron,
+  pembatasan konkurensi, dan degradasi layanan yang eksplisit ketika salah satu
+  sumber tidak tersedia;
+  \item menerapkan pemisahan domain kepercayaan untuk komunikasi antarlayanan
+  dan akses client downstream;
+  \item memisahkan komponen ke dalam layanan dan container yang dapat dijalankan
+  secara independen, dengan penyimpanan yang mendukung atribut dinamis; serta
+  \item mendistribusikan event baru ke beberapa consumer melalui message broker
+  tanpa membuat Aggregator bergantung langsung pada consumer tersebut.
+\end{enumerate}
+
+\subsection{Ruang Lingkup Milestone 1}
+
+Ruang lingkup implementasi dibatasi pada dua instansi sumber dan dua jenis
+bencana. BMKG disimulasikan sebagai sumber \textit{SeismicEvent} dan
+\textit{TsunamiWarning}; PVMBG disimulasikan sebagai sumber
+\textit{VolcanicReport}. Kedua sumber bersifat pasif dan hanya merespons polling
+berkala dari Aggregator BNPB. Data dari sumber tidak dibagikan melalui pemanggilan
+fungsi langsung atau library \textit{business logic} bersama, melainkan melalui
+API jaringan sesuai kontrak layanan.
+
+Komponen BNPB dalam Milestone 1 meliputi Aggregator atau gateway, Canonical
+Store, Client-Facing API, Auth/Token Service, message broker, dan sedikitnya dua
+event consumer. Aggregator melakukan polling, pemetaan, penyimpanan, serta
+publikasi event baru. Canonical Store hanya dimiliki dan diakses langsung oleh
+Aggregator; layanan lain memperoleh data melalui API Aggregator. Client-Facing
+API bersifat \textit{read-only} dan menerapkan hak akses berdasarkan scope token.
+
+Hak akses client dibagi menjadi tiga tingkat. Media hanya menerima field
+berklasifikasi Ringkasan. Tim Lapangan memperoleh data lengkap untuk kebutuhan
+operasional, sedangkan BNPB Internal memiliki hak akses tertinggi. Access token
+bersifat berumur pendek dan harus dapat diperbarui melalui alur \textit{refresh}
+tanpa login ulang. Batasan ini dibuat agar keamanan, ketahanan, dan distribusi
+data dapat diuji secara nyata pada arsitektur yang sama.
+
+\subsection{Batasan Sistem}
+
+Milestone 1 belum mencakup seluruh kebutuhan sistem kebencanaan nasional.
+Sistem tidak menangani jalur pelaporan dari lapangan ke BNPB, perubahan data oleh
+client downstream, maupun sumber bencana lain seperti kebakaran hutan dan
+hidrometeorologi. Fokusnya adalah fondasi interoperabilitas, availability,
+keamanan, fleksibilitas storage, dan distribusi event pada skala dasar.
+
+Pengembangan untuk Milestone 2 berada di luar cakupan laporan ini. Tahap
+berikutnya akan menguji fondasi yang sama dalam kondisi yang lebih skalabel,
+termasuk banyak instance layanan, volume data yang meningkat drastis, dan
+kegagalan beberapa komponen secara bersamaan.
+
+\subsection{Struktur Laporan}
+
+Bab berikutnya menjelaskan arsitektur sistem, batas tiap service, serta teknologi
+yang digunakan. Setelah itu, setiap problem resmi Milestone 1 dibahas secara
+terpisah, mencakup rancangan solusi, alternatif dan trade-off, batasan yang
+disadari, serta bukti penyelesaian. Lampiran digunakan untuk menyimpan bukti
+pengujian tambahan seperti tangkapan layar, log ber-correlation ID, dan hasil
+pengukuran.
