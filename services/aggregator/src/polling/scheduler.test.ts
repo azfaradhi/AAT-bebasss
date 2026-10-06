@@ -15,6 +15,7 @@ const store: CanonicalStore = {
   init: async () => undefined,
   upsert: async (event) => ({ event, created: false }),
   list: async () => ({ data: [], meta: { stale_since: null } }),
+  getLastSuccessAt: async () => null,
   markSourceFresh: async () => undefined,
   markSourceStale: async () => undefined,
   close: async () => undefined,
@@ -28,6 +29,7 @@ describe('PollingScheduler', () => {
     const started: string[] = [];
     const scheduler = new PollingScheduler({
       intervalMs: 1000,
+      lookbackMs: 60000,
       logger,
       store,
       publisher,
@@ -46,6 +48,7 @@ describe('PollingScheduler', () => {
     const source = deferred<[]>();
     const scheduler = new PollingScheduler({
       intervalMs: 1000,
+      lookbackMs: 60000,
       logger,
       store,
       publisher,
@@ -58,5 +61,27 @@ describe('PollingScheduler', () => {
     expect(logger.warn).toHaveBeenCalledWith({}, 'polling tick skipped because the previous tick is still running');
     source.resolve([]);
     await first;
+  });
+
+  it('uses a persisted success timestamp with a lookback window for incremental polling', async () => {
+    const lastSuccessAt = new Date('2026-10-06T10:00:00.000Z');
+    const bmkgPoll = vi.fn().mockResolvedValue([]);
+    const incrementalStore: CanonicalStore = {
+      ...store,
+      getLastSuccessAt: vi.fn().mockResolvedValue(lastSuccessAt),
+    };
+    const scheduler = new PollingScheduler({
+      intervalMs: 1000,
+      lookbackMs: 60000,
+      logger,
+      store: incrementalStore,
+      publisher,
+      bmkg: { sourceName: 'BMKG', poll: bmkgPoll },
+      pvmbg: { sourceName: 'PVMBG', poll: vi.fn().mockResolvedValue([]) },
+    });
+
+    await scheduler.runTick();
+
+    expect(bmkgPoll).toHaveBeenCalledWith('2026-10-06T09:59:00.000Z');
   });
 });

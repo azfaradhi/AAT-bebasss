@@ -18,6 +18,7 @@ async function main(): Promise<void> {
   const scheduler = new PollingScheduler({
     logger,
     intervalMs: config.pollIntervalMs,
+    lookbackMs: config.pollLookbackMs,
     store,
     publisher,
     bmkg: new BmkgClient({

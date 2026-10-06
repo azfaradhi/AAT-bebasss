@@ -11,6 +11,7 @@ export interface PollingSchedulerOptions {
   store: CanonicalStore;
   publisher: EventPublisher;
   intervalMs: number;
+  lookbackMs: number;
   logger: Logger;
 }
 
@@ -58,8 +59,11 @@ export class PollingScheduler {
     const started = Date.now();
     this.opts.logger.info({ source: source.sourceName }, 'source poll started');
     try {
-      const events = await source.poll();
-      await this.opts.store.markSourceFresh(source.sourceName);
+      const lastSuccessAt = await this.opts.store.getLastSuccessAt(source.sourceName);
+      const since = lastSuccessAt
+        ? new Date(lastSuccessAt.getTime() - this.opts.lookbackMs).toISOString()
+        : undefined;
+      const events = await source.poll(since);
       for (const event of events) {
         const stored = await this.opts.store.upsert(event);
         if (stored.created) {
@@ -73,6 +77,7 @@ export class PollingScheduler {
           }
         }
       }
+      await this.opts.store.markSourceFresh(source.sourceName);
       this.opts.logger.info({ source: source.sourceName, latency_ms: Date.now() - started }, 'source poll completed');
     } catch (err) {
       await this.opts.store.markSourceStale(source.sourceName);

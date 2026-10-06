@@ -7,6 +7,7 @@ const store: CanonicalStore = {
   init: async () => undefined,
   upsert: async (event) => ({ event, created: true }),
   list: async () => ({ data: [], meta: { stale_since: null } }),
+  getLastSuccessAt: async () => null,
   markSourceFresh: async () => undefined,
   markSourceStale: async () => undefined,
   close: async () => undefined,

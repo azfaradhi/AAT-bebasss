@@ -3,6 +3,7 @@ import { z } from 'zod';
 const schema = z.object({
   AGGREGATOR_PORT: z.coerce.number().int().positive().default(8090),
   POLL_INTERVAL_MS: z.coerce.number().int().positive().default(3000),
+  POLL_LOOKBACK_MS: z.coerce.number().int().nonnegative().default(60000),
   BMKG_BASE_URL: z.string().url().default('http://localhost:8081'),
   PVMBG_BASE_URL: z.string().url().default('http://localhost:8082'),
   BMKG_API_KEY: z.string().min(1),
@@ -24,6 +25,7 @@ if (!parsed.success) {
 export const config = {
   port: parsed.data.AGGREGATOR_PORT,
   pollIntervalMs: parsed.data.POLL_INTERVAL_MS,
+  pollLookbackMs: parsed.data.POLL_LOOKBACK_MS,
   bmkgBaseUrl: parsed.data.BMKG_BASE_URL,
   pvmbgBaseUrl: parsed.data.PVMBG_BASE_URL,
   bmkgApiKey: parsed.data.BMKG_API_KEY,

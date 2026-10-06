@@ -15,6 +15,7 @@ export interface CanonicalStore {
   init(): Promise<void>;
   upsert(event: HazardEvent): Promise<StoredHazard>;
   list(query?: HazardQuery): Promise<HazardEventResponse>;
+  getLastSuccessAt(source: HazardSource): Promise<Date | null>;
   markSourceFresh(source: HazardSource): Promise<void>;
   markSourceStale(source: HazardSource): Promise<void>;
   close(): Promise<void>;
@@ -107,6 +108,14 @@ export class PostgresCanonicalStore implements CanonicalStore {
       data: events.rows.map((row) => this.toHazardEvent(row)),
       meta: { stale_since: state.rows[0]?.stale_since?.toISOString() ?? null },
     };
+  }
+
+  async getLastSuccessAt(source: HazardSource): Promise<Date | null> {
+    const result = await this.pool.query<{ last_success_at: Date | null }>(
+      'SELECT last_success_at FROM source_sync_state WHERE source = $1;',
+      [source],
+    );
+    return result.rows[0]?.last_success_at ?? null;
   }
 
   async markSourceFresh(source: HazardSource): Promise<void> {
