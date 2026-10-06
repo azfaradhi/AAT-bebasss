@@ -10,9 +10,11 @@ const app = Fastify({
 });
 
 const PORT = parseInt(process.env.PVMBG_PORT || '8082', 10);
-const JWT_SECRET = process.env.PVMBG_JWT_SECRET || 'changeme-pvmbg-secret';
+const JWT_SECRET = process.env.PVMBG_JWT_SECRET;
 const DELAY_MIN = parseInt(process.env.PVMBG_DELAY_MIN_MS || '500', 10);
 const DELAY_MAX = parseInt(process.env.PVMBG_DELAY_MAX_MS || '3000', 10);
+
+if (!JWT_SECRET) throw new Error('PVMBG_JWT_SECRET must be configured');
 
 import { VolcanicReport } from '../../../shared-types/src/volcanic';
 import { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
@@ -36,6 +38,13 @@ const volcanicReports: VolcanicReport[] = [];
 let schemaConfidenceLevelEnabled = false;
 let outageActive = false;
 let outageTimeout: NodeJS.Timeout | null = null;
+
+app.addHook('onRequest', async (request, reply) => {
+  const inbound = request.headers['x-correlation-id'];
+  const correlationId = typeof inbound === 'string' && inbound.length > 0 ? inbound : randomUUID();
+  reply.header('x-correlation-id', correlationId);
+  request.log.info({ correlation_id: correlationId }, 'request received');
+});
 
 // The volcano reference table keys, to generate plausible volcano_ids
 const volcanoIds = ['v-merapi', 'v-semeru', 'v-kelud', 'v-sinabung', 'v-agung'];

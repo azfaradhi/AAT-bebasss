@@ -9,9 +9,11 @@ const app = Fastify({
 });
 
 const PORT = parseInt(process.env.BMKG_PORT || '8081', 10);
-const API_KEY = process.env.BMKG_API_KEY || 'changeme-bmkg-key';
+const API_KEY = process.env.BMKG_API_KEY;
 const DELAY_MIN = parseInt(process.env.BMKG_DELAY_MIN_MS || '50', 10);
 const DELAY_MAX = parseInt(process.env.BMKG_DELAY_MAX_MS || '150', 10);
+
+if (!API_KEY) throw new Error('BMKG_API_KEY must be configured');
 
 // Shared types (we assume they are available at compile/runtime. In docker we will copy them or use relative paths. For now, since it's a monorepo we can just import relatively)
 import { SeismicEvent, TsunamiWarning } from '../../../shared-types/src/seismic';
@@ -34,6 +36,13 @@ app.setErrorHandler((error: FastifyError, request, reply) => {
 
 const seismicEvents: SeismicEvent[] = [];
 const tsunamiWarnings: TsunamiWarning[] = [];
+
+app.addHook('onRequest', async (request, reply) => {
+  const inbound = request.headers['x-correlation-id'];
+  const correlationId = typeof inbound === 'string' && inbound.length > 0 ? inbound : randomUUID();
+  reply.header('x-correlation-id', correlationId);
+  request.log.info({ correlation_id: correlationId }, 'request received');
+});
 
 // Seed generation
 function generateSeedData() {
