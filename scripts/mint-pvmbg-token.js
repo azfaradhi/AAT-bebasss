@@ -25,6 +25,9 @@ function mintToken(secret, expiresInSeconds) {
   return `${signingInput}.${signature}`;
 }
 
-const secret = process.env.PVMBG_JWT_SECRET || readEnvFile('PVMBG_JWT_SECRET') || 'changeme-pvmbg-secret';
+const secret = process.env.PVMBG_JWT_SECRET || readEnvFile('PVMBG_JWT_SECRET');
+if (!secret) {
+  throw new Error('PVMBG_JWT_SECRET must be set in the environment or .env');
+}
 const expiresInSeconds = Number(process.argv[2]) || 10 * 365 * 24 * 3600; // default: ~10 years
 console.log(mintToken(secret, expiresInSeconds));

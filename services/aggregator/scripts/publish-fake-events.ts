@@ -26,8 +26,10 @@ function fakeEvent(i: number): HazardEvent {
 }
 
 async function main(): Promise<void> {
+  const rabbitMqUrl = process.env.RABBITMQ_URL;
+  if (!rabbitMqUrl) throw new Error('RABBITMQ_URL must be configured');
   const logger = pino({ level: 'info' });
-  const publisher = new RabbitMqEventPublisher({ url: process.env.RABBITMQ_URL ?? 'amqp://guest:guest@localhost:5672', logger });
+  const publisher = new RabbitMqEventPublisher({ url: rabbitMqUrl, logger });
   await publisher.start();
   const correlationId = randomUUID();
   for (let i = 0; i < count; i++) {

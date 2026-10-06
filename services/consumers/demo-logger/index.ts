@@ -4,7 +4,9 @@ import amqp from 'amqplib';
 
 const EXCHANGE_NAME = 'hazard_events_exchange';
 const QUEUE_NAME = 'demo_logger_queue';
-const url = process.env.RABBITMQ_URL ?? 'amqp://guest:guest@localhost:5672';
+const url = process.env.RABBITMQ_URL;
+
+if (!url) throw new Error('RABBITMQ_URL must be configured');
 
 async function main(): Promise<void> {
   const connection = await amqp.connect(url);
