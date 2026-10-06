@@ -1,69 +1,148 @@
-# AAT-bebasss
+# Platform Koordinasi Kebencanaan BNPB
 
-> Overview, Prerequisites, Quick Start, and Configuration sections are still to be written. The demos below assume `docker compose up -d --build` has already been run from a checkout with `.env` copied from `.env.example`.
+Implementasi Milestone 1 IF4031 untuk menggabungkan data bahaya dari mock BMKG dan PVMBG ke format kanonik, menyajikannya melalui API terproteksi, serta mendistribusikan kejadian baru melalui RabbitMQ.
 
-## Problem 3 Demo
+## Arsitektur
 
-Auth Service issues short-TTL (`ACCESS_TOKEN_TTL_SECONDS`, default 60s) JWTs to three pre-provisioned client identities, with server-enforced RBAC on `GET /hazard-events`.
+- `bmkg-mock` dan `pvmbg-mock` adalah sumber eksternal dengan kredensial berbeda.
+- `aggregator` melakukan polling paralel, mapping data, menyimpan Canonical Store PostgreSQL, dan menerbitkan event baru.
+- `client-api` adalah API publik ber-RBAC; ia membaca data hanya melalui API internal Aggregator.
+- `auth-service` menerbitkan access token dan refresh token untuk Media, Tim Lapangan, serta BNPB Internal.
+- `dashboard-updater` dan `notifier` adalah consumer independen dari exchange RabbitMQ fanout.
 
-1. Get a token for `scope: media`:
-   ```bash
-   curl -s -X POST localhost:8091/auth/token -H 'content-type: application/json' \
-     -d '{"client_id":"media-client","client_secret":"media-secret"}'
-   ```
-2. `GET /hazard-events?view=raw` with that token → `403 FORBIDDEN_FIELD_ACCESS`:
-   ```bash
-   curl -s -w ' [%{http_code}]\n' "localhost:8080/hazard-events?view=raw" -H "Authorization: Bearer $ACCESS_TOKEN"
-   ```
-3. `GET /hazard-events` (no `view`) with the same token → `200`, response has only Ringkasan fields (`hazard_id`, `source`, `hazard_type`, `severity`, `area_name`, `occurred_at`, `ingested_at` — no `source_ref_id`/`latitude`/`longitude`/`attributes`):
-   ```bash
-   curl -s localhost:8080/hazard-events -H "Authorization: Bearer $ACCESS_TOKEN"
-   ```
-4. Get a token for `scope: lapangan`, wait 60+ seconds without using it, then use it → `401` (expired):
-   ```bash
-   curl -s -X POST localhost:8091/auth/token -H 'content-type: application/json' \
-     -d '{"client_id":"lapangan-client","client_secret":"lapangan-secret"}'
-   sleep 65
-   curl -s -w ' [%{http_code}]\n' localhost:8080/hazard-events -H "Authorization: Bearer $ACCESS_TOKEN"
-   ```
-5. `POST /auth/refresh` with that token's refresh token → new access token issued without resubmitting `client_id`/`client_secret`; the old access token stays rejected on retry:
-   ```bash
-   curl -s -X POST localhost:8091/auth/refresh -H 'content-type: application/json' \
-     -d "{\"refresh_token\":\"$REFRESH_TOKEN\"}"
-   ```
-6. Cross-domain credential rejection — BMKG's key against PVMBG, and PVMBG's token against BMKG, both `403`:
-   ```bash
-   curl -s -w ' [%{http_code}]\n' -H "Authorization: Bearer $BMKG_API_KEY" localhost:8082/volcanic-reports
-   curl -s -w ' [%{http_code}]\n' -H "X-BMKG-Key: $(node scripts/mint-pvmbg-token.js)" localhost:8081/seismic-events
+## Menjalankan dari kondisi awal
+
+Prasyarat: Docker Desktop dengan Docker Compose v2 dan Node.js 20+ (hanya diperlukan untuk menjalankan k6 atau helper lokal).
+
+1. Salin `.env.example` menjadi `.env`.
+2. Ganti seluruh nilai `replace-with-...` dengan kredensial lokal yang unik. Jangan commit `.env`.
+3. Buat token PVMBG dan salin hasilnya ke `PVMBG_ACCESS_TOKEN` pada `.env`:
+
+   ```powershell
+   node scripts/mint-pvmbg-token.js
    ```
 
-## Problem 5 Demo
+4. Jalankan seluruh sistem:
 
-The Aggregator publishes `HazardEvent`s to the `hazard_events_exchange` fanout exchange (RabbitMQ, management UI at `localhost:15672`, `guest`/`guest`) without knowing or caring who is listening.
+   ```powershell
+   docker compose up -d --build
+   docker compose ps
+   ```
 
-1. Start `dashboard-updater` and `notifier`, publish a `HazardEvent`, confirm both receive it:
-   ```bash
-   cd services/aggregator
-   RABBITMQ_URL="amqp://guest:guest@localhost:5672" npx tsx scripts/publish-fake-events.ts 1
-   cd ../..
-   docker compose logs dashboard-updater notifier | grep "hazard event processed"
+5. Pastikan setiap container sehat:
+
+   ```powershell
+   Invoke-WebRequest http://localhost:8081/health
+   Invoke-WebRequest http://localhost:8082/health
+   Invoke-WebRequest http://localhost:8090/health
+   Invoke-WebRequest http://localhost:8080/health
+   Invoke-WebRequest http://localhost:8091/health
    ```
-2. Stop `notifier` only, publish 2–3 more events, confirm `dashboard-updater` is unaffected and the publisher doesn't block:
-   ```bash
-   docker compose stop notifier
-   cd services/aggregator && RABBITMQ_URL="amqp://guest:guest@localhost:5672" npx tsx scripts/publish-fake-events.ts 3 && cd ../..
-   docker compose logs dashboard-updater | grep "hazard event processed"
-   ```
-3. Restart `notifier`, confirm the missed events arrive (durable queue redelivery, not lost):
-   ```bash
-   docker compose start notifier
-   sleep 5
-   docker compose logs notifier | grep "hazard event processed"
-   ```
-4. Add a third throwaway consumer bound to the same exchange, confirm it receives new events, without touching `eventPublisher.ts` (`services/consumers/demo-logger/`, run manually — not in `docker-compose.yml`):
-   ```bash
-   cd services/consumers/demo-logger
-   npm install
-   RABBITMQ_URL="amqp://guest:guest@localhost:5672" npx tsx index.ts
-   # in another terminal: publish more events and watch this one log them too
-   ```
+
+Port publik: BMKG `8081`, PVMBG `8082`, Client API `8080`, Aggregator `8090`, Auth Service `8091`, Dashboard Consumer `8092`, Notifier `8093`, dan RabbitMQ management `15672`.
+
+## Konfigurasi
+
+`.env.example` mendokumentasikan seluruh konfigurasi. Kelompoknya adalah:
+
+- Source: `BMKG_*`, `PVMBG_*`, termasuk key/token dan delay simulasi.
+- Aggregator: `POLL_INTERVAL_MS`, `SOURCE_REQUEST_TIMEOUT_MS`, circuit breaker, concurrency limit, URL source, `DATABASE_URL`, dan `INTERNAL_SERVICE_KEY`.
+- Infrastruktur: `POSTGRES_*`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD`, dan `RABBITMQ_URL`.
+- Client/Auth: `CLIENT_*`, `AUTH_*`, `ACCESS_TOKEN_TTL_SECONDS`, dan `REFRESH_TOKEN_TTL_SECONDS`.
+- Consumer: `DASHBOARD_CONSUMER_PORT` dan `NOTIFIER_CONSUMER_PORT`.
+
+Semua nilai di `.env.example` hanyalah contoh lokal. Tidak ada credential produksi di repository.
+
+## Bukti Problem 1 — perubahan skema tanpa restart
+
+Setelah polling berjalan, aktifkan field baru PVMBG saat sistem tetap hidup:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:8082/admin/schema-version `
+  -ContentType 'application/json' -Body '{"enabled":true}'
+Start-Sleep -Seconds 12
+```
+
+Ambil token Internal, lalu baca hazard mentah. Event PVMBG baru harus memiliki `attributes.confidence_level`, sementara record lama tetap dapat dibaca.
+
+```powershell
+$token = (Invoke-RestMethod -Method Post -Uri http://localhost:8091/auth/token `
+  -ContentType 'application/json' -Body '{"client_id":"internal-client","client_secret":"<AUTH_INTERNAL_CLIENT_SECRET>"}').access_token
+Invoke-RestMethod http://localhost:8080/hazard-events?view=raw -Headers @{ Authorization = "Bearer $token" }
+```
+
+## Bukti Problem 2 — concurrency, load, dan outage
+
+Atur `PVMBG_DELAY_MIN_MS=3000` dan `PVMBG_DELAY_MAX_MS=3000` di `.env`, kemudian recreate `pvmbg-mock`:
+
+```powershell
+docker compose up -d --force-recreate pvmbg-mock
+```
+
+Jalankan 50 virtual users selama 60 detik terhadap data seismik BMKG. Script memverifikasi p95 `<300ms`, p99, dan error rate `<1%`.
+
+```powershell
+$env:BASE_URL = 'http://localhost:8080'
+$env:CLIENT_JWT = $token
+k6 run load-tests/k6/hazard-events.js
+```
+
+Untuk graceful degradation, aktifkan outage PVMBG. Endpoint tetap membalas data yang tersimpan dan `meta.stale_since` terisi. Setelah outage selesai, polling pulih tanpa restart.
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://localhost:8082/admin/outage `
+  -ContentType 'application/json' -Body '{"enabled":true,"duration_seconds":15}'
+Start-Sleep -Seconds 5
+Invoke-RestMethod http://localhost:8080/hazard-events?view=raw -Headers @{ Authorization = "Bearer $token" }
+```
+
+## Bukti Problem 3 — trust domain dan RBAC
+
+Gunakan endpoint `POST /auth/token` dengan salah satu identity pada `.env`, lalu panggil `GET /hazard-events` memakai `Authorization: Bearer <token>`.
+
+- Token Media menerima bentuk Ringkasan; `?view=raw` harus `403`.
+- Token Lapangan/Internal memperoleh data lengkap sesuai scope.
+- Token access habis sesuai `ACCESS_TOKEN_TTL_SECONDS`; `POST /auth/refresh` menerbitkan pasangan token baru.
+- Kirim `X-BMKG-Key` ke PVMBG atau Bearer token PVMBG ke BMKG; keduanya harus ditolak `401/403`.
+
+## Bukti Problem 4 — container dan storage
+
+Setiap service berada pada container sendiri. Restart satu consumer atau satu mock tidak menghentikan Aggregator, Client API, atau service lain:
+
+```powershell
+docker compose restart pvmbg-mock
+docker compose ps
+```
+
+`attributes` disimpan sebagai PostgreSQL `JSONB`; langkah Problem 1 membuktikan `confidence_level` disimpan tanpa menambah kolom maupun menjalankan migrasi. Hanya Aggregator yang menggunakan `DATABASE_URL`; service lain mengambil data melalui API internal Aggregator.
+
+## Bukti Problem 5 — fan-out event
+
+RabbitMQ memakai exchange fanout `hazard_events_exchange`. Kedua consumer menerima event yang sama.
+
+```powershell
+docker compose logs dashboard-updater notifier
+docker compose stop notifier
+docker compose logs dashboard-updater
+docker compose start notifier
+```
+
+Ketika notifier mati, producer dan dashboard-updater tidak terhenti. Setelah notifier hidup, queue durable menerima event yang tertunda. Untuk membuktikan consumer baru tidak perlu mengubah producer:
+
+```powershell
+Set-Location services/consumers/demo-logger
+npm install
+$env:RABBITMQ_URL = '<RABBITMQ_URL dari .env>'
+npx tsx index.ts
+```
+
+## Test unit dan build
+
+Jalankan per service dari foldernya:
+
+```powershell
+npm test
+npm run build
+```
+
+Gunakan `npm test`, bukan `bun test`; command kedua menjalankan Bun test runner dan tidak menjalankan API kompatibilitas Vitest yang dipakai proyek.
