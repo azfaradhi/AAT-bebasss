@@ -30,4 +30,13 @@ describe('aggregator HTTP skeleton', () => {
     expect((await app.inject({ method: 'GET', url: '/internal/hazard-events' })).statusCode).toBe(401);
     expect((await app.inject({ method: 'GET', url: '/internal/hazard-events', headers: { 'x-internal-service-key': 'internal-key' } })).statusCode).toBe(200);
   });
+
+  it('echoes an inbound correlation ID for internal calls', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/internal/hazard-events',
+      headers: { 'x-internal-service-key': 'internal-key', 'x-correlation-id': 'trace-123' },
+    });
+    expect(res.headers['x-correlation-id']).toBe('trace-123');
+  });
 });

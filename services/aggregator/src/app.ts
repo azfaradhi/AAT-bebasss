@@ -2,6 +2,7 @@ import Fastify, { FastifyBaseLogger, FastifyError, FastifyInstance } from 'fasti
 import type { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
 import type { CanonicalStore } from './storage/canonical-store';
 import { registerInternalHazardsRoute } from './internal-api/hazards-route';
+import { bindCorrelationId } from './internal-api/correlation-id';
 
 export const SERVICE_NAME = 'aggregator';
 
@@ -12,6 +13,8 @@ export interface AppDeps {
 
 export function buildApp(logger: FastifyBaseLogger, deps: AppDeps): FastifyInstance {
   const app = Fastify({ loggerInstance: logger });
+
+  app.addHook('onRequest', bindCorrelationId);
 
   app.setNotFoundHandler((_request, reply) => {
     const body: ErrorEnvelope = { error: { code: 'NOT_FOUND', message: 'Route not found' } };

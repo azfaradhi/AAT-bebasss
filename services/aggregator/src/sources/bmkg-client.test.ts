@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { BmkgClient } from './bmkg-client';
+import { contextStorage } from '../context';
 
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() };
 
@@ -13,10 +14,16 @@ describe('BmkgClient', () => {
     vi.stubGlobal('fetch', fetchMock);
     const client = new BmkgClient({ baseUrl: 'http://bmkg.test', apiKey: 'key', timeoutMs: 1000, logger });
 
-    const hazards = await client.poll('2026-10-03T00:00:00.000Z');
+    const hazards = await contextStorage.run(
+      { correlationId: 'poll-trace-123' },
+      () => client.poll('2026-10-03T00:00:00.000Z'),
+    );
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[0][1].headers).toEqual({ 'x-bmkg-key': 'key' });
+    expect(fetchMock.mock.calls[0][1].headers).toMatchObject({
+      'x-bmkg-key': 'key',
+      'x-correlation-id': 'poll-trace-123',
+    });
     expect(hazards[0]).toMatchObject({ source: 'BMKG', source_ref_id: 'e-1', hazard_type: 'SEISMIC' });
   });
 });

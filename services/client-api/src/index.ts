@@ -7,7 +7,12 @@ async function main(): Promise<void> {
   const logger = createLogger(SERVICE_NAME);
   const app = buildApp(logger, {
     clientJwtSecret: config.clientJwtSecret,
-    aggregatorClient: new HttpAggregatorClient(config.aggregatorBaseUrl, config.internalServiceKey, logger),
+    aggregatorClient: new HttpAggregatorClient(
+      config.aggregatorBaseUrl,
+      config.internalServiceKey,
+      logger,
+      config.aggregatorRequestTimeoutMs,
+    ),
   });
 
   const shutdown = async (): Promise<void> => {

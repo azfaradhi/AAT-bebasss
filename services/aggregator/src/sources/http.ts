@@ -1,4 +1,5 @@
 import type { Logger } from '../logger';
+import { currentCorrelationId } from '../context';
 import { UpstreamRequestError } from './source-client';
 
 interface DataEnvelope<T> {
@@ -19,7 +20,14 @@ export async function fetchData<T>(
   const started = Date.now();
   logger.info({ source, url: url.toString() }, 'upstream request started');
   try {
-    const response = await fetch(url, { headers, signal: AbortSignal.timeout(timeoutMs) });
+    const correlationId = currentCorrelationId();
+    const response = await fetch(url, {
+      headers: {
+        ...headers,
+        ...(correlationId ? { 'x-correlation-id': correlationId } : {}),
+      },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
     if (!response.ok) throw new UpstreamRequestError(source, `Upstream returned HTTP ${response.status}`, response.status);
     const body: unknown = await response.json();
     if (!isDataEnvelope(body)) throw new UpstreamRequestError(source, 'Upstream response is missing a data array');

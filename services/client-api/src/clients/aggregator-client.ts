@@ -1,5 +1,6 @@
 import type { HazardEventResponse, HazardType } from '../../../../shared-types/src/hazard-event';
 import type { Logger } from '../logger';
+import { currentCorrelationId } from '../context';
 
 export interface AggregatorClient {
   getHazards(hazardType?: HazardType): Promise<HazardEventResponse>;
@@ -10,6 +11,7 @@ export class HttpAggregatorClient implements AggregatorClient {
     private readonly baseUrl: string,
     private readonly internalServiceKey: string,
     private readonly logger: Logger,
+    private readonly timeoutMs = 2000,
   ) {}
 
   async getHazards(hazardType?: HazardType): Promise<HazardEventResponse> {
@@ -18,7 +20,14 @@ export class HttpAggregatorClient implements AggregatorClient {
     const started = Date.now();
     this.logger.info({ url: url.toString() }, 'aggregator request started');
     try {
-      const response = await fetch(url, { headers: { 'x-internal-service-key': this.internalServiceKey } });
+      const correlationId = currentCorrelationId();
+      const response = await fetch(url, {
+        headers: {
+          'x-internal-service-key': this.internalServiceKey,
+          ...(correlationId ? { 'x-correlation-id': correlationId } : {}),
+        },
+        signal: AbortSignal.timeout(this.timeoutMs),
+      });
       if (!response.ok) throw new Error(`Aggregator returned HTTP ${response.status}`);
       return await response.json() as HazardEventResponse;
     } finally {

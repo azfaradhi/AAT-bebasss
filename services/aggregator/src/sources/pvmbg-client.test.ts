@@ -20,7 +20,7 @@ describe('PvmbgClient', () => {
 
     const hazards = await client.poll();
 
-    expect(fetchMock.mock.calls[0][1].headers).toEqual({ authorization: 'Bearer token' });
+    expect(fetchMock.mock.calls[0][1].headers).toMatchObject({ authorization: 'Bearer token' });
     expect(hazards[0]).toMatchObject({ source: 'PVMBG', source_ref_id: 'r-1', hazard_type: 'VOLCANIC', severity: 'SIAGA' });
   });
 });
