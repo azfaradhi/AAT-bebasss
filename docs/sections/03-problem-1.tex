@@ -6,5 +6,194 @@ atau redeploy?
 \end{infobox}
 
 \subsection{Rancangan Solusi}
+Sistem menggunakan pola integrasi \textit{pull} melalui REST. Aggregator
+melakukan polling ke BMKG untuk data \textit{SeismicEvent} dan
+\textit{TsunamiWarning}, serta ke PVMBG untuk data \textit{VolcanicReport}.
+Setiap respons dipetakan menjadi kontrak internal tunggal, yaitu
+\textit{HazardEvent}, sebelum disimpan pada Canonical Store PostgreSQL dan
+didistribusikan sebagai event. Dengan demikian, service downstream tidak perlu
+memahami bentuk data khusus milik masing-masing instansi.
+
+\subsubsection{Aturan Pemetaan ke HazardEvent}
+Tabel~\ref{tab:problem-satu-mapping} merangkum aturan pemetaan yang diterapkan
+oleh Aggregator. Field inti yang diperlukan oleh platform ditempatkan pada
+kolom kanonik, sedangkan detail sumber ditempatkan pada \texttt{attributes}.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{p{2.3cm}XX}
+    \toprule
+    Sumber & Data masukan & Pemetaan ke \textit{HazardEvent} \\
+    \midrule
+    BMKG & \textit{SeismicEvent} dan \textit{TsunamiWarning} terkait &
+    \texttt{source=BMKG}, \texttt{source\_ref\_id=event\_id},
+    \texttt{hazard\_type=SEISMIC}. Nama wilayah dan koordinat diambil dari
+    data gempa. Tingkat keparahan mengikuti peringatan tsunami bila tersedia;
+    jika tidak tersedia, magnitude $\geq 6{,}5$ dipetakan menjadi
+    \texttt{SIAGA}, magnitude $\geq 5{,}0$ menjadi \texttt{WASPADA}, dan
+    sisanya \texttt{NORMAL}. \\
+    \addlinespace
+    PVMBG & \textit{VolcanicReport} &
+    \texttt{source=PVMBG}, \texttt{source\_ref\_id=report\_id},
+    \texttt{hazard\_type=VOLCANIC}. \texttt{alert\_level} dipetakan ke
+    severity \texttt{NORMAL}, \texttt{WASPADA}, \texttt{SIAGA}, atau
+    \texttt{AWAS}. Nama serta koordinat gunung diperoleh dari tabel referensi
+    gunung api milik Aggregator. \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Aturan pemetaan data sumber ke format kanonik.}
+  \label{tab:problem-satu-mapping}
+\end{table}
+
+\subsubsection{Kebijakan Evolusi Skema}
+Mekanisme yang dipilih adalah JSON dengan kebijakan \textit{additive-only}.
+Field inti yang sudah dikenal dipetakan secara eksplisit untuk menentukan
+identitas hazard, jenis hazard, tingkat keparahan, lokasi, dan waktu kejadian.
+Setiap field tambahan dari sumber yang bukan field inti diteruskan tanpa
+transformasi ke objek \texttt{attributes}. Objek ini disimpan pada kolom
+\texttt{JSONB} di Canonical Store. Oleh karena itu, penambahan field seperti
+\texttt{confidence\_level} oleh PVMBG tidak memerlukan perubahan kolom tabel,
+restart, maupun redeploy service.
+
+Kebijakan penanganan field tak dikenal yang dideklarasikan pada sistem ini
+adalah \textbf{meneruskan field ke \texttt{attributes}}, bukan mengabaikannya.
+Konsistensi kebijakan tersebut dibuktikan melalui perubahan skema PVMBG;
+setelah field \texttt{confidence\_level} diaktifkan, field tersebut tetap
+tersedia pada \texttt{attributes} dari \textit{HazardEvent} hasil Aggregator.
+
 \subsection{Alternatif dan Trade-off}
-\subsection{Batasan dan Bukti Penyelesaian}
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{p{3.1cm}XX}
+    \toprule
+    Keputusan & Keuntungan & Trade-off dan mitigasi \\
+    \midrule
+    Kontrak kanonik \textit{HazardEvent} &
+    Client dan consumer cukup memahami satu bentuk data meskipun sumber data
+    heterogen. &
+    Aggregator menjadi tempat pemeliharaan aturan mapping. Aturan dipisahkan
+    pada mapper per sumber dan diuji secara terpisah. \\
+    \addlinespace
+    JSONB dengan kebijakan \textit{additive-only} &
+    Field baru dapat diterima tanpa migrasi database ataupun redeploy;
+    informasi sumber tidak hilang. &
+    Validasi field dinamis lebih longgar dan query atribut tertentu lebih
+    kompleks daripada kolom relasional. Field yang dibutuhkan oleh proses inti
+    tetap dipertahankan sebagai field kanonik yang tervalidasi. \\
+    \addlinespace
+    Mapping eksplisit untuk field inti, \texttt{attributes} untuk sisanya &
+    Semantik inti seperti severity dan lokasi konsisten, sementara evolusi
+    aditif tetap fleksibel. &
+    Perubahan makna atau tipe field inti tidak dapat ditangani otomatis dan
+    perlu perubahan kontrak serta mapper. \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Keputusan desain dan trade-off untuk interoperabilitas data.}
+  \label{tab:problem-satu-tradeoff}
+\end{table}
+
+Perubahan skema yang didukung secara sadar adalah penambahan field opsional
+pada objek laporan PVMBG dan BMKG. Perubahan yang tidak didukung tanpa
+perubahan kode adalah penghapusan, penggantian nama, perubahan tipe, atau
+perubahan makna dari field inti; misalnya \texttt{report\_id},
+\texttt{volcano\_id}, \texttt{alert\_level}, dan \texttt{reported\_at} pada
+PVMBG. Sistem juga mengharapkan envelope respons tetap berbentuk
+\texttt{\{data: [...]\}}. Perubahan yang melanggar kontrak tersebut diperlakukan
+sebagai perubahan \textit{breaking} dan harus disertai pembaruan mapper serta
+pengujian kompatibilitas.
+
+\subsection{Proof of Concept (PoC)}
+Langkah berikut digunakan untuk menunjukkan bahwa pemetaan kedua sumber berjalan
+dan perubahan skema aditif dapat diterima saat sistem aktif.
+
+\begin{enumerate}
+  \item Nyalakan seluruh sistem dan pastikan setiap container sehat.
+\begin{lstlisting}[style=code,language=bash]
+docker compose up -d --build
+docker compose ps
+\end{lstlisting}
+
+
+  \item Pastikan PVMBG menggunakan skema awal dengan menonaktifkan field
+  tambahan. Endpoint admin ini hanya dipakai untuk demo/pengujian.
+\begin{lstlisting}[style=code,language=bash]
+Invoke-RestMethod -Method Post `
+  -Uri http://localhost:8082/admin/schema-version `
+  -ContentType "application/json" `
+  -Body '{"enabled": false}'
+\end{lstlisting}
+
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.95\textwidth]{figures/problem-1/1.png}
+        \caption{Status seluruh container setelah menonaktifkan field tambahan PVMBG.}
+        \label{fig:poc-schema-awal}
+    \end{figure}
+
+  \item Tunggu satu atau dua interval polling, kemudian ambil data kanonik
+  dari API internal Aggregator. Respons harus memperlihatkan hazard dari kedua
+  sumber dengan \texttt{source} masing-masing \texttt{BMKG} dan \texttt{PVMBG}.
+\begin{lstlisting}[style=code,language=bash]
+$headers = @{ "x-internal-service-key" = "<INTERNAL_SERVICE_KEY dari .env>" }
+Invoke-RestMethod `
+  -Uri "http://localhost:8090/internal/hazard-events" `
+  -Headers $headers
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/problem-1/2.png}
+    \caption{Respons API internal Aggregator menampilkan data dari BMKG dan PVMBG.}
+    \label{fig:poc-hazard-awal}
+\end{figure}
+
+  \item Aktifkan perubahan skema saat semua service tetap berjalan. Tidak ada
+  perintah restart atau redeploy setelah langkah ini.
+\begin{lstlisting}[style=code,language=bash]
+Invoke-RestMethod -Method Post `
+  -Uri http://localhost:8082/admin/schema-version `
+  -ContentType "application/json" `
+  -Body '{"enabled": true}'
+\end{lstlisting}
+  \begin{figure}[H]
+      \centering
+      \includegraphics[width=0.95\textwidth]{figures/problem-1/3.png}
+      \caption{Mengaktifkan field tambahan PVMBG saat sistem berjalan.}
+      \label{fig:poc-schema-baru}
+  \end{figure}
+  \item Tunggu sedikitnya 15 detik agar PVMBG menghasilkan laporan baru dan
+  Aggregator menyelesaikan polling. Ambil hanya data vulkanik, lalu verifikasi
+  bahwa salah satu objek memiliki
+  \texttt{attributes.confidence\_level} tanpa ada perubahan schema tabel.
+\begin{lstlisting}[style=code,language=bash]
+Invoke-RestMethod `
+  -Uri "http://localhost:8090/internal/hazard-events?hazard_type=VOLCANIC" `
+  -Headers $headers
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/problem-1/4.png}
+    \caption{Respons API internal Aggregator setelah perubahan}
+    \label{fig:poc-confidence-level}
+\end{figure}
+
+  \item Verifikasi bahwa Aggregator tetap sehat dan tidak mengalami crash.
+\begin{lstlisting}[style=code,language=bash]
+docker compose ps aggregator
+docker compose logs --tail=100 aggregator
+\end{lstlisting}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/problem-1/5.png}
+    \caption{Perubahan scema version}
+    \label{fig:poc-aggregator-healthy}
+\end{figure}
+\end{enumerate}
+
+Dengan proof tersebut, kriteria penyelesaian terpenuhi, yaitu sistem memetakan kedua
+sumber pada skema awal, menerima perubahan skema aditif ketika sedang berjalan,
+dan mempertahankan field tambahan secara konsisten di \texttt{attributes}.
