@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { EventPublisher } from '../publisher/eventPublisher';
+import type { EventPublisher } from '../publisher/event-publisher';
 import { contextStorage } from '../context';
 import type { Logger } from '../logger';
 import type { HazardSourceClient } from '../sources/source-client';
@@ -15,43 +15,58 @@ export interface PollingSchedulerOptions {
   logger: Logger;
 }
 
+// Each source has its own loop and its own in-flight guard, so a slow source never delays another one.
 export class PollingScheduler {
-  private timer: NodeJS.Timeout | null = null;
-  private tickInFlight = false;
+  private readonly timers: NodeJS.Timeout[] = [];
+  private readonly inFlight = new Set<HazardSourceClient['sourceName']>();
 
   constructor(private readonly opts: PollingSchedulerOptions) {}
 
   start(): void {
-    if (this.timer) return;
-    void this.runTick();
-    this.timer = setInterval(() => void this.runTick(), this.opts.intervalMs);
-    this.timer.unref();
+    if (this.timers.length > 0) return;
+    for (const source of [this.opts.bmkg, this.opts.pvmbg]) {
+      void this.runSourceTick(source);
+      const timer = setInterval(() => void this.runSourceTick(source), this.opts.intervalMs);
+      timer.unref();
+      this.timers.push(timer);
+    }
   }
 
   stop(): void {
-    if (this.timer) clearInterval(this.timer);
-    this.timer = null;
+    for (const timer of this.timers) clearInterval(timer);
+    this.timers.length = 0;
   }
 
+  // One poll for every source. The sources run independently and do not wait for each other.
   async runTick(): Promise<void> {
-    if (this.tickInFlight) {
-      this.opts.logger.warn({}, 'polling tick skipped because the previous tick is still running');
+    await Promise.all([this.runSourceTick(this.opts.bmkg), this.runSourceTick(this.opts.pvmbg)]);
+  }
+
+  async runSourceTick(source: HazardSourceClient): Promise<void> {
+    if (this.inFlight.has(source.sourceName)) {
+      this.opts.logger.warn(
+        { source: source.sourceName },
+        'polling tick skipped because the previous tick for this source is still running',
+      );
       return;
     }
-    this.tickInFlight = true;
+    this.inFlight.add(source.sourceName);
 
     try {
       await contextStorage.run({ correlationId: randomUUID() }, async () => {
         const started = Date.now();
-        const results = await Promise.allSettled([this.pollSource(this.opts.bmkg), this.pollSource(this.opts.pvmbg)]);
-        const failedSources = results.filter((result) => result.status === 'rejected').length;
+        try {
+          await this.pollSource(source);
+        } catch {
+          // pollSource already logged the failure and marked the source stale.
+        }
         this.opts.logger.info(
-          { source_count: 2, failed_sources: failedSources, latency_ms: Date.now() - started },
+          { source: source.sourceName, latency_ms: Date.now() - started },
           'polling tick completed',
         );
       });
     } finally {
-      this.tickInFlight = false;
+      this.inFlight.delete(source.sourceName);
     }
   }
 
