@@ -136,7 +136,7 @@ Invoke-RestMethod -Method Post `
   dari API internal Aggregator. Respons harus memperlihatkan hazard dari kedua
   sumber dengan \texttt{source} masing-masing \texttt{BMKG} dan \texttt{PVMBG}.
 \begin{lstlisting}[style=code,language=bash]
-$headers = @{ "x-internal-service-key" = "<INTERNAL_SERVICE_KEY dari .env>" }
+$headers = @{ "X-Internal-Key" = "<INTERNAL_SERVICE_KEY dari .env>" }
 Invoke-RestMethod `
   -Uri "http://localhost:8090/internal/hazard-events" `
   -Headers $headers
