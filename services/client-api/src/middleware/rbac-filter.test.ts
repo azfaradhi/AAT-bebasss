@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { HazardEvent } from '../../../../shared-types/src/hazard-event';
 import Fastify from 'fastify';
-import { filterFields, rejectForbiddenRawView } from './rbacFilter';
+import { filterFields, rejectForbiddenRawView } from './rbac-filter';
 
 const event: HazardEvent = {
   hazard_id: 'h-1',

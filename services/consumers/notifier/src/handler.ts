@@ -2,7 +2,7 @@ import type { HazardEventMessage } from '../../../../shared-types/src/envelopes'
 import { contextStorage } from './context';
 import type { SeenSet } from './dedup';
 import type { Logger } from './logger';
-import type { SideEffect } from './sideEffect';
+import type { SideEffect } from './side-effect';
 
 // What the AMQP layer should do with the delivery.
 export type Outcome = 'ack' | 'requeue' | 'drop';

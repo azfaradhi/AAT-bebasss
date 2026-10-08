@@ -1,6 +1,6 @@
 import Fastify, { FastifyBaseLogger, FastifyError, FastifyInstance } from 'fastify';
 import type { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
-import { bindCorrelationId } from './middleware/correlationId';
+import { bindCorrelationId } from './middleware/correlation-id';
 import { createAuthMiddleware } from './middleware/auth';
 import type { AggregatorClient } from './clients/aggregator-client';
 import { registerHazardsRoute } from './routes/hazards';

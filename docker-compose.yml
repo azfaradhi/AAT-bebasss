@@ -1,3 +1,5 @@
+# Each service receives only the variables it reads (see its config.ts). Values come from the
+# project's .env through compose interpolation, so no service gets the full secret set.
 services:
   bmkg-mock:
     build:
@@ -5,10 +7,11 @@ services:
       dockerfile: services/bmkg-mock/Dockerfile
     ports:
       - "${BMKG_PORT:-8081}:8081"
-    env_file:
-      - .env
     environment:
       - BMKG_PORT=8081
+      - BMKG_API_KEY=${BMKG_API_KEY:?set BMKG_API_KEY in .env}
+      - BMKG_DELAY_MIN_MS=${BMKG_DELAY_MIN_MS:-50}
+      - BMKG_DELAY_MAX_MS=${BMKG_DELAY_MAX_MS:-150}
     networks:
       - bnpb_network
 
@@ -18,10 +21,11 @@ services:
       dockerfile: services/pvmbg-mock/Dockerfile
     ports:
       - "${PVMBG_PORT:-8082}:8082"
-    env_file:
-      - .env
     environment:
       - PVMBG_PORT=8082
+      - PVMBG_JWT_SECRET=${PVMBG_JWT_SECRET:?set PVMBG_JWT_SECRET in .env}
+      - PVMBG_DELAY_MIN_MS=${PVMBG_DELAY_MIN_MS:-500}
+      - PVMBG_DELAY_MAX_MS=${PVMBG_DELAY_MAX_MS:-3000}
     networks:
       - bnpb_network
 
@@ -31,17 +35,25 @@ services:
       dockerfile: services/aggregator/Dockerfile
     ports:
       - "${AGGREGATOR_PORT:-8090}:8090"
-    env_file:
-      - .env
     environment:
       - AGGREGATOR_PORT=8090
       - BMKG_BASE_URL=http://bmkg-mock:8081
       - PVMBG_BASE_URL=http://pvmbg-mock:8082
+      - BMKG_API_KEY=${BMKG_API_KEY:?set BMKG_API_KEY in .env}
+      # Empty in .env.example on purpose: aggregator config.ts fails fast if it is not minted (see README).
+      - PVMBG_ACCESS_TOKEN=${PVMBG_ACCESS_TOKEN:-}
+      - POLL_INTERVAL_MS=${POLL_INTERVAL_MS:-3000}
+      - POLL_LOOKBACK_MS=${POLL_LOOKBACK_MS:-60000}
+      - SOURCE_REQUEST_TIMEOUT_MS=${SOURCE_REQUEST_TIMEOUT_MS:-5000}
+      - CIRCUIT_BREAKER_FAILURE_THRESHOLD=${CIRCUIT_BREAKER_FAILURE_THRESHOLD:-3}
+      - CIRCUIT_BREAKER_COOLDOWN_MS=${CIRCUIT_BREAKER_COOLDOWN_MS:-10000}
+      - PVMBG_MAX_CONCURRENT_CALLS=${PVMBG_MAX_CONCURRENT_CALLS:-5}
+      - DATABASE_URL=${DATABASE_URL:?set DATABASE_URL in .env}
+      - RABBITMQ_URL=${RABBITMQ_URL:?set RABBITMQ_URL in .env}
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?set INTERNAL_SERVICE_KEY in .env}
+    # Only infrastructure it cannot run without. Sources are not waited for: an unavailable source
+    # is handled at runtime by the circuit breaker and marked stale (spec: each service runs independently).
     depends_on:
-      bmkg-mock:
-        condition: service_healthy
-      pvmbg-mock:
-        condition: service_healthy
       postgres:
         condition: service_healthy
       rabbitmq:
@@ -51,6 +63,8 @@ services:
 
   postgres:
     image: postgres:16-alpine
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-bnpb}
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
@@ -72,11 +86,12 @@ services:
       dockerfile: services/client-api/Dockerfile
     ports:
       - "${CLIENT_API_PORT:-8080}:8080"
-    env_file:
-      - .env
     environment:
       - CLIENT_API_PORT=8080
       - AGGREGATOR_BASE_URL=http://aggregator:8090
+      - AGGREGATOR_REQUEST_TIMEOUT_MS=${AGGREGATOR_REQUEST_TIMEOUT_MS:-2000}
+      - CLIENT_JWT_SECRET=${CLIENT_JWT_SECRET:?set CLIENT_JWT_SECRET in .env}
+      - INTERNAL_SERVICE_KEY=${INTERNAL_SERVICE_KEY:?set INTERNAL_SERVICE_KEY in .env}
     depends_on:
       aggregator:
         condition: service_healthy
@@ -87,8 +102,6 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
-    env_file:
-      - .env
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?set RABBITMQ_USER in .env}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
@@ -110,10 +123,17 @@ services:
       dockerfile: services/auth-service/Dockerfile
     ports:
       - "${AUTH_SERVICE_PORT:-8091}:8091"
-    env_file:
-      - .env
     environment:
       - AUTH_SERVICE_PORT=8091
+      - CLIENT_JWT_SECRET=${CLIENT_JWT_SECRET:?set CLIENT_JWT_SECRET in .env}
+      - ACCESS_TOKEN_TTL_SECONDS=${ACCESS_TOKEN_TTL_SECONDS:-60}
+      - REFRESH_TOKEN_TTL_SECONDS=${REFRESH_TOKEN_TTL_SECONDS:-900}
+      - AUTH_MEDIA_CLIENT_ID=${AUTH_MEDIA_CLIENT_ID:?set AUTH_MEDIA_CLIENT_ID in .env}
+      - AUTH_MEDIA_CLIENT_SECRET=${AUTH_MEDIA_CLIENT_SECRET:?set AUTH_MEDIA_CLIENT_SECRET in .env}
+      - AUTH_LAPANGAN_CLIENT_ID=${AUTH_LAPANGAN_CLIENT_ID:?set AUTH_LAPANGAN_CLIENT_ID in .env}
+      - AUTH_LAPANGAN_CLIENT_SECRET=${AUTH_LAPANGAN_CLIENT_SECRET:?set AUTH_LAPANGAN_CLIENT_SECRET in .env}
+      - AUTH_INTERNAL_CLIENT_ID=${AUTH_INTERNAL_CLIENT_ID:?set AUTH_INTERNAL_CLIENT_ID in .env}
+      - AUTH_INTERNAL_CLIENT_SECRET=${AUTH_INTERNAL_CLIENT_SECRET:?set AUTH_INTERNAL_CLIENT_SECRET in .env}
     networks:
       - bnpb_network
 
@@ -123,10 +143,9 @@ services:
       dockerfile: services/consumers/dashboard-updater/Dockerfile
     ports:
       - "${DASHBOARD_CONSUMER_PORT:-8092}:8092"
-    env_file:
-      - .env
     environment:
       - DASHBOARD_CONSUMER_PORT=8092
+      - RABBITMQ_URL=${RABBITMQ_URL:?set RABBITMQ_URL in .env}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -139,10 +158,9 @@ services:
       dockerfile: services/consumers/notifier/Dockerfile
     ports:
       - "${NOTIFIER_CONSUMER_PORT:-8093}:8093"
-    env_file:
-      - .env
     environment:
       - NOTIFIER_CONSUMER_PORT=8093
+      - RABBITMQ_URL=${RABBITMQ_URL:?set RABBITMQ_URL in .env}
     depends_on:
       rabbitmq:
         condition: service_healthy

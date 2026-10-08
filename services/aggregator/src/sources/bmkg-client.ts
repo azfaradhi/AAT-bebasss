@@ -1,6 +1,6 @@
 import type { SeismicEvent, TsunamiWarning } from '../../../../shared-types/src/seismic';
 import type { HazardEvent } from '../../../../shared-types/src/hazard-event';
-import { mapSeismicEventToHazardEvent } from '../mapping/seismicMapper';
+import { mapSeismicEventToHazardEvent } from '../mapping/seismic-mapper';
 import type { Logger } from '../logger';
 import { fetchData } from './http';
 import type { HazardSourceClient } from './source-client';

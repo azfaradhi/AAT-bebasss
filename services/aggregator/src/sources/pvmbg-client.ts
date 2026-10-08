@@ -1,6 +1,6 @@
 import type { VolcanicReport } from '../../../../shared-types/src/volcanic';
 import type { HazardEvent } from '../../../../shared-types/src/hazard-event';
-import { mapVolcanicReportToHazardEvent } from '../mapping/volcanicMapper';
+import { mapVolcanicReportToHazardEvent } from '../mapping/volcanic-mapper';
 import type { Logger } from '../logger';
 import { CircuitBreaker } from '../resilience/circuit-breaker';
 import { ConcurrencyLimiter } from '../resilience/concurrency-limiter';

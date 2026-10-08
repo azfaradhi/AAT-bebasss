@@ -1,7 +1,7 @@
 import amqp from 'amqplib';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HazardEvent } from '../../../../shared-types/src/hazard-event';
-import { BrokerUnavailableError, RabbitMqEventPublisher } from './eventPublisher';
+import { BrokerUnavailableError, RabbitMqEventPublisher } from './event-publisher';
 
 vi.mock('amqplib', () => ({ default: { connect: vi.fn() } }));
 

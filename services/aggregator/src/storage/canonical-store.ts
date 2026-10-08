@@ -2,8 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { Pool } from 'pg';
 import type { HazardEvent, HazardEventResponse, HazardSource, HazardType } from '../../../../shared-types/src/hazard-event';
 
+export const DEFAULT_LIST_LIMIT = 500;
+export const MAX_LIST_LIMIT = 1000;
+
 export interface HazardQuery {
   hazardType?: HazardType;
+  since?: string;
+  limit?: number;
 }
 
 export interface StoredHazard {
@@ -19,6 +24,18 @@ export interface CanonicalStore {
   markSourceFresh(source: HazardSource): Promise<void>;
   markSourceStale(source: HazardSource): Promise<void>;
   close(): Promise<void>;
+}
+
+// Only the sources that feed a given hazard type can make its responses stale (spec P2: seismic stays normal during a PVMBG outage).
+export function staleSourcesFor(hazardType?: HazardType): HazardSource[] {
+  if (hazardType === 'SEISMIC') return ['BMKG'];
+  if (hazardType === 'VOLCANIC') return ['PVMBG'];
+  return ['BMKG', 'PVMBG'];
+}
+
+export function clampLimit(limit?: number): number {
+  if (limit === undefined) return DEFAULT_LIST_LIMIT;
+  return Math.min(Math.max(Math.floor(limit), 1), MAX_LIST_LIMIT);
 }
 
 interface HazardRow {
@@ -70,6 +87,7 @@ export class PostgresCanonicalStore implements CanonicalStore {
     `);
   }
 
+  // hazard_id is generated here on first insert and kept on conflict, so it stays stable across polls.
   async upsert(event: HazardEvent): Promise<StoredHazard> {
     const result = await this.pool.query<HazardRow>(`
       INSERT INTO hazard_events (
@@ -100,9 +118,14 @@ export class PostgresCanonicalStore implements CanonicalStore {
         SELECT hazard_id, source, source_ref_id, hazard_type, severity, area_name, latitude, longitude, occurred_at, ingested_at, attributes, false AS created
         FROM hazard_events
         WHERE ($1::text IS NULL OR hazard_type = $1)
-        ORDER BY occurred_at DESC;
-      `, [query.hazardType ?? null]),
-      this.pool.query<{ stale_since: Date | null }>('SELECT MIN(stale_since) AS stale_since FROM source_sync_state WHERE stale_since IS NOT NULL;'),
+          AND ($2::timestamptz IS NULL OR occurred_at >= $2)
+        ORDER BY occurred_at DESC
+        LIMIT $3;
+      `, [query.hazardType ?? null, query.since ?? null, clampLimit(query.limit)]),
+      this.pool.query<{ stale_since: Date | null }>(
+        'SELECT MIN(stale_since) AS stale_since FROM source_sync_state WHERE stale_since IS NOT NULL AND source = ANY($1::text[]);',
+        [staleSourcesFor(query.hazardType)],
+      ),
     ]);
     return {
       data: events.rows.map((row) => this.toHazardEvent(row)),

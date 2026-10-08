@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { EventPublisher } from '../publisher/eventPublisher';
+import type { EventPublisher } from '../publisher/event-publisher';
 import type { CanonicalStore } from '../storage/canonical-store';
 import { PollingScheduler } from './scheduler';
 
@@ -23,7 +23,7 @@ const store: CanonicalStore = {
 const publisher: EventPublisher = { publish: async () => undefined };
 
 describe('PollingScheduler', () => {
-  it('starts independent source polls concurrently', async () => {
+  it('starts both source polls without waiting for each other', async () => {
     const bmkg = deferred<[]>();
     const pvmbg = deferred<[]>();
     const started: string[] = [];
@@ -44,7 +44,29 @@ describe('PollingScheduler', () => {
     await tick;
   });
 
-  it('does not start an overlapping tick', async () => {
+  it('keeps polling BMKG while a PVMBG poll is still running', async () => {
+    const slowPvmbg = deferred<[]>();
+    const bmkgPoll = vi.fn().mockResolvedValue([]);
+    const scheduler = new PollingScheduler({
+      intervalMs: 1000,
+      lookbackMs: 60000,
+      logger,
+      store,
+      publisher,
+      bmkg: { sourceName: 'BMKG', poll: bmkgPoll },
+      pvmbg: { sourceName: 'PVMBG', poll: vi.fn(() => slowPvmbg.promise) },
+    });
+
+    const pvmbgTick = scheduler.runSourceTick({ sourceName: 'PVMBG', poll: vi.fn(() => slowPvmbg.promise) });
+    await scheduler.runSourceTick({ sourceName: 'BMKG', poll: bmkgPoll });
+    await scheduler.runSourceTick({ sourceName: 'BMKG', poll: bmkgPoll });
+
+    expect(bmkgPoll).toHaveBeenCalledTimes(2);
+    slowPvmbg.resolve([]);
+    await pvmbgTick;
+  });
+
+  it('does not start an overlapping tick for the same source', async () => {
     const source = deferred<[]>();
     const scheduler = new PollingScheduler({
       intervalMs: 1000,
@@ -56,9 +78,12 @@ describe('PollingScheduler', () => {
       pvmbg: { sourceName: 'PVMBG', poll: vi.fn().mockResolvedValue([]) },
     });
 
-    const first = scheduler.runTick();
-    await scheduler.runTick();
-    expect(logger.warn).toHaveBeenCalledWith({}, 'polling tick skipped because the previous tick is still running');
+    const first = scheduler.runSourceTick({ sourceName: 'BMKG', poll: vi.fn(() => source.promise) });
+    await scheduler.runSourceTick({ sourceName: 'BMKG', poll: vi.fn(() => source.promise) });
+    expect(logger.warn).toHaveBeenCalledWith(
+      { source: 'BMKG' },
+      'polling tick skipped because the previous tick for this source is still running',
+    );
     source.resolve([]);
     await first;
   });

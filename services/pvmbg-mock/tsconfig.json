@@ -10,5 +10,11 @@
     "rootDir": "../..",
     "outDir": "./dist"
   },
-  "include": ["src/**/*", "../../shared-types/src/**/*"]
+  "include": [
+    "src/**/*",
+    "../../shared-types/src/**/*"
+  ],
+  "exclude": [
+    "src/**/*.test.ts"
+  ]
 }

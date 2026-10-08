@@ -1,7 +1,7 @@
 import pino from 'pino';
 import { buildApp } from './app';
-import { ClientRegistry } from './domain/clientRegistry';
-import { TokenService } from './domain/tokenService';
+import { ClientRegistry } from './domain/client-registry';
+import { TokenService } from './domain/token-service';
 
 export const TEST_SECRET = 'test-secret';
 
