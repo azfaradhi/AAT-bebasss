@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import pino from 'pino';
 import type { HazardEvent, Severity } from '../../../shared-types/src/hazard-event';
-import { RabbitMqEventPublisher } from '../src/publisher/eventPublisher';
+import { RabbitMqEventPublisher } from '../src/publisher/event-publisher';
 
 const args = process.argv.slice(2);
 const count = Number(args.find((a) => /^\d+$/.test(a)) ?? 3);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { mapVolcanicReportToHazardEvent } from './volcanicMapper';
+import { mapVolcanicReportToHazardEvent } from './volcanic-mapper';
 
 describe('mapVolcanicReportToHazardEvent', () => {
   it('preserves newly introduced source fields inside attributes without a mapper change', () => {

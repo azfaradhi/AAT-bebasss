@@ -3,19 +3,12 @@ import type {
   ClientAccessTokenClaims,
   ClientRefreshTokenClaims,
   ClientScope,
+  TokenResponse,
 } from '../../../../shared-types/src/auth';
 import { InvalidTokenError, TokenExpiredError } from '../errors';
 
 const AUDIENCE = 'bnpb-client';
 const ALGORITHM = 'HS256';
-
-// Response shape of POST /auth/token and /auth/refresh.
-export interface TokenResponse {
-  access_token: string;
-  token_type: 'Bearer';
-  expires_in: number;
-  refresh_token: string;
-}
 
 export interface TokenSubject {
   clientId: string;

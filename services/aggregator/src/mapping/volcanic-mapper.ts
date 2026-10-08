@@ -1,6 +1,6 @@
 import { VolcanicReport } from '../../../../shared-types/src/volcanic';
 import { HazardEvent, Severity } from '../../../../shared-types/src/hazard-event';
-import { VOLCANO_REFERENCE } from './volcanoReference';
+import { VOLCANO_REFERENCE } from './volcano-reference';
 
 export function mapVolcanicReportToHazardEvent(
   report: VolcanicReport
@@ -30,7 +30,7 @@ export function mapVolcanicReportToHazardEvent(
   };
 
   return {
-    hazard_id: '', // assigned downstream by the aggregator
+    hazard_id: '', // assigned by CanonicalStore.upsert on first insert and kept stable across polls
     source: 'PVMBG',
     source_ref_id: report_id,
     hazard_type: 'VOLCANIC',

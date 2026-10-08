@@ -2,7 +2,7 @@ import { buildApp, SERVICE_NAME } from './app';
 import { config } from './config';
 import { createLogger } from './logger';
 import { PollingScheduler } from './polling/scheduler';
-import { RabbitMqEventPublisher } from './publisher/eventPublisher';
+import { RabbitMqEventPublisher } from './publisher/event-publisher';
 import { CircuitBreaker } from './resilience/circuit-breaker';
 import { ConcurrencyLimiter } from './resilience/concurrency-limiter';
 import { BmkgClient } from './sources/bmkg-client';

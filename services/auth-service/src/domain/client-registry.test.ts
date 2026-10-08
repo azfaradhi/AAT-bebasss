@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { TEST_CLIENTS } from '../test-helpers';
-import { ClientRegistry } from './clientRegistry';
+import { ClientRegistry } from './client-registry';
 
 const registry = new ClientRegistry(TEST_CLIENTS);
 

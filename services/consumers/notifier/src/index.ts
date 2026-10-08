@@ -3,7 +3,7 @@ import { config } from './config';
 import { HazardEventConsumer } from './consumer';
 import { SeenSet } from './dedup';
 import { createLogger } from './logger';
-import { createNotifierSideEffect } from './sideEffect';
+import { createNotifierSideEffect } from './side-effect';
 
 async function main(): Promise<void> {
   const logger = createLogger(SERVICE_NAME);

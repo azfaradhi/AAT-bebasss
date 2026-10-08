@@ -9,6 +9,14 @@ export interface ClientAccessTokenClaims {
   exp: number;
 }
 
+// Response shape of POST /auth/token and POST /auth/refresh (contract §6.1).
+export interface TokenResponse {
+  access_token: string;
+  token_type: 'Bearer';
+  expires_in: number;
+  refresh_token: string;
+}
+
 export interface ClientRefreshTokenClaims {
   sub: string;
   scope: ClientScope;

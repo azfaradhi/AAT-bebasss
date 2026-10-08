@@ -1,7 +1,7 @@
 import { buildApp, SERVICE_NAME } from './app';
 import { config } from './config';
-import { ClientRegistry } from './domain/clientRegistry';
-import { TokenService } from './domain/tokenService';
+import { ClientRegistry } from './domain/client-registry';
+import { TokenService } from './domain/token-service';
 import { createLogger } from './logger';
 
 async function main(): Promise<void> {

@@ -2,8 +2,8 @@ import Fastify, { FastifyBaseLogger, FastifyError, FastifyInstance } from 'fasti
 import { randomUUID } from 'node:crypto';
 import type { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
 import { contextStorage } from './context';
-import type { ClientRegistry } from './domain/clientRegistry';
-import type { TokenService } from './domain/tokenService';
+import type { ClientRegistry } from './domain/client-registry';
+import type { TokenService } from './domain/token-service';
 import { AppError } from './errors';
 import { registerRefreshRoute } from './routes/refresh';
 import { registerTokenRoute } from './routes/token';

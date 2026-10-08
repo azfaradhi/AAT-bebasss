@@ -1,3 +1,3 @@
-export * from './volcanoReference';
-export * from './seismicMapper';
-export * from './volcanicMapper';
+export * from './volcano-reference';
+export * from './seismic-mapper';
+export * from './volcanic-mapper';

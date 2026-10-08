@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
-import type { ClientRegistry } from '../domain/clientRegistry';
-import type { TokenService } from '../domain/tokenService';
+import type { ClientRegistry } from '../domain/client-registry';
+import type { TokenService } from '../domain/token-service';
 import { InvalidCredentialsError } from '../errors';
 
 interface TokenBody {

@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import { describe, expect, it } from 'vitest';
-import { bindCorrelationId } from './correlationId';
+import { bindCorrelationId } from './correlation-id';
 import { currentCorrelationId } from '../context';
 
 function app() {
