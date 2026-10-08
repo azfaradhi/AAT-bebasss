@@ -2,8 +2,14 @@ import type { HazardEventResponse, HazardType } from '../../../../shared-types/s
 import type { Logger } from '../logger';
 import { currentCorrelationId } from '../context';
 
+export interface HazardsFilter {
+  hazardType?: HazardType;
+  since?: string;
+  limit?: number;
+}
+
 export interface AggregatorClient {
-  getHazards(hazardType?: HazardType): Promise<HazardEventResponse>;
+  getHazards(filter?: HazardsFilter): Promise<HazardEventResponse>;
 }
 
 export class HttpAggregatorClient implements AggregatorClient {
@@ -14,16 +20,18 @@ export class HttpAggregatorClient implements AggregatorClient {
     private readonly timeoutMs = 2000,
   ) {}
 
-  async getHazards(hazardType?: HazardType): Promise<HazardEventResponse> {
+  async getHazards(filter: HazardsFilter = {}): Promise<HazardEventResponse> {
     const url = new URL('/internal/hazard-events', this.baseUrl);
-    if (hazardType) url.searchParams.set('hazard_type', hazardType);
+    if (filter.hazardType) url.searchParams.set('hazard_type', filter.hazardType);
+    if (filter.since) url.searchParams.set('since', filter.since);
+    if (filter.limit !== undefined) url.searchParams.set('limit', String(filter.limit));
     const started = Date.now();
     this.logger.info({ url: url.toString() }, 'aggregator request started');
     try {
       const correlationId = currentCorrelationId();
       const response = await fetch(url, {
         headers: {
-          'x-internal-service-key': this.internalServiceKey,
+          'x-internal-key': this.internalServiceKey,
           ...(correlationId ? { 'x-correlation-id': correlationId } : {}),
         },
         signal: AbortSignal.timeout(this.timeoutMs),

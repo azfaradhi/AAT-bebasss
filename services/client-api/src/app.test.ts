@@ -56,4 +56,27 @@ describe('GET /hazard-events (full pipeline: correlationId -> auth -> rbacFilter
     const res = await buildTestApp().inject({ method: 'GET', url: '/hazard-events', headers: { 'x-correlation-id': 'req-abc' } });
     expect(res.headers['x-correlation-id']).toBe('req-abc');
   });
+
+  it('rejects an unknown hazard_type with 400 BAD_REQUEST', async () => {
+    const token = signAccessToken('internal');
+    const res = await buildTestApp().inject({ method: 'GET', url: '/hazard-events?hazard_type=FIRE', headers: { authorization: `Bearer ${token}` } });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('BAD_REQUEST');
+  });
+
+  it('rejects a since value that is not an ISO timestamp with 400', async () => {
+    const token = signAccessToken('internal');
+    const res = await buildTestApp().inject({ method: 'GET', url: '/hazard-events?since=yesterday', headers: { authorization: `Bearer ${token}` } });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('accepts hazard_type, since, and limit when valid', async () => {
+    const token = signAccessToken('internal');
+    const res = await buildTestApp().inject({
+      method: 'GET',
+      url: '/hazard-events?hazard_type=VOLCANIC&since=2026-10-06T00:00:00.000Z&limit=10',
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(200);
+  });
 });
