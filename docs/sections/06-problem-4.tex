@@ -24,7 +24,7 @@ Kami membandingkan beberapa alternatif arsitektur penyimpanan:
 Pemisahan \textit{service} ini memperkenalkan tambahan latensi via lapisan jaringan (\textit{HTTP call}) antara \texttt{client-api} dan \texttt{aggregator}, berbanding monolit konvensional. Penempatan data pencarian ke dalam blok JSONB juga mengurangi kinerja filter data jika kueri dijalankan pada komponen properti yang tertanam lebih dalam bila indeks \textit{GIN} tidak dioptimalkan. Kami menerima kekurangan latensi mikro (\textit{micro-latency}) demi mendapatkan ketahanan sistem terhadap perubahan dan kegagalan (\textit{fault isolation}).
 
 \subsection{Bukti Penyelesaian}
-Kriteria terbukti ketika komponen berdiri independen dalam \textit{container}, dan format JSONB menjaga kompatibilitas sebelum dan sesudah mutasi instansi sumber. 
+Kriteria terbukti ketika komponen berdiri independen dalam \textit{container}, dan format JSONB menjaga kompatibilitas sebelum dan sesudah mutasi instansi sumber.
 \begin{enumerate}
     \item Verifikasi bahwa kode menginstruksikan \textit{canonical-store} membuat kolom \texttt{attributes} berbasis tipe \texttt{JSONB}:
 \begin{lstlisting}[style=code,language=sql]

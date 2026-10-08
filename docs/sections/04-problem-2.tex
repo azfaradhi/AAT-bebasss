@@ -6,5 +6,241 @@ salah satu sumber mengalami outage?
 \end{infobox}
 
 \subsection{Rancangan Solusi}
+Problem ini memisahkan jalur pembaruan data dari jalur pembacaan client.
+Aggregator mengambil data BMKG dan PVMBG secara berkala, menyimpannya pada
+Canonical Store, sedangkan Client API membaca data yang sudah tersedia melalui
+API internal Aggregator. Dengan pemisahan tersebut, client tidak perlu
+menunggu panggilan langsung ke sumber eksternal yang lambat pada setiap
+permintaan \texttt{GET /hazard-events}.
+
+\subsubsection{Tiga Risiko yang Ditangani}
+Rancangan ini menangani tiga kegagalan. \textit{Head-of-line blocking} terjadi
+ketika pengambilan data BMKG dan PVMBG dilakukan sekuensial sehingga sumber
+cepat tertahan oleh sumber lambat. \textit{Resource exhaustion} terjadi ketika
+polling tumpang-tindih atau panggilan ke sumber lambat tidak dibatasi.
+Ketiadaan degradasi terkendali terjadi ketika satu sumber gagal dan seluruh
+respons client ikut gagal, padahal data terakhir masih tersedia dan berguna.
+
+\subsubsection{Model Konkurensi dan Isolasi Sumber}
+Model konkurensi yang dipilih adalah asynchronous I/O Node.js. Dalam satu
+siklus, BMKG dan PVMBG diproses sebagai operasi asynchronous yang berjalan
+paralel. Satu siklus polling tidak ditumpuk dengan siklus berikutnya.
+
+Dalam satu siklus polling, Aggregator memulai polling BMKG dan PVMBG secara
+paralel. Hasil keduanya ditunggu secara independen menggunakan
+\textit{all-settled semantics}: kegagalan satu sumber tidak membatalkan hasil
+sumber lain. Siklus berikutnya tidak ditumpuk ketika siklus sebelumnya masih
+berjalan. Pendekatan ini mencegah ledakan request ke sumber eksternal ketika
+PVMBG memiliki latensi tinggi.
+
+Setiap panggilan keluar mempunyai timeout yang dikonfigurasi melalui
+\texttt{SOURCE\_REQUEST\_TIMEOUT\_MS} serta mencatat \texttt{latency\_ms} pada
+log terstruktur. Untuk PVMBG, client sumber juga dibungkus oleh
+\textit{circuit breaker} dan \textit{concurrency limiter}. Circuit breaker
+membuka rangkaian setelah sejumlah kegagalan berturut-turut, menolak request
+selama masa \textit{cooldown}, lalu mengizinkan satu percobaan pemulihan.
+Concurrency limiter membatasi jumlah panggilan PVMBG yang aktif sesuai
+\texttt{PVMBG\_MAX\_CONCURRENT\_CALLS}.
+
+\subsubsection{Graceful Degradation dan Data Stale}
+Jika polling suatu sumber gagal, Aggregator tidak menghapus event yang telah
+tersimpan. Sebaliknya, sumber tersebut diberi penanda stale pada tabel
+\texttt{source\_sync\_state}; respons pembacaan memuat
+\texttt{meta.stale\_since}. Dengan demikian, client masih memperoleh data
+terakhir yang diketahui sistem, sekaligus mengetahui bahwa sinkronisasi salah
+satu sumber sedang bermasalah. Setelah polling sumber kembali berhasil,
+penanda stale dihapus tanpa restart service.
+
+Untuk mengurangi beban polling ketika histori bertambah, Aggregator menyimpan
+waktu sinkronisasi sukses terakhir per sumber. Polling pertama mengambil data
+yang tersedia, sedangkan polling berikutnya memakai parameter \texttt{since}
+dengan overlap yang dapat dikonfigurasi melalui \texttt{POLL\_LOOKBACK\_MS}.
+Event dalam overlap aman diproses ulang karena penyimpanan menggunakan upsert
+berdasarkan pasangan \texttt{source} dan \texttt{source\_ref\_id}.
+
+Keputusan sistem ketika polling PVMBG berhasil atau gagal dirangkum pada
+Gambar~\ref{fig:problem-dua-graceful-degradation}. Diagram tersebut
+menunjukkan bahwa kegagalan PVMBG tidak membatalkan pembaruan BMKG maupun
+pembacaan data yang telah tersedia bagi client.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{figures/problem-2/image.png}
+  \caption{Keputusan graceful degradation ketika salah satu sumber data gagal atau melampaui batas waktu.}
+  \label{fig:problem-dua-graceful-degradation}
+\end{figure}
+
 \subsection{Alternatif dan Trade-off}
-\subsection{Batasan dan Bukti Penyelesaian}
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{p{3.1cm}XX}
+    \toprule
+    Keputusan & Keuntungan & Trade-off dan mitigasi \\
+    \midrule
+    Polling paralel BMKG dan PVMBG &
+    Latensi PVMBG tidak menunda dimulainya pengambilan data BMKG dalam siklus
+    yang sama. &
+    Siklus dianggap selesai setelah kedua polling selesai. Sistem mencegah
+    siklus tumpang-tindih agar sumber tidak dibanjiri request. \\
+    \addlinespace
+    Canonical Store sebagai read model &
+    Pembacaan client tidak bergantung pada latensi sumber eksternal dan tetap
+    dapat dilayani saat salah satu sumber outage. &
+    Data bersifat \textit{eventually consistent}; data yang dibaca dapat
+    merupakan data terakhir, bukan data real-time dari sumber. Penanda
+    \texttt{stale\_since} menyatakan kondisi tersebut secara eksplisit. \\
+    \addlinespace
+    Timeout, circuit breaker, dan concurrency limiter pada PVMBG &
+    Kegagalan atau kelambatan berulang dari PVMBG tidak terus-menerus
+    mengonsumsi waktu dan koneksi Aggregator. &
+    Data PVMBG dapat tertunda selama circuit breaker terbuka. Data terakhir
+    tetap disajikan dan polling pemulihan dilakukan setelah cooldown. \\
+    \addlinespace
+    Incremental polling dengan overlap &
+    Volume data yang diambil ulang berkurang dibandingkan mengambil seluruh
+    histori pada setiap interval. &
+    Event yang terlambat lebih lama daripada overlap dapat terlewat. Overlap
+    dikonfigurasi dan upsert mencegah data overlap menjadi duplikat. \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Keputusan desain dan trade-off untuk concurrency serta availability.}
+  \label{tab:problem-dua-tradeoff}
+\end{table}
+
+\subsection{Proof of Concept (PoC)}
+
+\subsubsection{Uji Latensi BMKG-only}
+Pengujian ini membuktikan bahwa keterlambatan PVMBG tidak menyebabkan
+\textit{head-of-line blocking} pada request yang hanya membutuhkan data BMKG.
+Langkah pembuktiannya adalah sebagai berikut.
+\begin{enumerate}
+  \item Atur \texttt{PVMBG\_DELAY\_MIN\_MS=3000} dan
+  \texttt{PVMBG\_DELAY\_MAX\_MS=3000} pada \texttt{.env}, kemudian recreate
+  hanya service PVMBG.
+\begin{lstlisting}[style=code,language=bash]
+docker compose up -d --force-recreate pvmbg-mock
+\end{lstlisting}
+
+
+  \item Jalankan skenario \textit{k6}. Skenario ini mengirim request
+  BMKG-only dan request vulkanik secara bersamaan.
+\begin{lstlisting}[style=code,language=bash]
+k6 run tests/phase6/p2-concurrency.k6.js
+\end{lstlisting}
+
+  \item Catat p95 workload BMKG-only. Hasilnya dirangkum pada
+  Tabel~\ref{tab:problem-dua-latensi-bmkg}.
+\end{enumerate}
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{p{3.6cm}p{3.4cm}X}
+    \toprule
+    Aspek & Hasil & Kriteria \\
+    \midrule
+    Kondisi PVMBG & Delay tetap 3.000 ms & Delay PVMBG 3 detik \\
+    Workload bersamaan & 50 VU BMKG-only dan 10 VU vulkanik & Kedua workload berjalan bersamaan \\
+    p95 latensi BMKG-only & 231,59 ms & $<300$ ms \\
+    Error rate BMKG-only & 0,00\% & $<1$\% \\
+    Status threshold BMKG-only & Lulus & Seluruh threshold lulus \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Hasil uji latensi request BMKG-only ketika PVMBG lambat.}
+  \label{tab:problem-dua-latensi-bmkg}
+\end{table}
+
+Hasil tersebut menunjukkan bahwa keterlambatan PVMBG tidak menyebabkan
+\textit{head-of-line blocking} pada pembacaan data seismik.
+
+\subsubsection{Uji Beban Berkelanjutan}
+Tooling yang digunakan adalah \textit{k6} dengan script
+\texttt{tests/phase6/p2-concurrency.k6.js}. Script menjalankan 50 virtual user
+untuk request BMKG-only dan 10 virtual user untuk request vulkanik selama 60
+detik secara sustained. Output pengujian harus melaporkan throughput,
+p50, p95, p99, dan error rate. Sistem dinyatakan memenuhi kriteria apabila
+error rate, di luar penolakan terkontrol seperti HTTP 429, berada di bawah 1\%
+dan tidak terjadi crash.
+
+\begin{lstlisting}[style=code,language=bash]
+k6 run tests/phase6/p2-concurrency.k6.js
+\end{lstlisting}
+
+Hasil pengujian ditunjukkan pada Tabel~\ref{tab:problem-dua-beban}. Nilai p50
+ditampilkan oleh \textit{k6} sebagai \texttt{med}. Metrik berlabel
+HTTP dihitung dari seluruh request pada pengujian.
+
+\begin{table}[H]
+  \centering
+  \small
+  \begin{tabularx}{\textwidth}{p{3.8cm}Xp{4cm}}
+    \toprule
+    Metrik & Hasil & Kriteria \\
+    \midrule
+    Konfigurasi beban & 50 VU BMKG-only dan 10 VU vulkanik selama 60 detik & $\geq$50 koneksi paralel selama $\geq$60 detik \\
+    Total request & 20.244 request & -- \\
+    Throughput & 336,74 request/detik & -- \\
+    p50 latensi HTTP keseluruhan & 165,95 ms & Dilaporkan \\
+    p95 latensi HTTP keseluruhan & 231,27 ms & Dilaporkan \\
+    p99 latensi HTTP keseluruhan & 333,48 ms & Dilaporkan \\
+    Error rate & 0,00\% (0 dari 20.244 request) & $<1$\% \\
+    Check skenario & 37.049 berhasil, 0 gagal & Seluruh check berhasil \\
+    \bottomrule
+  \end{tabularx}
+  \caption{Hasil load testing sustained menggunakan \textit{k6}.}
+  \label{tab:problem-dua-beban}
+\end{table}
+
+Dengan error rate 0,00\%, pengujian memenuhi batas keandalan yang ditetapkan.
+Selama pengujian, seluruh service tetap berjalan dan tidak ada penolakan
+terkontrol HTTP 429 yang tercatat.
+
+\subsubsection{Outage dan Pemulihan PVMBG}
+Pengujian ini membuktikan bahwa kegagalan PVMBG tidak menghentikan jalur
+pembacaan client dan bahwa sistem pulih tanpa restart service.
+
+\begin{enumerate}
+  \item Kirim request \texttt{CLIENT API - /hazard-events} dengan
+  \texttt{hazard\_type=VOLCANIC}. Terlihat bahwa request berhasil,
+  berisi data vulkanik, dan \texttt{meta.stale\_since} bernilai
+  \texttt{null}.
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{figures/problem-2/2-3.png}
+    \caption{Kondisi awal saat service aktif dan \texttt{stale\_since} bernilai \texttt{null}.}
+    \label{fig:up-server-stale-since-null}
+  \end{figure}
+
+  \item Set variable \texttt{outage\_enabled=true} dan
+  \texttt{outage\_duration\_seconds=30}, lalu jalankan request
+  \texttt{PVMBG MOCK - /admin/outage}. Respons  menyatakan
+  \texttt{outage\_active=true}.
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{figures/problem-2/2-4.png}
+    \caption{Membuat server down sesaat}
+    \label{fig:outage-active-true}
+  \end{figure}
+
+  \item Tunggu sekitar 8 detik agar polling yang sedang berlangsung selesai
+  dan Aggregator menjalankan polling PVMBG yang gagal. Kemudian jalankan
+  kembali request \texttt{CLIENT API - /hazard-events} untuk \texttt{hazard\_type=VOLCANIC}.
+  Respons vulkanik memuat data terakhir dari Canonical Store, sedangkan \texttt{meta.stale\_since} berisi waktu sejak kapan agregrator mendeteksi kegagalan sinkronisasi.
+
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{figures/problem-2/2-5.png}
+    \caption{\texttt{stale\_since} terisi saat PVMBG mengalami outage.}
+    \label{fig:stale-since-terisi}
+  \end{figure}
+
+  \item Setelah durasi outage selesai, tunggu sekitar 8 detik agar satu polling
+  pemulihan berhasil, lalu ulangi request vulkanik. Respons \texttt{meta.stale\_since} kembali \texttt{null}.
+    \begin{figure}[H]
+        \centering
+        \includegraphics[width=0.5\textwidth]{figures/problem-2/2-6.png}
+        \caption{\texttt{stale\_since} kembali \texttt{null} setelah PVMBG pulih.}
+        \label{fig:stale-since-kembali-null}
+    \end{figure}
+\end{enumerate}
