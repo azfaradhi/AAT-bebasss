@@ -6,5 +6,52 @@ lintas service?
 \end{infobox}
 
 \subsection{Rancangan Solusi}
+Untuk mencapai independensi sistem, aplikasi monolitik awal dipecah menjadi beberapa \textit{microservice} (antara lain \texttt{aggregator}, \texttt{client-api}, dan \texttt{auth-service}), di mana setiap layanan dibungkus dalam \textit{container} Docker terpisah via \texttt{docker-compose.yml}. Pembagian \textit{boundaries} ditentukan berdasarkan fungsionalitas dan domain: \texttt{aggregator} dikhususkan pada beban \textit{ingestion} dari \textit{mock source} serta pengelolaan persistensi, sedangkan \texttt{client-api} berfungsi sebagai \textit{API Gateway} untuk mengekspos endpoint ke luar dan memvalidasi akses klien.
+
+Pada sisi penyimpanan (\textit{flexible storage}), kami menggunakan \textbf{PostgreSQL}. Alih-alih mendefinisikan kolom statis untuk seluruh detail data, \textit{Canonical Store} menempatkan atribut tambahan dan dinamis pada kolom \texttt{attributes} yang bertipe data \textbf{JSONB}. Dengan demikian, begitu PVMBG menerbitkan \textit{field} baru seperti \texttt{confidence\_level}, \textit{field} tersebut langsung tersimpan ke dalam objek JSONB tanpa perlu melakukan proses \textit{schema migration} pada basis data.
+
+Selain itu, kepemilikan basis data sangat dibatasi. Basis data PostgreSQL hanya dapat diakses secara langsung oleh instansi \texttt{aggregator}. \textit{Microservice} lain yang membutuhkan data kanonik (seperti \texttt{client-api}) wajib memanggil \textit{internal REST API} milik \texttt{aggregator}.
+
 \subsection{Alternatif dan Trade-off}
-\subsection{Batasan dan Bukti Penyelesaian}
+Kami membandingkan beberapa alternatif arsitektur penyimpanan:
+\begin{itemize}
+    \item \textbf{Alternatif 1: Document Store murni (contoh: MongoDB)}. \textit{Trade-off}: Menawarkan \textit{schema-less} murni dan sangat tepat untuk dokumen berskema sangat dinamis, namun kami kehilangan dukungan kueri relasional bawaan. Hal ini dapat menghambat fleksibilitas pengembangan kedepan bila ada banyak join relasi struktural antar data internal yang ketat (misal data sumber vs data notifikasi).
+    \item \textbf{Alternatif 2: Basis Data Relasional dengan Skema Konvensional (Kolom Baku)}. \textit{Trade-off}: Paling ketat dalam menjaga validasi tipe data (\textit{type-safe}). Namun, akan sangat menyulitkan operasi berjalan (menyebabkan interupsi sistem saat \textit{deployment} dan migrasi tabel DDL) jika sumber eksternal mengubah \textit{payload} laporan (mengandung kasus Problem 1).
+    \item \textbf{Keputusan Akhir (PostgreSQL dengan kolom parsial JSONB)}: Kombinasi terbaik dari dua sisi. \textit{Field} krusial untuk pencarian cepat seperti \texttt{hazard\_type} dan \texttt{occurred\_at} dipetakan sebagai kolom relasional yang diindeks, sementara data fleksibel diletakkan pada kolom JSONB \texttt{attributes}. Skema \textit{record} campuran lama dan baru dapat berdampingan tanpa migrasi.
+\end{itemize}
+
+\subsection{Batasan yang Disadari}
+Pemisahan \textit{service} ini memperkenalkan tambahan latensi via lapisan jaringan (\textit{HTTP call}) antara \texttt{client-api} dan \texttt{aggregator}, berbanding monolit konvensional. Penempatan data pencarian ke dalam blok JSONB juga mengurangi kinerja filter data jika kueri dijalankan pada komponen properti yang tertanam lebih dalam bila indeks \textit{GIN} tidak dioptimalkan. Kami menerima kekurangan latensi mikro (\textit{micro-latency}) demi mendapatkan ketahanan sistem terhadap perubahan dan kegagalan (\textit{fault isolation}).
+
+\subsection{Bukti Penyelesaian}
+Kriteria terbukti ketika komponen berdiri independen dalam \textit{container}, dan format JSONB menjaga kompatibilitas sebelum dan sesudah mutasi instansi sumber. 
+\begin{enumerate}
+    \item Verifikasi bahwa kode menginstruksikan \textit{canonical-store} membuat kolom \texttt{attributes} berbasis tipe \texttt{JSONB}:
+\begin{lstlisting}[style=code,language=sql]
+CREATE TABLE IF NOT EXISTS hazard_events (
+    hazard_id UUID PRIMARY KEY,
+    -- (kolom inti konvensional),
+    attributes JSONB NOT NULL DEFAULT '{}'::jsonb
+);
+\end{lstlisting}
+
+    \item Verifikasi independensi \textit{container} (bukti bahwa salah satu komponen dapat \textit{restart} secara independen, tanpa menginterupsi \textit{service} yang lain):
+\begin{lstlisting}[style=code,language=bash]
+docker compose restart client-api
+docker compose ps
+\end{lstlisting}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/problem-4/1.png}
+    \caption{Bukti restart parsial sebuah container service}
+    \label{fig:poc-container-independent}
+\end{figure}
+
+    \item Verifikasi \textit{co-existence} data lama dan baru (tanpa migrasi) berdampingan dalam JSONB pada \textit{response payload}.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/problem-4/2.png}
+    \caption{Merekam log basis data (data lama berdampingan dengan confidence\_level baru)}
+    \label{fig:poc-jsonb-storage}
+\end{figure}
+\end{enumerate}
