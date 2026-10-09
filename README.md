@@ -9,6 +9,7 @@ Implementasi Milestone 1 IF4031. Platform ini menggabungkan data bahaya dari moc
 - `client-api` adalah API publik ber-RBAC. Ia membaca data hanya lewat API internal Aggregator.
 - `auth-service` menerbitkan access token dan refresh token untuk Media, Tim Lapangan, dan BNPB Internal.
 - `dashboard-updater` dan `notifier` adalah consumer independen dari exchange RabbitMQ fanout.
+- `dashboard-queue-init` dan `notifier-queue-init` adalah job sekali jalan yang menyiapkan queue milik masing-masing consumer sebelum Aggregator mulai menerbitkan event. Status `Exited (0)` setelah startup adalah normal.
 
 ## Prerequisites
 
@@ -32,6 +33,8 @@ Implementasi Milestone 1 IF4031. Platform ini menggabungkan data bahaya dari moc
    docker compose up -d --build
    docker compose ps
    ```
+
+   Queue RabbitMQ dan pesan yang menunggu disimpan dalam volume `rabbitmq_data`. Jangan gunakan `docker compose down --volumes` bila data demo perlu dipertahankan.
 
 5. Pastikan setiap service sehat:
 

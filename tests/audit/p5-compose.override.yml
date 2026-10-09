@@ -1,0 +1,21 @@
+# Isolated, unpublished ports for a clean P5 startup test alongside the main stack.
+services:
+  bmkg-mock:
+    ports: !reset []
+  pvmbg-mock:
+    ports: !reset []
+  aggregator:
+    ports: !reset []
+  postgres:
+    ports: !reset []
+  client-api:
+    ports: !reset []
+  rabbitmq:
+    ports: !override
+      - "127.0.0.1:15673:15672"
+  auth-service:
+    ports: !reset []
+  dashboard-updater:
+    ports: !reset []
+  notifier:
+    ports: !reset []

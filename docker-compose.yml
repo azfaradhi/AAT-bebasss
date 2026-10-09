@@ -58,6 +58,10 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      dashboard-queue-init:
+        condition: service_completed_successfully
+      notifier-queue-init:
+        condition: service_completed_successfully
     networks:
       - bnpb_network
 
@@ -102,9 +106,11 @@ services:
 
   rabbitmq:
     image: rabbitmq:3.13-management-alpine
+    hostname: rabbitmq
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:?set RABBITMQ_USER in .env}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD in .env}
+      RABBITMQ_NODENAME: rabbit@rabbitmq
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -114,6 +120,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 20s
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
     networks:
       - bnpb_network
 
@@ -152,6 +160,23 @@ services:
     networks:
       - bnpb_network
 
+  # Consumer-owned topology is prepared before the first Aggregator publish. These
+  # one-shot jobs do not require the long-running consumers to stay online.
+  dashboard-queue-init:
+    build:
+      context: .
+      dockerfile: services/consumers/dashboard-updater/Dockerfile
+    command: ["node", "dist/services/consumers/dashboard-updater/src/init-topology.js"]
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL:?set RABBITMQ_URL in .env}
+    healthcheck:
+      disable: true
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bnpb_network
+
   notifier:
     build:
       context: .
@@ -167,9 +192,25 @@ services:
     networks:
       - bnpb_network
 
+  notifier-queue-init:
+    build:
+      context: .
+      dockerfile: services/consumers/notifier/Dockerfile
+    command: ["node", "dist/services/consumers/notifier/src/init-topology.js"]
+    environment:
+      - RABBITMQ_URL=${RABBITMQ_URL:?set RABBITMQ_URL in .env}
+    healthcheck:
+      disable: true
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - bnpb_network
+
 networks:
   bnpb_network:
     driver: bridge
 
 volumes:
   postgres_data:
+  rabbitmq_data:
