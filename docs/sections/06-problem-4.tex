@@ -35,23 +35,61 @@ CREATE TABLE IF NOT EXISTS hazard_events (
 );
 \end{lstlisting}
 
-    \item Verifikasi independensi \textit{container} (bukti bahwa salah satu komponen dapat \textit{restart} secara independen, tanpa menginterupsi \textit{service} yang lain):
+    \item Verifikasi independensi \textit{container}: hentikan \texttt{client-api}
+    sepenuhnya, \textit{rebuild}, lalu jalankan ulang -- sementara itu, buktikan
+    \textit{service} lain yang tidak bergantung padanya (\texttt{auth-service})
+    tetap merespons permintaan normal selama \texttt{client-api} mati:
 \begin{lstlisting}[style=code,language=bash]
-docker compose restart client-api
+docker compose stop client-api
+# selagi client-api mati:
+curl -s -X POST http://localhost:8091/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"client_id":"internal-client","client_secret":"<AUTH_INTERNAL_CLIENT_SECRET>"}'
+docker compose ps
+docker compose up -d --build client-api
 docker compose ps
 \end{lstlisting}
+    Diuji 2026-10-09: begitu \texttt{client-api} dihentikan,
+    \texttt{POST /auth/token} ke \texttt{auth-service} tetap membalas
+    \texttt{200} dengan \texttt{access\_token} baru -- membuktikan layanan lain
+    tidak terinterupsi. \texttt{docker compose ps} setelahnya menunjukkan
+    \texttt{client-api} tidak lagi berstatus \texttt{Up}. Setelah
+    \textit{rebuild} selesai, \texttt{client-api} kembali \texttt{Up (healthy)}
+    tanpa satu pun \textit{service} lain ikut di-restart.
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.95\textwidth]{figures/problem-4/1.png}
-    \caption{Bukti restart parsial sebuah container service}
-    \label{fig:poc-container-independent}
+    \includegraphics[width=0.95\textwidth]{figures/problem-4/1b.png}
+    \caption{\texttt{client-api} dihentikan; \texttt{auth-service} tetap
+    membalas token baru selagi \texttt{client-api} mati; \textit{rebuild}
+    dimulai.}
+    \label{fig:poc-container-stop-rebuild}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/problem-4/1c.png}
+    \caption{\textit{Rebuild} selesai; \texttt{docker compose ps} menunjukkan
+    \texttt{client-api} kembali \texttt{Up (healthy)} tanpa service lain
+    ikut terganggu.}
+    \label{fig:poc-container-restarted}
 \end{figure}
 
-    \item Verifikasi \textit{co-existence} data lama dan baru (tanpa migrasi) berdampingan dalam JSONB pada \textit{response payload}.
+    \item Verifikasi \textit{co-existence} data lama dan baru (tanpa migrasi)
+    berdampingan dalam JSONB pada \textit{response payload}. Diuji 2026-10-09:
+    PVMBG direcreate (reset skema ke kondisi lama), ditunggu satu record live
+    baru terbentuk tanpa \texttt{confidence\_level}, skema diaktifkan, lalu
+    ditunggu satu record live berikutnya yang membawa \texttt{confidence\_level}.
+    Query \texttt{GET /hazard-events?hazard\_type=VOLCANIC\&limit=2} pada
+    respons yang sama menunjukkan kedua record berdampingan dan sama-sama
+    terbaca -- record \texttt{d72a6d8b...} tanpa \texttt{confidence\_level}
+    dan record \texttt{95639f2f...} dengan \texttt{confidence\_level: 0.86} --
+    berjarak hanya 10 detik \texttt{occurred\_at}, tanpa migrasi kolom apa pun
+    di antaranya.
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.95\textwidth]{figures/problem-4/2.png}
-    \caption{Merekam log basis data (data lama berdampingan dengan confidence\_level baru)}
+    \caption{Dua record VOLCANIC berdampingan dalam satu respons: record lama
+    tanpa \texttt{confidence\_level} dan record baru dengan
+    \texttt{confidence\_level}, berjarak 10 detik.}
     \label{fig:poc-jsonb-storage}
 \end{figure}
 \end{enumerate}

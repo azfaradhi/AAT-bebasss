@@ -265,4 +265,24 @@ pembacaan client dan bahwa sistem pulih tanpa restart service.
         \caption{\texttt{stale\_since} kembali \texttt{null} setelah PVMBG pulih.}
         \label{fig:stale-since-kembali-null}
     \end{figure}
+
+  \item \textbf{Bukti tambahan (2026-10-09): BMKG tetap normal selama PVMBG
+  outage.} Skenario di atas membuktikan separuh kriteria (data vulkanik stale
+  dan pulih tanpa restart); separuh lainnya -- bahwa data seismik sama sekali
+  tidak terganggu -- dibuktikan dengan memicu outage PVMBG 15 detik, lalu
+  langsung mengirim request \texttt{hazard\_type=SEISMIC} dan
+  \texttt{hazard\_type=VOLCANIC} ke client-api pada window yang sama. Request
+  SEISMIC tetap \texttt{200} dengan \texttt{meta.stale\_since: null} dan data
+  terbaru (\texttt{ingested\_at} \texttt{09:33:05.141Z}), sementara request
+  VOLCANIC pada waktu yang sama sudah menunjukkan
+  \texttt{meta.stale\_since: "2026-10-09T09:33:02.022Z"} -- keduanya
+  dikonfirmasi dari respons API yang sama, bukan sumber berbeda.
+  \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/problem-2/2-7.png}
+    \caption{Request SEISMIC (\texttt{stale\_since: null}) dan VOLCANIC
+    (\texttt{stale\_since} terisi) pada window outage PVMBG yang sama,
+    2026-10-09.}
+    \label{fig:seismic-normal-during-outage}
+  \end{figure}
 \end{enumerate}
