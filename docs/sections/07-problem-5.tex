@@ -7,18 +7,27 @@ mati?
 
 \subsection{Rancangan Solusi}
 Distribusi event memakai RabbitMQ 3.13 dengan satu exchange bertipe \textit{fanout}
-bernama \texttt{hazard\_events\_exchange}. Setiap consumer memiliki queue durable
-sendiri yang terikat ke exchange tersebut: \texttt{dashboard\_updater\_queue} dan
-\texttt{notifier\_queue}. Setiap queue menerima salinan penuh dari setiap event,
-sehingga consumer tidak bersaing memperebutkan pesan.
+bernama \texttt{hazard\_events\_exchange}. Producer (Aggregator) hanya bertanggung
+jawab atas exchange ini; setiap consumer mendeklarasikan dan mengikat queue durable
+miliknya sendiri (\texttt{dashboard\_updater\_queue} dan \texttt{notifier\_queue})
+lewat job sekali-jalan (\texttt{init-topology}) yang dijalankan sebelum Aggregator
+start. Setiap queue menerima salinan penuh dari setiap event, sehingga consumer tidak
+bersaing memperebutkan pesan, dan menambah consumer baru tidak pernah mengubah satu
+baris pun kode producer.
 
-Aggregator mempublikasikan setiap HazardEvent baru melalui \textit{publisher} yang
-menggunakan confirm channel. Pesan dikirim dengan flag persisten dan dibungkus dalam
-envelope \texttt{HazardEventMessage} yang memuat \texttt{message\_id},
-\texttt{correlation\_id}, dan \texttt{payload}. \texttt{publish()} hanya selesai setelah
-broker mengonfirmasi, dan gagal cepat (5 detik) jika broker tidak merespons.
-Publisher mendeklarasikan kedua queue saat start, sehingga event yang terbit sebelum
-consumer pertama kali menyala tetap tersimpan di queue.
+Penyimpanan dan publikasi event memakai pola \textit{transactional outbox}. Saat
+Aggregator menyimpan HazardEvent baru ke Canonical Store, baris outbox
+(\texttt{message\_id}, \texttt{correlation\_id}, payload) ditulis pada transaksi
+database yang sama. Proses terpisah, \texttt{OutboxDispatcher}, mengklaim baris
+outbox yang tertunda (\texttt{FOR UPDATE SKIP LOCKED}) setiap detik dan
+mempublikasikannya melalui \textit{publisher} yang menggunakan confirm channel.
+Pesan dikirim dengan flag persisten dan dibungkus dalam envelope
+\texttt{HazardEventMessage} yang memuat \texttt{message\_id}, \texttt{correlation\_id},
+dan \texttt{payload}. Jika publish gagal atau broker tidak tersedia, baris outbox
+dilepas dan dicoba ulang pada tick berikutnya; klaim memakai sewa (\textit{lease})
+sehingga proses yang crash di tengah publikasi tidak mengunci baris itu selamanya.
+Karena penulisan event dan niat publikasinya komit bersama dalam satu transaksi,
+kegagalan broker pada saat penerbitan tidak pernah menghilangkan event secara diam-diam.
 
 Setiap consumer menjalankan langkah yang sama. Ack manual dengan prefetch 1 membuat
 pesan diproses satu per satu. Sebelum side effect dijalankan, consumer memeriksa
@@ -60,11 +69,6 @@ di-ack. Jika side effect gagal, pesan di-requeue. Envelope yang rusak dibuang.
 
 \subsection{Batasan yang Disadari}
 \begin{enumerate}
-  \item \textbf{Tidak ada outbox.} Scheduler hanya mempublikasikan event yang baru
-  disimpan (\texttt{created = true}). Jika broker tidak tersedia lebih dari 5 detik saat
-  event itu terbit, event tersebut tidak dikirim ulang. Event tetap tersimpan di Canonical
-  Store, tetapi consumer tidak menerimanya. Jalur perbaikan: kolom \texttt{published\_at}
-  pada \texttt{hazard\_events} dan pengiriman ulang untuk baris yang belum terkirim.
   \item \textbf{Dedup hilang saat restart.} Consumer yang crash tepat setelah memproses
   tetapi sebelum ack bisa menerima pesan yang sama lagi setelah restart. Pesan itu akan
   diproses dua kali. Semantik at-least-once tetap terjaga.
@@ -72,6 +76,10 @@ di-ack. Jika side effect gagal, pesan di-requeue. Envelope yang rusak dibuang.
   di-requeue berulang. Consumer tetap berjalan, tetapi pesan itu tidak pernah selesai.
   \item \textbf{Kapasitas dedup terbatas.} Set menyimpan 10.000 hazard\_id terakhir.
   Event yang lebih lama bisa diproses ulang jika muncul kembali sebagai duplikat.
+  \item \textbf{Outbox belum punya dead-letter setelah percobaan maksimum.} Baris outbox
+  yang terus gagal dipublikasikan akan dicoba ulang tanpa batas interval mundur
+  (\textit{backoff}) eksponensial; tidak ada ambang jumlah percobaan yang memindahkan
+  baris itu ke status gagal permanen untuk investigasi manual.
 \end{enumerate}
 
 \subsection{Bukti Penyelesaian}
@@ -112,8 +120,27 @@ Bukti berikut diambil dari pengujian langsung terhadap sistem yang berjalan penu
 # saat notifier mati, dan tersusul kurang dari 1 detik setelah notifier menyala.
 \end{lstlisting}
 
-Verifikasi otomatis: 13 unit test untuk setiap consumer lulus, termasuk dedup dan
+Verifikasi otomatis: 14 unit test untuk setiap consumer lulus, termasuk dedup dan
 requeue.
+
+\paragraph{Pembaruan 2026-10-09: transactional outbox.} Setelah pengujian langsung di
+atas, mekanisme publikasi diperkuat dengan pola \textit{transactional outbox} (lihat
+Rancangan Solusi) untuk menutup celah: sebelumnya, jika Aggregator berhenti tepat
+setelah event tersimpan di Canonical Store tetapi sebelum \texttt{publish()} ke broker
+selesai, event itu tidak pernah terkirim. Perubahan ini belum diuji ulang lewat
+\texttt{docker compose} langsung (hanya diverifikasi lewat unit test di bawah ini,
+dijalankan 2026-10-09), sehingga klaimnya dibatasi pada apa yang benar-benar
+diverifikasi:
+\begin{itemize}
+  \item \texttt{outbox-dispatcher.test.ts}: dua test mencakup pemulihan sebuah publikasi
+  yang gagal dikonfirmasi lalu berhasil pada percobaan berikut dengan \texttt{message\_id}
+  yang sama persis (membuktikan proses yang di-restart mengambil state dari baris outbox
+  yang persisten, bukan dari memori), serta baris yang sudah terkonfirmasi tidak
+  dipublikasikan ulang pada \textit{flush} berikutnya.
+  \item \texttt{outbox-transaction.test.ts}: memverifikasi baris outbox hanya ditulis saat
+  \texttt{upsert} benar-benar membuat baris baru (\texttt{created = true}), dan penulisan
+  event plus baris outbox terjadi dalam satu transaksi database yang sama.
+\end{itemize}
 
 \subsection{Jawaban atas Butir ``Di Laporan''}
 \begin{enumerate}
@@ -128,5 +155,9 @@ requeue.
   Event yang terbit selama consumer mati tersimpan di queue durable dan tersusul setelah
   consumer dijalankan kembali, selama broker tetap hidup.
   \item \textbf{Consumer baru.} Consumer baru cukup mendeklarasikan queue sendiri dan
-  mengikat ke exchange. Kode publisher tidak berubah.
+  mengikat ke exchange. Kode producer tidak perlu diubah sama sekali -- producer hanya
+  memiliki \texttt{hazard\_events\_exchange} dan tidak menyimpan daftar queue consumer
+  mana pun. Dibuktikan oleh \texttt{tests/audit/p5-third-consumer.cjs}: consumer audit
+  independen yang mengikat queue sementara ke exchange yang sama dan menerima event
+  tanpa mengimpor atau mengubah kode producer.
 \end{enumerate}
