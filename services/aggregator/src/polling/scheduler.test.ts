@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { EventPublisher } from '../publisher/event-publisher';
 import type { CanonicalStore } from '../storage/canonical-store';
 import { PollingScheduler } from './scheduler';
 
@@ -14,13 +13,15 @@ function deferred<T>(): { promise: Promise<T>; resolve: (value: T) => void } {
 const store: CanonicalStore = {
   init: async () => undefined,
   upsert: async (event) => ({ event, created: false }),
+  claimPendingPublication: async () => null,
+  markPublicationSent: async () => undefined,
+  releasePublication: async () => undefined,
   list: async () => ({ data: [], meta: { stale_since: null } }),
   getLastSuccessAt: async () => null,
   markSourceFresh: async () => undefined,
   markSourceStale: async () => undefined,
   close: async () => undefined,
 };
-const publisher: EventPublisher = { publish: async () => undefined };
 
 describe('PollingScheduler', () => {
   it('starts both source polls without waiting for each other', async () => {
@@ -32,7 +33,6 @@ describe('PollingScheduler', () => {
       lookbackMs: 60000,
       logger,
       store,
-      publisher,
       bmkg: { sourceName: 'BMKG', poll: vi.fn(async () => { started.push('BMKG'); return bmkg.promise; }) },
       pvmbg: { sourceName: 'PVMBG', poll: vi.fn(async () => { started.push('PVMBG'); return pvmbg.promise; }) },
     });
@@ -52,7 +52,6 @@ describe('PollingScheduler', () => {
       lookbackMs: 60000,
       logger,
       store,
-      publisher,
       bmkg: { sourceName: 'BMKG', poll: bmkgPoll },
       pvmbg: { sourceName: 'PVMBG', poll: vi.fn(() => slowPvmbg.promise) },
     });
@@ -73,7 +72,6 @@ describe('PollingScheduler', () => {
       lookbackMs: 60000,
       logger,
       store,
-      publisher,
       bmkg: { sourceName: 'BMKG', poll: vi.fn(() => source.promise) },
       pvmbg: { sourceName: 'PVMBG', poll: vi.fn().mockResolvedValue([]) },
     });
@@ -100,7 +98,6 @@ describe('PollingScheduler', () => {
       lookbackMs: 60000,
       logger,
       store: incrementalStore,
-      publisher,
       bmkg: { sourceName: 'BMKG', poll: bmkgPoll },
       pvmbg: { sourceName: 'PVMBG', poll: vi.fn().mockResolvedValue([]) },
     });

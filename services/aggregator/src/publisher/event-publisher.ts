@@ -6,7 +6,7 @@ import { assertTopology, EXCHANGE_NAME } from './topology';
 
 // The scheduler depends only on this interface.
 export interface EventPublisher {
-  publish(event: HazardEvent, correlationId: string): Promise<void>;
+  publish(event: HazardEvent, correlationId: string, messageId?: string): Promise<void>;
 }
 
 // Structurally compatible with a pino logger, so we don't need to import one here.
@@ -63,12 +63,12 @@ export class RabbitMqEventPublisher implements EventPublisher {
     return this.channel !== null;
   }
 
-  async publish(event: HazardEvent, correlationId: string): Promise<void> {
+  async publish(event: HazardEvent, correlationId: string, messageId = randomUUID()): Promise<void> {
     const channel = this.channel;
     if (!channel) throw new BrokerUnavailableError();
 
     const message: HazardEventMessage = {
-      message_id: randomUUID(),
+      message_id: messageId,
       event_type: 'HazardEventCreated',
       version: 1,
       published_at: new Date().toISOString(),
