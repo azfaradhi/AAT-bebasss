@@ -18,9 +18,11 @@ baris pun kode producer.
 Penyimpanan dan publikasi event memakai pola \textit{transactional outbox}. Saat
 Aggregator menyimpan HazardEvent baru ke Canonical Store, baris outbox
 (\texttt{message\_id}, \texttt{correlation\_id}, payload) ditulis pada transaksi
-database yang sama. Proses terpisah, \texttt{OutboxDispatcher}, mengklaim baris
-outbox yang tertunda (\texttt{FOR UPDATE SKIP LOCKED}) setiap detik dan
-mempublikasikannya melalui \textit{publisher} yang menggunakan confirm channel.
+database yang sama. Komponen \texttt{OutboxDispatcher} -- berjalan sebagai
+\textit{timer} asinkron di dalam proses Aggregator yang sama, terpisah dari alur
+polling, bukan proses sistem operasi lain -- mengklaim baris outbox yang tertunda
+(\texttt{FOR UPDATE SKIP LOCKED}) setiap detik dan mempublikasikannya melalui
+\textit{publisher} yang menggunakan confirm channel.
 Pesan dikirim dengan flag persisten dan dibungkus dalam envelope
 \texttt{HazardEventMessage} yang memuat \texttt{message\_id}, \texttt{correlation\_id},
 dan \texttt{payload}. Jika publish gagal atau broker tidak tersedia, baris outbox

@@ -93,13 +93,18 @@ yang disadari, bukan kelalaian, dan terdokumentasi di sini agar jelas batasannya
 untuk Milestone 2.
 
 \begin{itemize}
-  \item \textbf{Lookback polling tetap 60 detik.} Setiap tick Aggregator meminta
-  data sumber sejak \texttt{POLL\_LOOKBACK\_MS} (default 60000 ms) ke belakang,
-  bukan sejak hasil polling sukses terakhir. Asumsinya adalah latensi sumber dan
-  interval polling tidak akan melampaui jendela ini pada skala Milestone 1;
-  jendela yang lebih pendek berisiko melewatkan data saat sumber lambat merespons,
-  sedangkan jendela yang lebih panjang menambah beban query tanpa manfaat berarti
-  pada volume data saat ini.
+  \item \textbf{Overlap lookback tetap 60 detik, dihitung dari sinkronisasi sukses
+  terakhir.} Polling pertama suatu sumber tidak memakai parameter \texttt{since}
+  (mengambil seluruh data tersedia). Polling berikutnya memakai
+  \texttt{since} = waktu sinkronisasi sukses terakhir dikurangi
+  \texttt{POLL\_LOOKBACK\_MS} (default 60000 ms), bukan \texttt{now()} yang lepas
+  dari riwayat sinkronisasi. Overlap ini membuat event di sekitar batas waktu
+  polling sebelumnya diproses ulang secara aman (upsert berdasarkan
+  \texttt{source} dan \texttt{source\_ref\_id}). Asumsinya adalah selisih waktu
+  commit/replikasi di sisi sumber tidak akan melampaui jendela overlap ini pada
+  skala Milestone 1; overlap yang lebih pendek berisiko melewatkan data yang
+  baru tampak setelah polling sebelumnya selesai, sedangkan overlap yang lebih
+  panjang menambah beban query tanpa manfaat berarti pada volume data saat ini.
   \item \textbf{Deduplikasi consumer bersifat in-memory, bukan persisten.}
   \texttt{dashboard-updater} dan \texttt{notifier} menolak \texttt{hazard\_id}
   yang sudah pernah diproses menggunakan struktur \texttt{SeenSet} berkapasitas

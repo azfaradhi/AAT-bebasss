@@ -22,16 +22,20 @@ Ketiadaan degradasi terkendali terjadi ketika satu sumber gagal dan seluruh
 respons client ikut gagal, padahal data terakhir masih tersedia dan berguna.
 
 \subsubsection{Model Konkurensi dan Isolasi Sumber}
-Model konkurensi yang dipilih adalah asynchronous I/O Node.js. Dalam satu
-siklus, BMKG dan PVMBG diproses sebagai operasi asynchronous yang berjalan
-paralel. Satu siklus polling tidak ditumpuk dengan siklus berikutnya.
+Model konkurensi yang dipilih adalah asynchronous I/O Node.js. BMKG dan PVMBG
+tidak berbagi satu siklus polling bersama -- masing-masing sumber memiliki
+\textit{interval timer} independen sendiri yang berjalan secara asynchronous dan
+paralel satu sama lain.
 
-Dalam satu siklus polling, Aggregator memulai polling BMKG dan PVMBG secara
-paralel. Hasil keduanya ditunggu secara independen menggunakan
-\textit{all-settled semantics}: kegagalan satu sumber tidak membatalkan hasil
-sumber lain. Siklus berikutnya tidak ditumpuk ketika siklus sebelumnya masih
-berjalan. Pendekatan ini mencegah ledakan request ke sumber eksternal ketika
-PVMBG memiliki latensi tinggi.
+Setiap sumber memiliki guard \textit{in-flight} miliknya sendiri: tick berikutnya
+untuk sumber yang sama dilewati apabila tick sebelumnya milik sumber itu masih
+berjalan, tetapi ini tidak memengaruhi sumber lain sama sekali. Dengan demikian,
+PVMBG yang lambat atau macet tidak pernah menunda ataupun melewatkan tick BMKG
+-- BMKG tetap berjalan sesuai jadwalnya sendiri. Kegagalan satu sumber juga
+tidak membatalkan hasil sumber lain. Pendekatan per-sumber independen ini
+mencegah ledakan request ke sumber eksternal ketika PVMBG memiliki latensi
+tinggi, sekaligus menghilangkan \textit{head-of-line blocking} antar sumber
+sepenuhnya, bukan hanya mengurangi dampaknya dalam satu siklus bersama.
 
 Setiap panggilan keluar mempunyai timeout yang dikonfigurasi melalui
 \texttt{SOURCE\_REQUEST\_TIMEOUT\_MS} serta mencatat \texttt{latency\_ms} pada
@@ -78,11 +82,12 @@ pembacaan data yang telah tersedia bagi client.
     \toprule
     Keputusan & Keuntungan & Trade-off dan mitigasi \\
     \midrule
-    Polling paralel BMKG dan PVMBG &
-    Latensi PVMBG tidak menunda dimulainya pengambilan data BMKG dalam siklus
-    yang sama. &
-    Siklus dianggap selesai setelah kedua polling selesai. Sistem mencegah
-    siklus tumpang-tindih agar sumber tidak dibanjiri request. \\
+    Polling independen per sumber (bukan satu siklus bersama) &
+    Latensi atau kemacetan PVMBG tidak pernah menunda maupun melewatkan tick
+    BMKG, karena keduanya punya \textit{interval timer} terpisah. &
+    Tick berikutnya untuk sumber yang sama dilewati jika tick sebelumnya milik
+    sumber itu masih berjalan, agar satu sumber tidak dibanjiri request oleh
+    dirinya sendiri. \\
     \addlinespace
     Canonical Store sebagai read model &
     Pembacaan client tidak bergantung pada latensi sumber eksternal dan tetap
@@ -122,6 +127,19 @@ Langkah pembuktiannya adalah sebagai berikut.
 docker compose up -d --force-recreate pvmbg-mock
 \end{lstlisting}
 
+  \item Skrip k6 membaca token client dari variabel environment
+  \texttt{CLIENT\_JWT} (lihat baris 5 pada skrip k6 di bawah). Ambil token
+  tepat sebelum menjalankan k6, agar token masih berlaku selama durasi uji.
+  \texttt{ACCESS\_TOKEN\_TTL\_SECONDS} default (60 detik) sama persis dengan
+  durasi uji sustained pada subbagian berikutnya; naikkan nilainya di
+  \texttt{.env} (mis. 300) sebelum menjalankan uji beban berkelanjutan agar
+  token tidak kedaluwarsa di tengah uji.
+\begin{lstlisting}[style=code,language=bash]
+export CLIENT_JWT=$(curl -s -X POST http://localhost:8091/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"client_id":"lapangan-client","client_secret":"<AUTH_LAPANGAN_CLIENT_SECRET>"}' \
+  | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token')
+\end{lstlisting}
 
   \item Jalankan skenario \textit{k6}. Skenario ini mengirim request
   BMKG-only dan request vulkanik secara bersamaan.
@@ -162,6 +180,10 @@ detik secara sustained. Output pengujian harus melaporkan throughput,
 p50, p95, p99, dan error rate. Sistem dinyatakan memenuhi kriteria apabila
 error rate, di luar penolakan terkontrol seperti HTTP 429, berada di bawah 1\%
 dan tidak terjadi crash.
+
+Sama seperti sebelumnya, ambil \texttt{CLIENT\_JWT} tepat sebelum menjalankan k6
+(lihat langkah 2 subbagian sebelumnya), dengan \texttt{ACCESS\_TOKEN\_TTL\_SECONDS}
+dinaikkan agar token tidak kedaluwarsa sebelum uji 60 detik ini selesai.
 
 \begin{lstlisting}[style=code,language=bash]
 k6 run tests/phase6/p2-concurrency.k6.js
