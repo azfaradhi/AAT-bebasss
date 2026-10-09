@@ -3,6 +3,7 @@ import { config } from './config';
 import { createLogger } from './logger';
 import { PollingScheduler } from './polling/scheduler';
 import { RabbitMqEventPublisher } from './publisher/event-publisher';
+import { OutboxDispatcher } from './publisher/outbox-dispatcher';
 import { CircuitBreaker } from './resilience/circuit-breaker';
 import { ConcurrencyLimiter } from './resilience/concurrency-limiter';
 import { BmkgClient } from './sources/bmkg-client';
@@ -15,12 +16,12 @@ async function main(): Promise<void> {
   await store.init();
   const publisher = new RabbitMqEventPublisher({ url: config.rabbitmqUrl, logger });
   await publisher.start();
+  const dispatcher = new OutboxDispatcher(store, publisher, logger);
   const scheduler = new PollingScheduler({
     logger,
     intervalMs: config.pollIntervalMs,
     lookbackMs: config.pollLookbackMs,
     store,
-    publisher,
     bmkg: new BmkgClient({
       baseUrl: config.bmkgBaseUrl,
       apiKey: config.bmkgApiKey,
@@ -40,6 +41,7 @@ async function main(): Promise<void> {
 
   const shutdown = async (): Promise<void> => {
     scheduler.stop();
+    await dispatcher.stop();
     await publisher.close();
     await store.close();
     await app.close();
@@ -49,6 +51,7 @@ async function main(): Promise<void> {
   process.on('SIGINT', shutdown);
 
   await app.listen({ port: config.port, host: '0.0.0.0' });
+  dispatcher.start();
   scheduler.start();
 }
 

@@ -16,9 +16,18 @@ export interface StoredHazard {
   created: boolean;
 }
 
+export interface PendingHazardPublication {
+  messageId: string;
+  correlationId: string;
+  event: HazardEvent;
+}
+
 export interface CanonicalStore {
   init(): Promise<void>;
-  upsert(event: HazardEvent): Promise<StoredHazard>;
+  upsert(event: HazardEvent, correlationId: string): Promise<StoredHazard>;
+  claimPendingPublication(leaseMs: number): Promise<PendingHazardPublication | null>;
+  markPublicationSent(messageId: string): Promise<void>;
+  releasePublication(messageId: string): Promise<void>;
   list(query?: HazardQuery): Promise<HazardEventResponse>;
   getLastSuccessAt(source: HazardSource): Promise<Date | null>;
   markSourceFresh(source: HazardSource): Promise<void>;
@@ -84,12 +93,28 @@ export class PostgresCanonicalStore implements CanonicalStore {
         stale_since TIMESTAMPTZ NULL,
         last_success_at TIMESTAMPTZ NULL
       );
+      CREATE TABLE IF NOT EXISTS hazard_event_outbox (
+        message_id UUID PRIMARY KEY,
+        hazard_id UUID NOT NULL UNIQUE REFERENCES hazard_events(hazard_id),
+        correlation_id TEXT NOT NULL,
+        payload JSONB NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        published_at TIMESTAMPTZ NULL,
+        locked_until TIMESTAMPTZ NULL,
+        next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        attempts INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS hazard_event_outbox_pending_idx
+        ON hazard_event_outbox (next_attempt_at, created_at) WHERE published_at IS NULL;
     `);
   }
 
-  // hazard_id is generated here on first insert and kept on conflict, so it stays stable across polls.
-  async upsert(event: HazardEvent): Promise<StoredHazard> {
-    const result = await this.pool.query<HazardRow>(`
+  // The event and its publication intent commit together. A broker failure cannot lose the intent.
+  async upsert(event: HazardEvent, correlationId: string): Promise<StoredHazard> {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query<HazardRow>(`
       INSERT INTO hazard_events (
         hazard_id, source, source_ref_id, hazard_type, severity, area_name, latitude, longitude, occurred_at, ingested_at, attributes
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb)
@@ -104,12 +129,62 @@ export class PostgresCanonicalStore implements CanonicalStore {
         attributes = EXCLUDED.attributes,
         updated_at = now()
       RETURNING *, (xmax = 0) AS created;
-    `, [
-      event.hazard_id || randomUUID(), event.source, event.source_ref_id, event.hazard_type, event.severity,
-      event.area_name, event.latitude, event.longitude, event.occurred_at, event.ingested_at, JSON.stringify(event.attributes),
-    ]);
+      `, [
+        event.hazard_id || randomUUID(), event.source, event.source_ref_id, event.hazard_type, event.severity,
+        event.area_name, event.latitude, event.longitude, event.occurred_at, event.ingested_at, JSON.stringify(event.attributes),
+      ]);
+      const row = result.rows[0];
+      const stored = { event: this.toHazardEvent(row), created: row.created };
+      if (stored.created) {
+        await client.query(`
+          INSERT INTO hazard_event_outbox (message_id, hazard_id, correlation_id, payload)
+          VALUES ($1, $2, $3, $4::jsonb);
+        `, [randomUUID(), stored.event.hazard_id, correlationId, JSON.stringify(stored.event)]);
+      }
+      await client.query('COMMIT');
+      return stored;
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+
+  async claimPendingPublication(leaseMs: number): Promise<PendingHazardPublication | null> {
+    const result = await this.pool.query<{
+      message_id: string;
+      correlation_id: string;
+      payload: HazardEvent;
+    }>(`
+      UPDATE hazard_event_outbox AS outbox
+      SET locked_until = now() + ($1::int * interval '1 millisecond'), attempts = attempts + 1
+      WHERE message_id = (
+        SELECT message_id FROM hazard_event_outbox
+        WHERE published_at IS NULL AND next_attempt_at <= now()
+          AND (locked_until IS NULL OR locked_until <= now())
+        ORDER BY created_at, message_id
+        FOR UPDATE SKIP LOCKED LIMIT 1
+      )
+      RETURNING outbox.message_id, outbox.correlation_id, outbox.payload;
+    `, [leaseMs]);
     const row = result.rows[0];
-    return { event: this.toHazardEvent(row), created: row.created };
+    return row ? { messageId: row.message_id, correlationId: row.correlation_id, event: row.payload } : null;
+  }
+
+  async markPublicationSent(messageId: string): Promise<void> {
+    await this.pool.query(`
+      UPDATE hazard_event_outbox SET published_at = now(), locked_until = NULL
+      WHERE message_id = $1 AND published_at IS NULL;
+    `, [messageId]);
+  }
+
+  async releasePublication(messageId: string): Promise<void> {
+    await this.pool.query(`
+      UPDATE hazard_event_outbox
+      SET locked_until = NULL, next_attempt_at = now() + interval '1 second'
+      WHERE message_id = $1 AND published_at IS NULL;
+    `, [messageId]);
   }
 
   async list(query: HazardQuery = {}): Promise<HazardEventResponse> {

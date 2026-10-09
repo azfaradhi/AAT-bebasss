@@ -1,5 +1,4 @@
 import { randomUUID } from 'node:crypto';
-import type { EventPublisher } from '../publisher/event-publisher';
 import { contextStorage } from '../context';
 import type { Logger } from '../logger';
 import type { HazardSourceClient } from '../sources/source-client';
@@ -9,7 +8,6 @@ export interface PollingSchedulerOptions {
   bmkg: HazardSourceClient;
   pvmbg: HazardSourceClient;
   store: CanonicalStore;
-  publisher: EventPublisher;
   intervalMs: number;
   lookbackMs: number;
   logger: Logger;
@@ -80,17 +78,7 @@ export class PollingScheduler {
         : undefined;
       const events = await source.poll(since);
       for (const event of events) {
-        const stored = await this.opts.store.upsert(event);
-        if (stored.created) {
-          try {
-            await this.opts.publisher.publish(stored.event, contextStorage.getStore()?.correlationId ?? randomUUID());
-          } catch (err) {
-            this.opts.logger.error(
-              { source: source.sourceName, hazard_id: stored.event.hazard_id, err: err instanceof Error ? err.message : String(err) },
-              'hazard event could not be published',
-            );
-          }
-        }
+        await this.opts.store.upsert(event, contextStorage.getStore()?.correlationId ?? randomUUID());
       }
       await this.opts.store.markSourceFresh(source.sourceName);
       this.opts.logger.info({ source: source.sourceName, latency_ms: Date.now() - started }, 'source poll completed');
