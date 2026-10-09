@@ -5,9 +5,29 @@
   \toprule
   \textbf{Anggota} & \textbf{Kontribusi} \\
   \midrule
-  \NamaSatu\ (\NIMSatu) & <Kontribusi Anggota 1> \\
-  \NamaDua\ (\NIMDua) & <Kontribusi Anggota 2> \\
-  \NamaTiga\ (\NIMTiga) & <Kontribusi Anggota 3> \\
+  \NamaSatu\ (\NIMSatu) &
+  Problem 3 (Service-to-Service Authentication \& Trust) dan Problem 5
+  (Fan-out Event Distribution \& Pub-sub): Auth Service (penerbitan dan
+  pembaruan access/refresh token), RBAC field filtering di Client-Facing
+  API, topologi \textit{fanout} RabbitMQ beserta consumer
+  \texttt{dashboard-updater} dan \texttt{notifier}. Juga menangani
+  perbaikan lintas-service (polling per sumber, validasi API internal,
+  pagination/limit Canonical Store, refactor \texttt{bmkg-mock} dan
+  \texttt{pvmbg-mock} menjadi testable) serta penulisan laporan Problem 3
+  dan Problem 5. \\
+  \NamaDua\ (\NIMDua) &
+  Problem 2 (Concurrency, Availability, \& Graceful Degradation) dan
+  Problem 4 (Microservice Architecture \& Flexible Storage): fondasi
+  Aggregator (polling, circuit breaker, pembatasan konkurensi panggilan
+  PVMBG), Canonical Store PostgreSQL, integrasi Client-Facing API ke API
+  internal Aggregator, serta skenario \textit{load test} k6. Menulis
+  laporan Problem 2 lengkap dengan hasil pengukuran k6. \\
+  \NamaTiga\ (\NIMTiga) &
+  Problem 1 (Arsitektur \& Interoperabilitas Data): \texttt{bmkg-mock} dan
+  \texttt{pvmbg-mock}, \textit{shared types}, serta modul \textit{mapping}
+  yang mengubah data sumber menjadi \textit{HazardEvent} kanonik. Turut
+  berdiskusi untuk batas service pada Problem 4 dan menulis laporan
+  Problem 4. \\
   \bottomrule
 \end{tabularx}
 \clearpage

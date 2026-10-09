@@ -85,6 +85,75 @@ berikutnya akan menguji fondasi yang sama dalam kondisi yang lebih skalabel,
 termasuk banyak instance layanan, volume data yang meningkat drastis, dan
 kegagalan beberapa komponen secara bersamaan.
 
+\subsection{Asumsi}
+\label{sec:asumsi}
+
+Beberapa keputusan perancangan dan implementasi berikut diambil sebagai asumsi
+yang disadari, bukan kelalaian, dan terdokumentasi di sini agar jelas batasannya
+untuk Milestone 2.
+
+\begin{itemize}
+  \item \textbf{Lookback polling tetap 60 detik.} Setiap tick Aggregator meminta
+  data sumber sejak \texttt{POLL\_LOOKBACK\_MS} (default 60000 ms) ke belakang,
+  bukan sejak hasil polling sukses terakhir. Asumsinya adalah latensi sumber dan
+  interval polling tidak akan melampaui jendela ini pada skala Milestone 1;
+  jendela yang lebih pendek berisiko melewatkan data saat sumber lambat merespons,
+  sedangkan jendela yang lebih panjang menambah beban query tanpa manfaat berarti
+  pada volume data saat ini.
+  \item \textbf{Deduplikasi consumer bersifat in-memory, bukan persisten.}
+  \texttt{dashboard-updater} dan \texttt{notifier} menolak \texttt{hazard\_id}
+  yang sudah pernah diproses menggunakan struktur \texttt{SeenSet} berkapasitas
+  terbatas di memori proses (lihat \texttt{src/dedup.ts} pada masing-masing
+  consumer). Asumsinya adalah consumer berjalan sebagai instance tunggal yang
+  tidak restart terlalu sering; riwayat dedup hilang saat proses direstart,
+  sehingga event yang di-redeliver oleh broker tepat setelah restart dapat
+  diproses ulang. Ini dianggap dapat diterima karena efek samping consumer pada
+  Milestone 1 bersifat simulasi (log), bukan transaksi yang tidak boleh terulang.
+  \item \textbf{Access token tidak memiliki mekanisme blocklist/revocation.}
+  Token yang sudah diterbitkan oleh \texttt{auth-service} tetap valid hingga
+  kedaluwarsa meskipun client dianggap perlu dicabut aksesnya lebih awal.
+  Asumsinya adalah umur token yang pendek (default 60 detik untuk access token)
+  sudah memadai sebagai mitigasi risiko pada skala proof-of-concept ini.
+  \item \textbf{\texttt{hazard\_id} dibangkitkan oleh Canonical Store, bukan oleh
+  sumber data.} BMKG dan PVMBG masing-masing memiliki pengenal sendiri
+  (\texttt{source\_ref\_id}); \texttt{hazard\_id} kanonik dibangkitkan sekali
+  oleh Aggregator saat baris pertama kali disisipkan dan dipertahankan pada
+  setiap pembaruan berikutnya (\texttt{ON CONFLICT} pada pasangan
+  \texttt{source}, \texttt{source\_ref\_id}). Asumsinya adalah pasangan tersebut
+  cukup unik untuk mengidentifikasi satu kejadian sepanjang hidup Milestone 1.
+  \item \textbf{Setiap layanan berjalan sebagai instance tunggal.} Tidak ada
+  layanan yang di-scale ke lebih dari satu container pada \texttt{docker-compose.yml}.
+  Konsekuensinya, pembatasan konkurensi (misalnya limiter panggilan PVMBG) dan
+  dedup consumer bersifat lokal per proses, bukan terkoordinasi lintas instance.
+  Multi-instance secara eksplisit berada di luar cakupan Milestone 1 dan menjadi
+  perhatian Milestone 2.
+\end{itemize}
+
+\subsection{Petunjuk Menjalankan Sistem}
+\label{sec:petunjuk-menjalankan}
+
+Langkah lengkap menjalankan sistem, termasuk daftar variabel konfigurasi dan
+cara memicu setiap skenario demo per problem, didokumentasikan di
+\texttt{README.md} pada root repository. Ringkasannya:
+
+\begin{enumerate}
+  \item Salin \texttt{.env.example} menjadi \texttt{.env}, lalu ganti seluruh
+  nilai \texttt{replace-with-...} dengan kredensial lokal.
+  \item Bangkitkan token PVMBG dengan \texttt{node scripts/mint-pvmbg-token.js}
+  dan simpan hasilnya ke \texttt{PVMBG\_ACCESS\_TOKEN} pada \texttt{.env}.
+  Aggregator tidak akan start tanpa token ini.
+  \item Jalankan seluruh sistem dengan \texttt{docker compose up -d --build}.
+  \item Pastikan setiap service sehat melalui endpoint \texttt{/health}
+  masing-masing (BMKG \texttt{8081}, PVMBG \texttt{8082}, Client API \texttt{8080},
+  Aggregator \texttt{8090}, Auth Service \texttt{8091}, Dashboard Consumer
+  \texttt{8092}, Notifier \texttt{8093}).
+\end{enumerate}
+
+README juga memuat tabel variabel konfigurasi per kelompok layanan, serta
+perintah \texttt{curl}/\texttt{bash} (dan padanan PowerShell) untuk memicu
+setiap skenario demo Problem 1 sampai Problem 5, termasuk skenario outage,
+RBAC, dan load test k6.
+
 \subsection{Struktur Laporan}
 
 Bab berikutnya menjelaskan arsitektur sistem, batas tiap service, serta teknologi
