@@ -79,6 +79,55 @@ Service aplikasi dibangun menggunakan Node.js, TypeScript, dan Fastify.
 Komunikasi sinkron menggunakan REST, sedangkan distribusi event memakai RabbitMQ
 melalui AMQP. Canonical Store menggunakan PostgreSQL dengan \texttt{JSONB}
 untuk menyimpan atribut sumber yang dinamis tanpa penambahan kolom baru.
+Tabel~\ref{tab:teknologi} merinci seluruh teknologi yang dipakai beserta
+alasan pemilihannya.
+
+\begin{table}[H]
+  \centering
+  \caption{Teknologi yang digunakan dan alasan pemilihan.}
+  \label{tab:teknologi}
+  \begin{tabularx}{\textwidth}{@{}p{0.2\textwidth}X@{}}
+    \toprule
+    \textbf{Teknologi} & \textbf{Alasan Pemilihan} \\
+    \midrule
+    TypeScript (strict mode) & Tipe statis menangkap ketidakcocokan kontrak
+    antar-service saat compile, penting karena tiap domain kepercayaan
+    (BMKG, PVMBG, client) punya bentuk payload berbeda. \\
+    Fastify & Overhead rendah dan validasi skema bawaan, cocok untuk service
+    kecil yang perlu start cepat dan banyak dijalankan sebagai container
+    terpisah. \\
+    \texttt{pg} & Driver PostgreSQL resmi tanpa lapisan ORM, dipilih agar
+    kueri SQL ke Canonical Store (termasuk \texttt{UPSERT} dan filter
+    \texttt{JSONB}) tetap eksplisit dan mudah diaudit. \\
+    PostgreSQL + \texttt{JSONB} & Mendukung evolusi skema aditif (field baru
+    dari sumber langsung masuk ke \texttt{attributes}) tanpa migrasi, sesuai
+    kebutuhan Problem 4. \\
+    RabbitMQ + \texttt{amqplib} & Exchange bertipe \textit{fanout} memenuhi
+    kebutuhan Problem 5: Aggregator menerbitkan event sekali, seluruh
+    consumer menerimanya secara independen tanpa Aggregator mengetahui
+    siapa saja consumer-nya. \\
+    \texttt{jsonwebtoken} & Implementasi JWT standar untuk menerbitkan dan
+    memvalidasi access/refresh token client serta domain kepercayaan PVMBG,
+    tanpa menulis ulang logika signing/verifikasi sendiri. \\
+    \texttt{zod} & Validasi skema environment variable saat startup
+    (\texttt{config.ts} tiap service), sehingga konfigurasi yang salah
+    membuat service gagal start lebih awal alih-alih gagal diam-diam saat
+    runtime. \\
+    \texttt{pino} & Logger terstruktur (JSON) dengan dukungan
+    \texttt{correlation\_id} lewat \texttt{AsyncLocalStorage}, dipilih agar
+    log antar-service bisa ditelusuri dalam satu alur permintaan. \\
+    \texttt{vitest} & Test runner cepat dan kompatibel langsung dengan
+    TypeScript/ESM tanpa konfigurasi transpiler tambahan, dipakai untuk
+    131 unit test di seluruh service. \\
+    k6 & Load testing terskrip untuk mengukur throughput dan latensi p95
+    pada Problem 2, dengan dukungan skenario VU paralel yang meniru beban
+    BMKG-only dan beban campuran. \\
+    Docker Compose & Orkestrasi lokal yang mengemas setiap service sebagai
+    container terpisah dengan jaringan internal sendiri, selaras dengan
+    batas service yang dituntut Problem 4. \\
+    \bottomrule
+  \end{tabularx}
+\end{table}
 
 Seluruh service dijalankan melalui \texttt{docker-compose.yml}. Port, URL
 service, credential, interval polling, parameter circuit breaker, koneksi
