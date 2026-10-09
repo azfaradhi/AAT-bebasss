@@ -43,15 +43,13 @@ function makePublisher(overrides = {}) {
 beforeEach(() => vi.clearAllMocks());
 
 describe('RabbitMqEventPublisher', () => {
-  it('asserts a durable fanout exchange and both durable queues bound to it', async () => {
+  it('asserts only the durable fanout exchange without knowing consumer queues', async () => {
     const { channel } = fakeBroker();
     const publisher = makePublisher();
     await publisher.start();
     expect(channel.assertExchange).toHaveBeenCalledWith('hazard_events_exchange', 'fanout', { durable: true });
-    expect(channel.assertQueue).toHaveBeenCalledWith('dashboard_updater_queue', { durable: true });
-    expect(channel.assertQueue).toHaveBeenCalledWith('notifier_queue', { durable: true });
-    expect(channel.bindQueue).toHaveBeenCalledWith('dashboard_updater_queue', 'hazard_events_exchange', '');
-    expect(channel.bindQueue).toHaveBeenCalledWith('notifier_queue', 'hazard_events_exchange', '');
+    expect(channel.assertQueue).not.toHaveBeenCalled();
+    expect(channel.bindQueue).not.toHaveBeenCalled();
     await publisher.close();
   });
 
@@ -74,6 +72,20 @@ describe('RabbitMqEventPublisher', () => {
     });
     expect(message.message_id).toMatch(/^[0-9a-f-]{36}$/);
     expect(new Date(message.published_at).toString()).not.toBe('Invalid Date');
+    await publisher.close();
+  });
+
+  it('uses a persisted message ID when retrying an outbox publication', async () => {
+    const { channel } = fakeBroker();
+    const publisher = makePublisher();
+    await publisher.start();
+    const messageId = 'be4e06c8-58d8-4867-a2e7-b12b9946b84a';
+
+    await publisher.publish(event, 'corr-42', messageId);
+
+    const message = JSON.parse((channel.publish.mock.calls[0][2] as Buffer).toString());
+    expect(message.message_id).toBe(messageId);
+    expect(channel.publish.mock.calls[0][3]).toMatchObject({ messageId, correlationId: 'corr-42' });
     await publisher.close();
   });
 
