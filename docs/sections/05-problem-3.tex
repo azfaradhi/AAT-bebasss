@@ -68,7 +68,7 @@ merangkum pemetaannya. Sebelumnya seluruh container menerima \texttt{.env} penuh
     Keputusan & Keuntungan & Trade-off dan mitigasi \\
     \midrule
     JWT stateless (dipilih) dibanding token store (Redis atau Postgres) &
-    Tidak ada dependensi tambahan, sesuai kontrak §6.2, dan tidak ada titik kegagalan baru. &
+    Tidak ada dependensi tambahan, sesuai kontrak bagian 6.2, dan tidak ada titik kegagalan baru. &
     Token tidak bisa dicabut sebelum \texttt{exp}. Dimitigasi dengan TTL pendek (60 detik). \\
     \addlinespace
     Satu \texttt{CLIENT\_JWT\_SECRET} untuk semua scope (dipilih) dibanding secret per scope &
@@ -96,7 +96,7 @@ merangkum pemetaannya. Sebelumnya seluruh container menerima \texttt{.env} penuh
 \begin{enumerate}
   \item \textbf{Refresh token tidak dicabut setelah dipakai.} Refresh token lama
   tetap valid sampai \texttt{exp} (15 menit). Ini konsekuensi dari auth yang stateless
-  (kontrak §6.2). Jika refresh token bocor, penyerang bisa memperbarui akses hingga
+  (kontrak bagian 6.2). Jika refresh token bocor, penyerang bisa memperbarui akses hingga
   15 menit. Access token lama tetap ditolak setelah TTL 60 detik, sesuai spek.
   \item \textbf{Penolakan token bergantung pada TTL, bukan blocklist.} Access token
   yang sudah dicabut secara manual tidak bisa dicabut sebelum kedaluwarsa.
@@ -139,19 +139,3 @@ Bukti berikut diambil dari pengujian langsung terhadap sistem yang berjalan penu
 
 Verifikasi otomatis: 18 unit test \textit{auth-service} dan 28 unit test \textit{client-api}
 lulus, termasuk filter RBAC, validasi scope, dan validasi parameter query.
-
-\subsection{Jawaban atas Butir ``Di Laporan''}
-Mekanisme yang dipakai adalah JWT HS256 stateless dengan tiga trust domain terpisah.
-Mekanisme ini tidak membuka celah baru karena:
-\begin{enumerate}
-  \item setiap domain memakai secret yang berbeda, sehingga token atau kunci satu domain
-  tidak diterima domain lain (dibuktikan dengan skenario 5);
-  \item \texttt{aud} berbeda antara token client (\texttt{bnpb-client}) dan token PVMBG
-  (\texttt{pvmbg});
-  \item \texttt{purpose} membedakan access dan refresh, sehingga refresh token tidak bisa
-  dipakai sebagai access token, dan sebaliknya;
-  \item secret hanya ada di container yang memerlukannya (tabel~\ref{tab:p3-secret});
-  \item tidak ada kredensial yang di-hardcode atau di-commit. \texttt{.env} di-gitignore
-  dan \texttt{.env.example} berisi placeholder.
-\end{enumerate}
-Celah yang masih ada tercantum pada bagian Batasan.

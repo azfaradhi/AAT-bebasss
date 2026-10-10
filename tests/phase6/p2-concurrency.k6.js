@@ -6,6 +6,7 @@ const token = __ENV.CLIENT_JWT;
 const requestOptions = { headers: { authorization: `Bearer ${token}` } };
 
 export const options = {
+  summaryTrendStats: ['avg', 'p(50)', 'p(95)', 'p(99)', 'max'],
   scenarios: {
     bmkg_only: {
       executor: 'constant-vus',

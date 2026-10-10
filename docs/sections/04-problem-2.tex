@@ -248,7 +248,7 @@ pembacaan client dan bahwa sistem pulih tanpa restart service.
   \item Tunggu sekitar 8 detik agar polling yang sedang berlangsung selesai
   dan Aggregator menjalankan polling PVMBG yang gagal. Kemudian jalankan
   kembali request \texttt{CLIENT API - /hazard-events} untuk \texttt{hazard\_type=VOLCANIC}.
-  Respons vulkanik memuat data terakhir dari Canonical Store, sedangkan \texttt{meta.stale\_since} berisi waktu sejak kapan agregrator mendeteksi kegagalan sinkronisasi.
+  Respons vulkanik memuat data terakhir dari Canonical Store, sedangkan \texttt{meta.stale\_since} berisi waktu ketika Aggregator mendeteksi kegagalan sinkronisasi.
 
   \begin{figure}[H]
     \centering
