@@ -13,7 +13,6 @@ export interface ConsumerOptions {
   reconnectMaxMs?: number;
 }
 
-// Manual ack, prefetch 1 so messages are handled one at a time (dedup can't race).
 export class HazardEventConsumer {
   private connection: Connection | null = null;
   private connected = false;
@@ -29,7 +28,6 @@ export class HazardEventConsumer {
     this.retryDelayMs = this.reconnectMinMs;
   }
 
-  // Never throws; keeps retrying in the background so the container survives a broker that boots late.
   async start(): Promise<void> {
     await this.tryConnect();
   }

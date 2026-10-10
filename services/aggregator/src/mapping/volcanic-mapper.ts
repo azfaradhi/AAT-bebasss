@@ -30,7 +30,7 @@ export function mapVolcanicReportToHazardEvent(
   };
 
   return {
-    hazard_id: '', // assigned by CanonicalStore.upsert on first insert and kept stable across polls
+    hazard_id: '',
     source: 'PVMBG',
     source_ref_id: report_id,
     hazard_type: 'VOLCANIC',

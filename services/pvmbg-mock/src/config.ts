@@ -13,7 +13,6 @@ const schema = z
 
 export type PvmbgConfig = z.infer<typeof schema>;
 
-// Reads process.env once at startup. Fails fast if a required variable is missing.
 export function loadConfig(env: NodeJS.ProcessEnv): PvmbgConfig {
   const parsed = schema.safeParse(env);
   if (!parsed.success) {

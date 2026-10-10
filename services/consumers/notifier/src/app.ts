@@ -3,8 +3,6 @@ import type { ErrorEnvelope, HealthResponse } from '../../../../shared-types/src
 
 export const SERVICE_NAME = 'notifier';
 
-// Consumers have no inbound business traffic; HTTP exists only for /health.
-// Correlation IDs are bound per consumed message (from the message envelope), not per HTTP request.
 export function buildApp(logger: FastifyBaseLogger, isBrokerConnected: () => boolean): FastifyInstance {
   const app = Fastify({ loggerInstance: logger });
 
@@ -20,7 +18,6 @@ export function buildApp(logger: FastifyBaseLogger, isBrokerConnected: () => boo
   });
 
   app.get('/health', async (): Promise<HealthResponse> => ({
-    // degraded = up but not attached to the broker
     status: isBrokerConnected() ? 'ok' : 'degraded',
     service: SERVICE_NAME,
     timestamp: new Date().toISOString(),

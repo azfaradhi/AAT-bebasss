@@ -30,8 +30,6 @@ export class OutboxDispatcher {
     await this.active;
   }
 
-  // A failed confirmation leaves the durable row pending. A second process can reclaim
-  // a lease after a crash; this is at-least-once delivery, not exactly-once delivery.
   async flush(): Promise<void> {
     if (this.active) return this.active;
     const work = this.drain().catch((err: unknown) => {

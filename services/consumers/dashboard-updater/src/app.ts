@@ -3,8 +3,6 @@ import type { ErrorEnvelope, HealthResponse } from '../../../../shared-types/src
 
 export const SERVICE_NAME = 'dashboard-updater';
 
-// Consumers have no inbound business traffic; HTTP exists only for /health.
-// Correlation IDs are bound per consumed message (from the message envelope), not per HTTP request.
 export function buildApp(logger: FastifyBaseLogger, isBrokerConnected: () => boolean): FastifyInstance {
   const app = Fastify({ loggerInstance: logger });
 

@@ -4,12 +4,10 @@ import type { VolcanicReport } from '../../../shared-types/src/volcanic';
 const ONE_HOUR = 3_600_000;
 const SEED_COUNT = 25;
 
-// Keys of the Aggregator's static volcano reference table (services/aggregator/src/mapping/volcano-reference.ts).
 export const VOLCANO_IDS = ['v-merapi', 'v-semeru', 'v-kelud', 'v-sinabung', 'v-agung'] as const;
 
 export interface PvmbgState {
   reports: VolcanicReport[];
-  // Toggled by POST /admin/schema-version. Only records generated after the toggle carry confidence_level.
   schemaConfidenceLevelEnabled: boolean;
   outageActive: boolean;
   outageTimeout: NodeJS.Timeout | null;
@@ -50,7 +48,6 @@ export function createPvmbgState(now = Date.now(), random: () => number = Math.r
   return state;
 }
 
-// Live report, added every 10 seconds by index.ts.
 export function addLiveReport(state: PvmbgState, now = new Date(), random: () => number = Math.random): void {
   state.reports.push(generateReport(state, now, random));
 }

@@ -1,6 +1,3 @@
-// P2: BMKG-only reads must stay fast while PVMBG-backed reads run at the same time.
-// Total concurrency is 50 connections for 60 seconds: 40 BMKG-only (SEISMIC) and 10 PVMBG-backed (VOLCANIC).
-// Run with PVMBG_DELAY_MIN_MS=PVMBG_DELAY_MAX_MS=3000 on pvmbg-mock to reproduce the spec scenario.
 import http from 'k6/http';
 import { check } from 'k6';
 
@@ -8,7 +5,6 @@ const baseUrl = __ENV.BASE_URL || 'http://localhost:8080';
 const token = __ENV.CLIENT_JWT;
 
 export const options = {
-  // Printed in the k6 summary, so p50, p95, and p99 are all reported for each scenario.
   summaryTrendStats: ['avg', 'p(50)', 'p(95)', 'p(99)', 'max'],
   scenarios: {
     bmkg_only: {

@@ -4,7 +4,6 @@ import type { SeenSet } from './dedup';
 import type { Logger } from './logger';
 import type { SideEffect } from './side-effect';
 
-// What the AMQP layer should do with the delivery.
 export type Outcome = 'ack' | 'requeue' | 'drop';
 
 export interface HandlerDeps {
@@ -26,8 +25,6 @@ function parseEnvelope(content: Buffer): HazardEventMessage | null {
   return m as HazardEventMessage;
 }
 
-// Dedup on hazard_id before any side effect; redelivery is expected (at-least-once).
-// ack = done or duplicate, requeue = side effect failed, drop = unparseable message
 export async function processMessage(content: Buffer, deps: HandlerDeps): Promise<Outcome> {
   const message = parseEnvelope(content);
   if (!message) {
@@ -35,7 +32,6 @@ export async function processMessage(content: Buffer, deps: HandlerDeps): Promis
     return 'drop';
   }
 
-  // Bind the producer's correlation_id for every log line of this message.
   return contextStorage.run({ correlationId: message.correlation_id }, async () => {
     const { hazard_id } = message.payload;
     const started = Date.now();

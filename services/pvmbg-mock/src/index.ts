@@ -6,7 +6,6 @@ const config = loadConfig(process.env);
 const state = createPvmbgState();
 const app = buildApp({ config, state });
 
-// A new report every 10 seconds, so the Aggregator always has fresh data to ingest.
 setInterval(() => addLiveReport(state), 10_000);
 
 app.listen({ port: config.PVMBG_PORT, host: '0.0.0.0' }, (err, address) => {

@@ -13,7 +13,6 @@ const schema = z
 
 export type BmkgConfig = z.infer<typeof schema>;
 
-// Reads process.env once at startup. Fails fast if a required variable is missing.
 export function loadConfig(env: NodeJS.ProcessEnv): BmkgConfig {
   const parsed = schema.safeParse(env);
   if (!parsed.success) {

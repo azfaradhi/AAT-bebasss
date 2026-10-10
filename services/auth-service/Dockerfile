@@ -1,4 +1,3 @@
-# Build context is the repo root (so shared-types/ is reachable): see docker-compose.yml
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY shared-types ./shared-types

@@ -15,7 +15,6 @@ export interface BmkgAppOptions {
 export function buildApp({ config, state, logger = true }: BmkgAppOptions): FastifyInstance {
   const app = Fastify({ logger: logger ? { base: { service: SERVICE_NAME } } : false });
 
-  // ErrorEnvelope for every non-2xx response, including Fastify's own default errors.
   app.setNotFoundHandler((request, reply) => {
     const body: ErrorEnvelope = { error: { code: 'NOT_FOUND', message: `Route ${request.method}:${request.url} not found` } };
     return reply.code(404).send(body);
@@ -37,7 +36,7 @@ export function buildApp({ config, state, logger = true }: BmkgAppOptions): Fast
     request.log.info({ correlation_id: correlationId }, 'request received');
   });
 
-  // Simulated latency: a random delay within [min, max] on every data request (health is exempt).
+  // Simulated latency: a random delay within [min, max] on every data reques
   app.addHook('preHandler', async (request) => {
     if (request.url === '/health') return;
     const span = config.BMKG_DELAY_MAX_MS - config.BMKG_DELAY_MIN_MS;
@@ -45,7 +44,7 @@ export function buildApp({ config, state, logger = true }: BmkgAppOptions): Fast
     await new Promise((resolve) => setTimeout(resolve, delay));
   });
 
-  // Cross-domain rejection: a PVMBG-style Bearer token is 403, a missing or wrong X-BMKG-Key is 401.
+  // Cross-domain rejection: a PVMBG-style Bearer token is 403, a missing or wrong X-BMKG-Key is 401
   app.addHook('preHandler', async (request, reply) => {
     if (request.url === '/health') return;
 
@@ -78,7 +77,7 @@ export function buildApp({ config, state, logger = true }: BmkgAppOptions): Fast
     return { data };
   });
 
-  // A warning belongs to its event's time window: estimated_arrival is two hours after occurred_at.
+  // A warning belongs to its event's time window: estimated_arrival is two hours after occurred_at
   app.get<{ Querystring: { since?: string } }>('/tsunami-warnings', async (request) => {
     const { since } = request.query;
     const sinceMs = since ? new Date(since).getTime() : undefined;

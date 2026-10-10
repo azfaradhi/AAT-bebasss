@@ -1,4 +1,3 @@
-# Isolated, unpublished ports for a clean P5 startup test alongside the main stack.
 services:
   bmkg-mock:
     ports: !reset []

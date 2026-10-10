@@ -1,4 +1,3 @@
-// Error classes carry a `code` field that is returned to clients in the error envelope.
 export class AppError extends Error {
   constructor(
     public readonly statusCode: number,

@@ -13,7 +13,6 @@ export interface ConsumerOptions {
   reconnectMaxMs?: number;
 }
 
-// Manual ack, prefetch 1 so messages are handled one at a time (dedup can't race).
 export class HazardEventConsumer {
   private connection: Connection | null = null;
   private connected = false;
@@ -29,7 +28,6 @@ export class HazardEventConsumer {
     this.retryDelayMs = this.reconnectMinMs;
   }
 
-  // Never throws; keeps retrying in the background so the container survives a broker that boots late.
   async start(): Promise<void> {
     await this.tryConnect();
   }
@@ -62,7 +60,6 @@ export class HazardEventConsumer {
         QUEUE_NAME,
         async (msg) => {
           if (msg === null) {
-            // Server cancelled the consumer (e.g. queue deleted): treat like a disconnect.
             this.onDisconnected('consumer cancelled by broker');
             return;
           }
@@ -71,7 +68,6 @@ export class HazardEventConsumer {
             if (outcome === 'ack') channel.ack(msg);
             else channel.nack(msg, false, outcome === 'requeue');
           } catch (err) {
-            // Channel died between processing and ack: the broker will redeliver, and dedup absorbs the repeat.
             logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'could not settle delivery');
           }
         },

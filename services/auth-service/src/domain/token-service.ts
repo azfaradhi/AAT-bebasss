@@ -15,8 +15,6 @@ export interface TokenSubject {
   scope: ClientScope;
 }
 
-// Fully stateless: both tokens are self-verifying JWTs, so there is no token store.
-// An old access token stops working through its own `exp`, not through a blocklist.
 export class TokenService {
   constructor(
     private readonly secret: string,

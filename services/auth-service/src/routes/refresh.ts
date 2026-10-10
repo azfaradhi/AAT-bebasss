@@ -21,7 +21,6 @@ export function registerRefreshRoute(app: FastifyInstance, registry: ClientRegis
     },
     async (request) => {
       const claims = tokens.verifyRefreshToken(request.body.refresh_token);
-      // The client must still be provisioned, with the same scope the token was minted for.
       const client = registry.findById(claims.sub);
       if (!client || client.scope !== claims.scope) {
         throw new InvalidTokenError('Token subject is no longer valid');

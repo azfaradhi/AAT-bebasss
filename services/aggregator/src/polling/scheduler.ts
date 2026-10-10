@@ -13,7 +13,6 @@ export interface PollingSchedulerOptions {
   logger: Logger;
 }
 
-// Each source has its own loop and its own in-flight guard, so a slow source never delays another one.
 export class PollingScheduler {
   private readonly timers: NodeJS.Timeout[] = [];
   private readonly inFlight = new Set<HazardSourceClient['sourceName']>();
@@ -35,7 +34,6 @@ export class PollingScheduler {
     this.timers.length = 0;
   }
 
-  // One poll for every source. The sources run independently and do not wait for each other.
   async runTick(): Promise<void> {
     await Promise.all([this.runSourceTick(this.opts.bmkg), this.runSourceTick(this.opts.pvmbg)]);
   }
@@ -56,7 +54,6 @@ export class PollingScheduler {
         try {
           await this.pollSource(source);
         } catch {
-          // pollSource already logged the failure and marked the source stale.
         }
         this.opts.logger.info(
           { source: source.sourceName, latency_ms: Date.now() - started },

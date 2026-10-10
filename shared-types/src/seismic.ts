@@ -5,14 +5,14 @@ export interface SeismicEvent {
   epicenter_lat: number;
   epicenter_lon: number;
   region_name: string;
-  occurred_at: string;       // ISO 8601
+  occurred_at: string;
   potential_tsunami: boolean;
 }
 
 export interface TsunamiWarning {
   warning_id: string;
-  related_event_id: string;  // FK -> SeismicEvent.event_id
+  related_event_id: string;
   threat_level: 'Waspada' | 'Siaga' | 'Awas';
   affected_zones: string[];
-  estimated_arrival: string; // ISO 8601
+  estimated_arrival: string;
 }

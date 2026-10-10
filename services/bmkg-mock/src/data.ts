@@ -22,7 +22,7 @@ function generateRecord(
 ): GeneratedRecord {
   const event_id = randomUUID();
   const isTsunami = random() > 0.8;
-  const magnitude = 4.0 + random() * 4.0; // 4.0 to 8.0
+  const magnitude = 4.0 + random() * 4.0;
 
   const event: SeismicEvent = {
     event_id,
@@ -56,7 +56,6 @@ function push(state: BmkgState, record: GeneratedRecord): void {
   if (record.warning) state.tsunamiWarnings.push(record.warning);
 }
 
-// Seed: SEED_COUNT events spread over the last 24 hours (contract §4.1).
 export function createBmkgState(now = Date.now(), random: () => number = Math.random): BmkgState {
   const state: BmkgState = { seismicEvents: [], tsunamiWarnings: [] };
   for (let i = 0; i < SEED_COUNT; i++) {
@@ -66,7 +65,6 @@ export function createBmkgState(now = Date.now(), random: () => number = Math.ra
   return state;
 }
 
-// Live record, added every 10 seconds by index.ts (spec: at least 1 new event per 10 seconds per instance).
 export function addLiveRecord(state: BmkgState, now = new Date(), random: () => number = Math.random): void {
   const region = `Live Region ${Math.floor(random() * 100)}`;
   push(state, generateRecord(now.toISOString(), region, ['Live Zone A', 'Live Zone B'], random));

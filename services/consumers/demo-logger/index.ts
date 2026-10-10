@@ -1,5 +1,3 @@
-// Ad-hoc third consumer, proving a new subscriber needs no publisher change. Not in docker-compose.yml;
-// run manually: npx tsx index.ts
 import amqp from 'amqplib';
 import pino from 'pino';
 

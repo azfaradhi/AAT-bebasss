@@ -4,12 +4,10 @@ import type { HazardEvent } from '../../../../shared-types/src/hazard-event';
 import type { HazardEventMessage } from '../../../../shared-types/src/envelopes';
 import { assertTopology, EXCHANGE_NAME } from './topology';
 
-// The scheduler depends only on this interface.
 export interface EventPublisher {
   publish(event: HazardEvent, correlationId: string, messageId?: string): Promise<void>;
 }
 
-// Structurally compatible with a pino logger, so we don't need to import one here.
 export interface PublisherLogger {
   info(obj: object, msg: string): void;
   warn(obj: object, msg: string): void;
@@ -35,7 +33,6 @@ export interface RabbitMqPublisherOptions {
 type Connection = Awaited<ReturnType<typeof amqp.connect>>;
 type ConfirmChannel = Awaited<ReturnType<Connection['createConfirmChannel']>>;
 
-// Publishes to the fanout exchange without ever addressing a consumer directly.
 export class RabbitMqEventPublisher implements EventPublisher {
   private connection: Connection | null = null;
   private channel: ConfirmChannel | null = null;
@@ -54,7 +51,6 @@ export class RabbitMqEventPublisher implements EventPublisher {
     this.retryDelayMs = this.reconnectMinMs;
   }
 
-  // Never throws; retries in the background. publish() rejects fast until a channel exists.
   async start(): Promise<void> {
     await this.tryConnect();
   }

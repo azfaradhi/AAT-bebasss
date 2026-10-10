@@ -41,7 +41,7 @@ export function mapSeismicEventToHazardEvent(
   }
 
   return {
-    hazard_id: '', // assigned by CanonicalStore.upsert on first insert and kept stable across polls
+    hazard_id: '',
     source: 'BMKG',
     source_ref_id: event_id,
     hazard_type: 'SEISMIC',

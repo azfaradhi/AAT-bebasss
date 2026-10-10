@@ -11,8 +11,8 @@ export interface HazardEvent {
   area_name: string;
   latitude: number;
   longitude: number;
-  occurred_at: string; // ISO 8601
-  ingested_at: string; // ISO 8601
+  occurred_at: string;
+  ingested_at: string;
   attributes: Record<string, unknown>;
 }
 
@@ -28,6 +28,6 @@ export const MENTAH_ONLY_FIELDS = [
 export interface HazardEventResponse {
   data: HazardEvent[];
   meta: {
-    stale_since: string | null; // ISO 8601
+    stale_since: string | null;
   };
 }

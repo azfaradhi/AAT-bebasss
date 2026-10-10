@@ -9,7 +9,6 @@ export interface ClientAccessTokenClaims {
   exp: number;
 }
 
-// Response shape of POST /auth/token and POST /auth/refresh (contract §6.1).
 export interface TokenResponse {
   access_token: string;
   token_type: 'Bearer';

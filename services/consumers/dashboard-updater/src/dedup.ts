@@ -1,5 +1,3 @@
-// In-memory dedup set, keyed on hazard_id, bounded so it can't grow forever.
-// It does not survive a consumer restart, so a redelivery right after a crash can be applied twice.
 export class SeenSet {
   private readonly ids = new Set<string>();
 

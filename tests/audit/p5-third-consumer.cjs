@@ -1,5 +1,3 @@
-// Run inside a one-off Compose container: ... run --rm --no-deps -T aggregator node -
-// This is an independent test subscriber; it does not import or modify producer code.
 const amqp = require('amqplib');
 const { randomUUID } = require('node:crypto');
 

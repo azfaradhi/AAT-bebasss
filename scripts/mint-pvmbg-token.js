@@ -1,6 +1,3 @@
-#!/usr/bin/env node
-// Mints a PVMBG JWT for local dev (HS256, aud: 'pvmbg'), no dependencies.
-// Usage: node scripts/mint-pvmbg-token.js [expirySeconds]
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
