@@ -98,11 +98,26 @@ Atur `PVMBG_DELAY_MIN_MS=3000` dan `PVMBG_DELAY_MAX_MS=3000` di `.env`, lalu rec
 docker compose up -d --force-recreate pvmbg-mock
 ```
 
-Jalankan k6. Skenario ini mengirim 40 koneksi BMKG-only (SEISMIC) dan 10 koneksi yang membutuhkan data PVMBG (VOLCANIC) selama 60 detik secara bersamaan. Ringkasan k6 mencantumkan p50, p95, dan p99 untuk tiap skenario. Threshold yang dijaga: p95 BMKG-only di bawah 300 ms dan error rate di bawah 1%.
+Skenario yang digunakan dalam laporan menjalankan 50 virtual user BMKG-only
+(`SEISMIC`) dan 10 virtual user vulkanik (`VOLCANIC`) secara bersamaan selama
+60 detik. Karena access token berlaku 60 detik secara default, atur
+`ACCESS_TOKEN_TTL_SECONDS=300` di `.env` dan recreate `auth-service` sebelum
+pengujian. Ambil token Lapangan baru tepat sebelum menjalankan k6; jangan
+gunakan `$TOKEN` dari demo sebelumnya karena mungkin sudah kedaluwarsa.
 
 ```bash
-BASE_URL=http://localhost:8080 CLIENT_JWT="$TOKEN" k6 run load-tests/k6/hazard-events.js
+docker compose up -d --no-deps --force-recreate auth-service
+CLIENT_JWT=$(curl -s -X POST http://localhost:8091/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"client_id":"<AUTH_LAPANGAN_CLIENT_ID>","client_secret":"<AUTH_LAPANGAN_CLIENT_SECRET>"}' \
+  | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token')
+BASE_URL=http://localhost:8080 CLIENT_JWT="$CLIENT_JWT" k6 run tests/phase6/p2-concurrency.k6.js
 ```
+
+Skrip tersebut menetapkan threshold p95 BMKG-only di bawah 300 ms dan error
+rate BMKG-only di bawah 1%. Catat juga throughput, p50/p95/p99, serta error
+rate keseluruhan dari hasil uji untuk dibandingkan dengan tabel Problem 2
+di laporan.
 
 Untuk graceful degradation, aktifkan outage PVMBG. Data seismik tetap normal, data vulkanik membalas data terakhir dengan `meta.stale_since` yang terisi. Setelah outage selesai, polling pulih tanpa restart:
 
