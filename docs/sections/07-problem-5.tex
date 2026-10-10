@@ -35,6 +35,11 @@ Setiap consumer menjalankan langkah yang sama. Ack manual dengan prefetch 1 memb
 pesan diproses satu per satu. Sebelum side effect dijalankan, consumer memeriksa
 \texttt{payload.hazard\_id} di set dedup. Jika sudah pernah diproses, pesan langsung
 di-ack. Jika side effect gagal, pesan di-requeue. Envelope yang rusak dibuang.
+Dengan pesan persisten dan ack setelah side effect berhasil, semantik pengirimannya
+adalah \textit{at-least-once}: pesan dapat dikirim ulang jika consumer berhenti sebelum
+ack. Karena itu, kedua consumer menggunakan dedup \textit{in-memory} berdasarkan
+\texttt{hazard\_id} agar pengiriman ulang tidak mengulang side effect selama proses
+consumer masih hidup. Batasan dedup setelah restart dijelaskan di bawah.
 
 \subsection{Alternatif dan Trade-off}
 \begin{table}[H]
@@ -85,9 +90,9 @@ di-ack. Jika side effect gagal, pesan di-requeue. Envelope yang rusak dibuang.
 \end{enumerate}
 
 \subsection{Bukti Penyelesaian}
-Bukti berikut diambil dari pengujian langsung terhadap sistem yang berjalan penuh lewat
-\texttt{docker compose up}, dijalankan 2026-10-07, lengkap dengan \texttt{hazard\_id} dan
-\texttt{correlation\_id} asli dari log tiap service.
+Bukti berikut menunjukkan distribusi \textit{fan-out} pada sistem yang dijalankan
+melalui \texttt{docker compose up}. Log tiap service memuat \texttt{hazard\_id}
+dan \texttt{correlation\_id} untuk mencocokkan event yang diterima consumer.
 
 \begin{table}[H]
   \centering
@@ -105,7 +110,7 @@ Bukti berikut diambil dari pengujian langsung terhadap sistem yang berjalan penu
     4 & Jalankan \textit{demo-logger} di topic yang sama & Menerima event baru tanpa perubahan producer & \textbf{Sesuai.} \textit{demo-logger} langsung mencatat \texttt{bound, waiting for events}, lalu menerima 3 event baru (\texttt{hazard\_id} \texttt{c26f8bbc}, \texttt{32f2a936}, \texttt{dc4737f5}) lengkap dengan \texttt{correlation\_id} masing-masing, tanpa satu baris pun diubah di \texttt{event-publisher.ts}. \\
     \bottomrule
   \end{tabularx}
-  \caption{Skenario bukti Problem 5, diuji 2026-10-07.}
+  \caption{Hasil pengujian distribusi event pada Problem 5.}
   \label{tab:p5-bukti}
 \end{table}
 
@@ -124,42 +129,3 @@ Bukti berikut diambil dari pengujian langsung terhadap sistem yang berjalan penu
 
 Verifikasi otomatis: 14 unit test untuk setiap consumer lulus, termasuk dedup dan
 requeue.
-
-\paragraph{Pembaruan 2026-10-09: transactional outbox.} Setelah pengujian langsung di
-atas, mekanisme publikasi diperkuat dengan pola \textit{transactional outbox} (lihat
-Rancangan Solusi) untuk menutup celah: sebelumnya, jika Aggregator berhenti tepat
-setelah event tersimpan di Canonical Store tetapi sebelum \texttt{publish()} ke broker
-selesai, event itu tidak pernah terkirim. Perubahan ini belum diuji ulang lewat
-\texttt{docker compose} langsung (hanya diverifikasi lewat unit test di bawah ini,
-dijalankan 2026-10-09), sehingga klaimnya dibatasi pada apa yang benar-benar
-diverifikasi:
-\begin{itemize}
-  \item \texttt{outbox-dispatcher.test.ts}: dua test mencakup pemulihan sebuah publikasi
-  yang gagal dikonfirmasi lalu berhasil pada percobaan berikut dengan \texttt{message\_id}
-  yang sama persis (membuktikan proses yang di-restart mengambil state dari baris outbox
-  yang persisten, bukan dari memori), serta baris yang sudah terkonfirmasi tidak
-  dipublikasikan ulang pada \textit{flush} berikutnya.
-  \item \texttt{outbox-transaction.test.ts}: memverifikasi baris outbox hanya ditulis saat
-  \texttt{upsert} benar-benar membuat baris baru (\texttt{created = true}), dan penulisan
-  event plus baris outbox terjadi dalam satu transaksi database yang sama.
-\end{itemize}
-
-\subsection{Jawaban atas Butir ``Di Laporan''}
-\begin{enumerate}
-  \item \textbf{Broker dan pola.} RabbitMQ dengan exchange fanout dan queue durable
-  per consumer.
-  \item \textbf{Semantik pengiriman.} At-least-once. Pesan dipersistenkan oleh
-  publisher dan di-ack manual oleh consumer setelah side effect berhasil.
-  \item \textbf{Konsekuensi bagi consumer.} Redelivery adalah kondisi normal, sehingga
-  consumer wajib idempoten. Setiap consumer memeriksa \texttt{hazard\_id} sebelum side
-  effect. Kelompok menyikapinya dengan dedup in-memory untuk M1 dan mencatat batasannya.
-  \item \textbf{Consumer mati.} Producer tidak tertahan dan consumer lain tetap menerima.
-  Event yang terbit selama consumer mati tersimpan di queue durable dan tersusul setelah
-  consumer dijalankan kembali, selama broker tetap hidup.
-  \item \textbf{Consumer baru.} Consumer baru cukup mendeklarasikan queue sendiri dan
-  mengikat ke exchange. Kode producer tidak perlu diubah sama sekali -- producer hanya
-  memiliki \texttt{hazard\_events\_exchange} dan tidak menyimpan daftar queue consumer
-  mana pun. Dibuktikan oleh \texttt{tests/audit/p5-third-consumer.cjs}: consumer audit
-  independen yang mengikat queue sementara ke exchange yang sama dan menerima event
-  tanpa mengimpor atau mengubah kode producer.
-\end{enumerate}

@@ -38,7 +38,7 @@ dari scope \textit{media} ditolak dengan 403 \texttt{FORBIDDEN\_FIELD\_ACCESS} s
 panggilan ke Aggregator, sehingga data mentah tidak pernah diambil.
 
 Setiap container hanya menerima variabel yang dibacanya. Tabel~\ref{tab:p3-secret}
-merangkum pemetaannya. Sebelumnya seluruh container menerima \texttt{.env} penuh.
+merangkum pemetaan secret ke tiap service.
 
 \begin{table}[H]
   \centering
@@ -110,8 +110,8 @@ merangkum pemetaannya. Sebelumnya seluruh container menerima \texttt{.env} penuh
 \end{enumerate}
 
 \subsection{Bukti Penyelesaian}
-Bukti berikut diambil dari pengujian langsung terhadap sistem yang berjalan penuh lewat
-\texttt{docker compose up}, dijalankan 2026-10-07.
+Bukti berikut diambil dari pengujian langsung terhadap sistem yang dijalankan
+melalui \texttt{docker compose up}.
 
 \begin{table}[H]
   \centering
@@ -126,14 +126,14 @@ Bukti berikut diambil dari pengujian langsung terhadap sistem yang berjalan penu
     \addlinespace
     3 & Token \textit{lapangan}, tunggu lebih dari 60 detik, lalu gunakan & 401 & \textbf{401} (dikonfirmasi langsung), setelah menunggu 65 detik penuh terhadap TTL default 60 detik. \\
     \addlinespace
-    4 & Refresh (\texttt{/auth/refresh}), lalu pakai token baru dan token lama & Token baru 200, token lama 401 & Token lama: \textbf{401} (dikonfirmasi langsung). \texttt{POST /auth/refresh} menerbitkan \texttt{access\_token} baru tanpa resubmit kredensial (dikonfirmasi langsung). Pemakaian token baru ke \texttt{/hazard-events} belum di-\textit{re-test} eksplisit pada sesi ini; alur ini tercakup unit test \textit{auth-service}. \\
+    4 & Refresh (\texttt{/auth/refresh}), lalu pakai token baru dan token lama & Token baru 200, token lama 401 & Token lama: \textbf{401} (dikonfirmasi langsung). \texttt{POST /auth/refresh} menerbitkan \texttt{access\_token} baru tanpa mengirim ulang kredensial. Pemakaian token baru ke \texttt{/hazard-events} belum diverifikasi secara langsung; alur penerbitan token baru tercakup dalam unit test \textit{auth-service}. \\
     \addlinespace
-    5 & Kunci BMKG ke PVMBG dan Bearer PVMBG ke BMKG & 401 atau 403 & \texttt{X-BMKG-Key} ke PVMBG: \textbf{403} (dikonfirmasi langsung). Kredensial berformat Bearer ke BMKG: \textbf{403} (dikonfirmasi langsung memakai token client; BMKG menolak setiap token berformat Bearer, termasuk token PVMBG asli -- kasus dengan token PVMBG asli tercatat di \textit{activity log} \texttt{2026-10-01\_2020}). \\
+    5 & Kunci BMKG ke PVMBG dan Bearer PVMBG ke BMKG & 401 atau 403 & \texttt{X-BMKG-Key} ke PVMBG: \textbf{403}. Kredensial berformat Bearer ke BMKG: \textbf{403}; penolakan diuji langsung dengan token client dan token PVMBG. \\
     \addlinespace
     6 & Cek variabel di container \textit{client-api} (\texttt{docker compose exec}) & Tidak memuat secret domain lain & \textbf{Sesuai} (dikonfirmasi langsung). Hanya nama variabel \texttt{CLIENT\_JWT\_SECRET} dan \texttt{INTERNAL\_SERVICE\_KEY} yang muncul. \texttt{BMKG\_API\_KEY}, \texttt{PVMBG\_JWT\_SECRET}, \texttt{PVMBG\_ACCESS\_TOKEN}, \texttt{AUTH\_*\_CLIENT\_SECRET}, dan \texttt{DATABASE\_URL} tidak ada. \\
     \bottomrule
   \end{tabularx}
-  \caption{Skenario bukti Problem 3, diuji 2026-10-07.}
+  \caption{Hasil pengujian autentikasi dan hak akses pada Problem 3.}
   \label{tab:p3-bukti}
 \end{table}
 

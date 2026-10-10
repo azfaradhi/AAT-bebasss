@@ -49,7 +49,7 @@ docker compose ps
 docker compose up -d --build client-api
 docker compose ps
 \end{lstlisting}
-    Diuji 2026-10-09: begitu \texttt{client-api} dihentikan,
+    Saat \texttt{client-api} dihentikan,
     \texttt{POST /auth/token} ke \texttt{auth-service} tetap membalas
     \texttt{200} dengan \texttt{access\_token} baru -- membuktikan layanan lain
     tidak terinterupsi. \texttt{docker compose ps} setelahnya menunjukkan
@@ -74,7 +74,7 @@ docker compose ps
 \end{figure}
 
     \item Verifikasi \textit{co-existence} data lama dan baru (tanpa migrasi)
-    berdampingan dalam JSONB pada \textit{response payload}. Diuji 2026-10-09:
+    berdampingan dalam JSONB pada \textit{response payload}. Dalam pengujian,
     PVMBG direcreate (reset skema ke kondisi lama), ditunggu satu record live
     baru terbentuk tanpa \texttt{confidence\_level}, skema diaktifkan, lalu
     ditunggu satu record live berikutnya yang membawa \texttt{confidence\_level}.
