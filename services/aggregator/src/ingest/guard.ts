@@ -2,7 +2,7 @@ import type { GuardLimits, GuardResult } from '../../../../shared-types/src/m2/t
 
 export const DEFAULT_LIMITS: GuardLimits = { maxBytes: 262_144, maxDepth: 32 };
 
-// Never throws. Order is fixed (CONTRACT-MEMBER-1 A1): size, strict UTF-8, depth, JSON.parse.
+// Never throws. Order is fixed: size, strict UTF-8, depth, JSON.parse.
 // A leading UTF-8 BOM is stripped rather than parked (RFC 8259 §8.1).
 export function guardBytes(raw: Uint8Array, limits: Partial<GuardLimits> = {}): GuardResult {
   try {

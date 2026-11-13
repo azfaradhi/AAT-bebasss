@@ -1,10 +1,5 @@
-/**
- * REFERENCE FAKE of StorageClient (contract §4.1). Use it in unit tests and local development of ANY component that
- * consumes storage. It simulates 3 units with RF=2 so consumers can test `partial` handling without a cluster.
- * It is NOT the real implementation (no network, no disk). Member 2's real client must pass the same conformance suite.
- *
- * Drafted with LLM assistance (planning pass); reviewed and understood by the implementing member.
- */
+// In-memory StorageClient fake simulating 3 units with RF=2, for tests without a cluster.
+// Not a real implementation: no network, no disk.
 import {
   AggQuery, AggResult, Collection, FenceToken, FencedError, HazardEvent, HazardSource, LocationInfo, OutboxItem, Page,
   RingStatus, StorageClient, StorageUnavailableError, StoredHazardEvent, UnitState, UpsertResult, WriteCtx,

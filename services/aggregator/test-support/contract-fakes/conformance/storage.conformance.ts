@@ -1,10 +1,5 @@
-/**
- * CONFORMANCE SUITE — StorageClient. Run it against the fake (always green) and against Member 2's real client.
- * `make()` returns a fresh, empty client. `controls` is optional: tests that need fault injection are skipped when absent
- * (the real implementation should provide equivalent controls, e.g. via test doubles for units).
- *
- * Drafted with LLM assistance (planning pass); reviewed and understood by the implementing member.
- */
+// Conformance suite for StorageClient. `make()` returns a fresh client.
+// Tests needing fault injection are skipped when `controls` is absent.
 import { describe, expect, it } from 'vitest';
 import type { HazardSource, StorageClient, StoredHazardEvent, WriteCtx } from '../types';
 import { FencedError } from '../types';

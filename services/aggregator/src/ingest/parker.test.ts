@@ -9,7 +9,6 @@ import { loadIngestLimits } from './limits';
 const enc = (s: string) => new TextEncoder().encode(s);
 const reason = (r: ReturnType<typeof guardBytes>) => (r.ok ? 'OK' : r.reason_code);
 
-// The same acceptance suite the reference passes (README §1.4).
 parkerConformance('real StorageBackedParker (ingest/)', () => {
   const storage = new InMemoryStorage();
   return { parker: new StorageBackedParker(storage), storage };

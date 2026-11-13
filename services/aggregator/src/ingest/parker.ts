@@ -1,4 +1,3 @@
-// Real Parker (contract §4.3). Grown from the reference StorageBackedParker; must keep parkerConformance green.
 import { createHash } from 'node:crypto';
 import type {
   GuardLimits, GuardResult, Page, ParkedMessage, Parker, ReasonCode, ReplayReport, StorageClient, WriteCtx, ParkSource,

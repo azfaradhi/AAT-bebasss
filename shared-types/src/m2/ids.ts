@@ -1,9 +1,4 @@
-/**
- * M2 CONTRACT — deterministic helpers. These are part of the contract: every member MUST use these
- * (copy verbatim into shared-types) so ids, cursors and checksums are identical everywhere.
- *
- * Drafted with LLM assistance (planning pass); reviewed and understood by the implementing member.
- */
+// Deterministic helpers: ids, cursors and checksums must be identical everywhere.
 import { createHash } from 'node:crypto';
 import type { Detection, HazardEvent, HazardSource } from './types';
 
@@ -46,7 +41,7 @@ export function detectionTimeUtc(d: Pick<Detection, 'acq_date' | 'acq_time'>): s
   return `${d.acq_date}T${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:00Z`;
 }
 
-/** Stable fire id: smallest detection key (byte order) of the connected set. See contract §3.5. */
+/** Stable fire id: smallest detection key (byte order) of the connected set. */
 export function fireId(detectionKeys: string[]): string {
   if (detectionKeys.length === 0) throw new Error('fireId: empty detection set');
   const min = [...detectionKeys].sort(compareBytes)[0];
@@ -97,7 +92,7 @@ export function nextIngestedAt(nowMs: number, floorIso: string | null): string {
   return isoMs(Math.max(nowMs, floor + 1));
 }
 
-/** Dashboard category (contract §3.3). Mutually exclusive; sums to the Audit total. */
+/** Dashboard category Mutually exclusive; sums to the Audit total. */
 export function dashboardCategory(e: Pick<HazardEvent, 'hazard_type' | 'attributes'>): 'gempa' | 'tsunami' | 'gunung_berapi' | 'kebakaran_hutan' | 'pesisir' {
   switch (e.hazard_type) {
     case 'SEISMIC': return e.attributes?.potential_tsunami === true ? 'tsunami' : 'gempa';

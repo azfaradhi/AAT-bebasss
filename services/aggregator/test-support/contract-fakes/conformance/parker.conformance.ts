@@ -1,7 +1,4 @@
-/**
- * CONFORMANCE SUITE — Parker (guards, classification, parking, replay).
- * Drafted with LLM assistance (planning pass); reviewed and understood by the implementing member.
- */
+// Conformance suite for Parker: guards, classification, parking, replay.
 import { describe, expect, it } from 'vitest';
 import type { Parker, StorageClient } from '../types';
 import { ctx } from './storage.conformance';
