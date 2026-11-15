@@ -59,7 +59,7 @@ Contoh di bawah memakai `bash` (macOS dan Linux). Di Windows PowerShell, ganti `
 | Kelompok | Variabel | Dipakai oleh |
 |---|---|---|
 | Sumber BMKG | `BMKG_PORT`, `BMKG_API_KEY`, `BMKG_DELAY_MIN_MS`, `BMKG_DELAY_MAX_MS` | bmkg-mock (key juga aggregator) |
-| Sumber PVMBG | `PVMBG_PORT`, `PVMBG_JWT_SECRET`, `PVMBG_DELAY_MIN_MS`, `PVMBG_DELAY_MAX_MS`, `PVMBG_ACCESS_TOKEN` | pvmbg-mock, aggregator |
+| Sumber PVMBG | `PVMBG_PORT`, `PVMBG_JWT_SECRET`, `PVMBG_DELAY_MIN_MS`, `PVMBG_DELAY_MAX_MS`, `PVMBG_LIVE_INTERVAL_MS`, `PVMBG_ACCESS_TOKEN` | pvmbg-mock, aggregator |
 | Aggregator | `AGGREGATOR_PORT`, `POLL_INTERVAL_MS`, `POLL_LOOKBACK_MS`, `SOURCE_REQUEST_TIMEOUT_MS`, `CIRCUIT_BREAKER_FAILURE_THRESHOLD`, `CIRCUIT_BREAKER_COOLDOWN_MS`, `PVMBG_MAX_CONCURRENT_CALLS`, `DATABASE_URL`, `RABBITMQ_URL`, `INTERNAL_SERVICE_KEY` | aggregator |
 | Ingest guard / parking | `MAX_MESSAGE_BYTES` (262144), `MAX_JSON_DEPTH` (32), `PARK_MAX_ATTEMPTS` (8) | aggregator (`src/ingest/`) |
 | Client API | `CLIENT_API_PORT`, `CLIENT_JWT_SECRET`, `AGGREGATOR_REQUEST_TIMEOUT_MS`, `INTERNAL_SERVICE_KEY` | client-api |
@@ -91,6 +91,17 @@ TOKEN=$(curl -s -X POST http://localhost:8091/auth/token \
 curl -s "http://localhost:8080/hazard-events?view=raw" -H "Authorization: Bearer $TOKEN"
 ```
 
+
+## Problem 3 Demo (perubahan skema PVMBG)
+
+`POST /admin/schema-version` menerima `{"enabled":true}` (lama) atau `{"mode":"baseline|additive|rename|type_change|drop_required"}`. Mode hanya berlaku untuk record yang dibuat setelahnya. Aggregator menyerap perubahan aditif (field baru, `null` pada field opsional, int ke float) dan mem-park sisanya (`SCHEMA_INCOMPATIBLE`, `UNKNOWN_ENUM_VALUE`).
+
+```bash
+curl -s -X POST http://localhost:8082/admin/schema-version -H 'Content-Type: application/json' -d '{"mode":"rename"}'
+./scripts/demo/p3-k1-schema-policy.sh   # tabel deklarasi vs perilaku
+```
+
+Kedua mock juga menyediakan `GET /admin/request-log?since=<ISO>` (log request dengan `caller_instance` dari header `X-Aggregator-Instance`), `/ready`, dan `/metrics`. `PVMBG_LIVE_INTERVAL_MS` mengatur interval record baru (default 10000).
 ## Problem 2 Demo
 
 Atur `PVMBG_DELAY_MIN_MS=3000` dan `PVMBG_DELAY_MAX_MS=3000` di `.env`, lalu recreate `pvmbg-mock`:

@@ -3,6 +3,7 @@ import Fastify, { FastifyError, FastifyInstance } from 'fastify';
 import type { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
 import type { BmkgConfig } from './config';
 import type { BmkgState } from './data';
+import { registerOps } from './ops';
 
 export const SERVICE_NAME = 'bmkg-mock';
 
@@ -36,9 +37,13 @@ export function buildApp({ config, state, logger = true }: BmkgAppOptions): Fast
     request.log.info({ correlation_id: correlationId }, 'request received');
   });
 
-  // Simulated latency: a random delay within [min, max] on every data reques
+  registerOps(app, SERVICE_NAME);
+
+  const isExempt = (url: string) => ['/health', '/ready', '/metrics'].includes(url) || url.startsWith('/admin/');
+
+  // Simulated latency: a random delay within [min, max] on every data request
   app.addHook('preHandler', async (request) => {
-    if (request.url === '/health') return;
+    if (isExempt(request.url)) return;
     const span = config.BMKG_DELAY_MAX_MS - config.BMKG_DELAY_MIN_MS;
     const delay = Math.floor(Math.random() * (span + 1)) + config.BMKG_DELAY_MIN_MS;
     await new Promise((resolve) => setTimeout(resolve, delay));
@@ -46,7 +51,7 @@ export function buildApp({ config, state, logger = true }: BmkgAppOptions): Fast
 
   // Cross-domain rejection: a PVMBG-style Bearer token is 403, a missing or wrong X-BMKG-Key is 401
   app.addHook('preHandler', async (request, reply) => {
-    if (request.url === '/health') return;
+    if (isExempt(request.url)) return;
 
     const key = request.headers['x-bmkg-key'];
     const authHeader = request.headers.authorization;

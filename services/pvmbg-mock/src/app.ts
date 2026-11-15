@@ -3,7 +3,8 @@ import Fastify, { FastifyError, FastifyInstance } from 'fastify';
 import jwt from 'jsonwebtoken';
 import type { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
 import type { PvmbgConfig } from './config';
-import type { PvmbgState } from './data';
+import { SCHEMA_MODES, type PvmbgState, type SchemaMode } from './data';
+import { registerOps } from './ops';
 
 export const SERVICE_NAME = 'pvmbg-mock';
 
@@ -37,7 +38,9 @@ export function buildApp({ config, state, logger = true }: PvmbgAppOptions): Fas
     request.log.info({ correlation_id: correlationId }, 'request received');
   });
 
-  const isExempt = (url: string) => url === '/health' || url.startsWith('/admin/');
+  registerOps(app, SERVICE_NAME);
+
+  const isExempt = (url: string) => ['/health', '/ready', '/metrics'].includes(url) || url.startsWith('/admin/');
 
   // Outage returns 503 immediately (not a hang). Otherwise a random delay within [min, max].
   app.addHook('preHandler', async (request, reply) => {
@@ -85,17 +88,27 @@ export function buildApp({ config, state, logger = true }: PvmbgAppOptions): Fas
     const sinceMs = since ? new Date(since).getTime() : undefined;
     const data = sinceMs === undefined
       ? state.reports
-      : state.reports.filter((report) => new Date(report.reported_at).getTime() >= sinceMs);
+      : state.reports.filter((report) => new Date(String(report.reported_at)).getTime() >= sinceMs);
     return { data };
   });
 
-  app.post<{ Body: { enabled?: unknown } | undefined }>('/admin/schema-version', async (request, reply) => {
-    if (typeof request.body?.enabled !== 'boolean') {
-      const body: ErrorEnvelope = { error: { code: 'BAD_REQUEST', message: '"enabled" (boolean) is required' } };
+  // Accepts the legacy {enabled} and the {mode} form; both only affect newly generated records.
+  app.post<{ Body: { enabled?: unknown; mode?: unknown } | undefined }>('/admin/schema-version', async (request, reply) => {
+    const { enabled, mode } = request.body ?? {};
+    if (mode !== undefined) {
+      if (typeof mode !== 'string' || !SCHEMA_MODES.includes(mode as SchemaMode)) {
+        const body: ErrorEnvelope = { error: { code: 'BAD_REQUEST', message: `"mode" must be one of ${SCHEMA_MODES.join(', ')}` } };
+        return reply.code(400).send(body);
+      }
+      state.schemaMode = mode as SchemaMode;
+      if (mode === 'baseline') state.schemaConfidenceLevelEnabled = false;
+    } else if (typeof enabled === 'boolean') {
+      state.schemaConfidenceLevelEnabled = enabled;
+    } else {
+      const body: ErrorEnvelope = { error: { code: 'BAD_REQUEST', message: '"mode" or "enabled" (boolean) is required' } };
       return reply.code(400).send(body);
     }
-    state.schemaConfidenceLevelEnabled = request.body.enabled;
-    return { confidence_level_enabled: state.schemaConfidenceLevelEnabled };
+    return { mode: state.schemaMode, confidence_level_enabled: state.schemaConfidenceLevelEnabled };
   });
 
   app.post<{ Body: { enabled?: unknown; duration_seconds?: unknown } | undefined }>('/admin/outage', async (request, reply) => {

@@ -1,6 +1,7 @@
 import type { VolcanicReport } from '../../../../shared-types/src/volcanic';
 import type { HazardEvent } from '../../../../shared-types/src/hazard-event';
 import { mapVolcanicReportToHazardEvent } from '../mapping/volcanic-mapper';
+import { SchemaIncompatibleError } from '../mapping/volcanic-schema';
 import type { Logger } from '../logger';
 import { CircuitBreaker } from '../resilience/circuit-breaker';
 import { ConcurrencyLimiter } from '../resilience/concurrency-limiter';
@@ -32,7 +33,16 @@ export class PvmbgClient implements HazardSourceClient {
         this.opts.timeoutMs,
         this.opts.logger,
       );
-      return reports.map(mapVolcanicReportToHazardEvent);
+      const events: HazardEvent[] = [];
+      for (const report of reports) {
+        try {
+          events.push(mapVolcanicReportToHazardEvent(report));
+        } catch (err) {
+          if (!(err instanceof SchemaIncompatibleError)) throw err;
+          this.opts.logger.warn({ reason_code: err.reason_code, detail: err.detail }, 'pvmbg record skipped');
+        }
+      }
+      return events;
     }));
   }
 }
