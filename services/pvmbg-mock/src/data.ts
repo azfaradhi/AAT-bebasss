@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { VolcanicReport } from '../../../shared-types/src/volcanic';
 
+import type { FuzzCase } from './fuzz';
+
 const ONE_HOUR = 3_600_000;
 const SEED_COUNT = 25;
 
@@ -15,6 +17,7 @@ export interface PvmbgState {
   reports: StoredReport[];
   schemaConfidenceLevelEnabled: boolean;
   schemaMode: SchemaMode;
+  fuzzCase: FuzzCase | null;
   outageActive: boolean;
   outageTimeout: NodeJS.Timeout | null;
 }
@@ -70,6 +73,7 @@ export function createPvmbgState(now = Date.now(), random: () => number = Math.r
     reports: [],
     schemaConfidenceLevelEnabled: false,
     schemaMode: 'baseline',
+    fuzzCase: null,
     outageActive: false,
     outageTimeout: null,
   };

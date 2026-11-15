@@ -70,7 +70,17 @@ export class StorageBackedParker implements Parker {
 
   async get(id: string): Promise<ParkedMessage | null> { return this.storage.getDoc<ParkedMessage>('parked', id); }
 
-  async replay(q: { reason_code?: ReasonCode; source?: ParkSource; includeRetryable?: boolean }, handler: (raw: Uint8Array, meta: ParkedMessage) => Promise<void>, ctx: WriteCtx): Promise<ReplayReport> {
+  // `statuses` and `dueBy` (ISO time) are extra filters used by the retry sweeper; the contract call shape still works.
+  private afterFailedReplay(m: ParkedMessage): ParkedMessage {
+    const attempts = m.attempts + 1;
+    const next = { ...m, attempts, last_attempt_at: this.iso() };
+    if (m.status !== 'retrying') return next;
+    if (attempts >= this.maxAttempts) return { ...next, reason_code: 'RETRIES_EXHAUSTED', status: 'parked', retryable: true, next_attempt_at: null };
+    const ceiling = backoffCeilingMs(attempts);
+    return { ...next, next_attempt_at: this.iso(this.clock() + ceiling / 2 + Math.random() * (ceiling / 2)) };
+  }
+
+  async replay(q: { reason_code?: ReasonCode; source?: ParkSource; includeRetryable?: boolean; statuses?: ParkedMessage['status'][]; dueBy?: string }, handler: (raw: Uint8Array, meta: ParkedMessage) => Promise<void>, ctx: WriteCtx): Promise<ReplayReport> {
     const all: ParkedMessage[] = [];
     let cursor: string | undefined;
     do {
@@ -85,6 +95,8 @@ export class StorageBackedParker implements Parker {
       if (m.status === 'retrying' && !q.includeRetryable) continue;
       if (q.reason_code && m.reason_code !== q.reason_code) continue;
       if (q.source && m.source !== q.source) continue;
+      if (q.statuses && !q.statuses.includes(m.status)) continue;
+      if (q.dueBy && m.status === 'retrying' && m.next_attempt_at && m.next_attempt_at > q.dueBy) continue;
       todo.push(m);
     }
     report.considered = todo.length;
@@ -98,7 +110,7 @@ export class StorageBackedParker implements Parker {
           await this.storage.putDoc('parked', m.message_id, { ...m, status: 'recovered', recovered_at: this.iso(), next_attempt_at: null } satisfies ParkedMessage, ctx);
           report.recovered++;
         } catch {
-          await this.storage.putDoc('parked', m.message_id, { ...m, attempts: m.attempts + 1, last_attempt_at: this.iso() }, ctx);
+          await this.storage.putDoc('parked', m.message_id, this.afterFailedReplay(m), ctx);
           report.still_failing++;
           break; // preserve per-key order: do not process later messages of this key past a failure
         }

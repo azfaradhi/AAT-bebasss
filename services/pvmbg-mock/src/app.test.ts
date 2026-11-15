@@ -198,3 +198,22 @@ describe('request log, /ready and /metrics', () => {
     expect(metrics.body).toContain('mock_http_requests_total{service="pvmbg-mock",method="GET",path="/volcanic-reports",status="200"} 1');
   });
 });
+
+describe('POST /admin/fuzz', () => {
+  it('serves the chosen hostile response until reset', async () => {
+    const { app } = freshApp();
+    await app.inject({ method: 'POST', url: '/admin/fuzz', payload: { case: 'empty_body' } });
+    expect((await app.inject({ method: 'GET', url: '/volcanic-reports', headers: auth })).body).toBe('');
+
+    await app.inject({ method: 'POST', url: '/admin/fuzz', payload: { case: 'wrong_content_type' } });
+    expect((await app.inject({ method: 'GET', url: '/volcanic-reports', headers: auth })).headers['content-type']).toContain('text/html');
+
+    await app.inject({ method: 'POST', url: '/admin/fuzz', payload: { case: null } });
+    expect((await app.inject({ method: 'GET', url: '/volcanic-reports', headers: auth })).json().data.length).toBeGreaterThan(20);
+  });
+
+  it('rejects an unknown case with 400', async () => {
+    const { app } = freshApp();
+    expect((await app.inject({ method: 'POST', url: '/admin/fuzz', payload: { case: 'nope' } })).statusCode).toBe(400);
+  });
+});

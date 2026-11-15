@@ -6,6 +6,7 @@ import type { Logger } from '../logger';
 import { CircuitBreaker } from '../resilience/circuit-breaker';
 import { ConcurrencyLimiter } from '../resilience/concurrency-limiter';
 import { fetchData } from './http';
+import { fetchGuarded, mapIsolated, type IngestContext } from '../ingest';
 import type { HazardSourceClient } from './source-client';
 
 export interface PvmbgClientOptions {
@@ -15,6 +16,7 @@ export interface PvmbgClientOptions {
   logger: Logger;
   circuitBreaker: CircuitBreaker;
   limiter: ConcurrencyLimiter;
+  ingest?: IngestContext;
 }
 
 export class PvmbgClient implements HazardSourceClient {
@@ -26,13 +28,13 @@ export class PvmbgClient implements HazardSourceClient {
     return this.opts.limiter.run(() => this.opts.circuitBreaker.execute(async () => {
       const url = new URL('/volcanic-reports', this.opts.baseUrl);
       if (since) url.searchParams.set('since', since);
-      const reports = await fetchData<VolcanicReport>(
-        'PVMBG',
-        url,
-        { authorization: `Bearer ${this.opts.accessToken}` },
-        this.opts.timeoutMs,
-        this.opts.logger,
-      );
+      const headers = { authorization: `Bearer ${this.opts.accessToken}` };
+      const { ingest, logger } = this.opts;
+      if (ingest) {
+        const items = (await fetchGuarded(ingest, 'PVMBG', url, headers, this.opts.timeoutMs, logger)) as VolcanicReport[];
+        return mapIsolated(ingest, 'PVMBG', items, mapVolcanicReportToHazardEvent, (r) => r.report_id, logger);
+      }
+      const reports = await fetchData<VolcanicReport>('PVMBG', url, headers, this.opts.timeoutMs, logger);
       const events: HazardEvent[] = [];
       for (const report of reports) {
         try {

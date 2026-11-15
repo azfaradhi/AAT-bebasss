@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import type { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
 import type { PvmbgConfig } from './config';
 import { SCHEMA_MODES, type PvmbgState, type SchemaMode } from './data';
+import { buildFuzzResponse, FUZZ_CASES, type FuzzCase } from './fuzz';
 import { registerOps } from './ops';
 
 export const SERVICE_NAME = 'pvmbg-mock';
@@ -83,13 +84,28 @@ export function buildApp({ config, state, logger = true }: PvmbgAppOptions): Fas
     timestamp: new Date().toISOString(),
   }));
 
-  app.get<{ Querystring: { since?: string } }>('/volcanic-reports', async (request) => {
+  app.get<{ Querystring: { since?: string } }>('/volcanic-reports', async (request, reply) => {
+    if (state.fuzzCase) {
+      const fuzz = buildFuzzResponse(state.fuzzCase);
+      return reply.header('content-type', fuzz.contentType).send(fuzz.body);
+    }
     const { since } = request.query;
     const sinceMs = since ? new Date(since).getTime() : undefined;
     const data = sinceMs === undefined
       ? state.reports
       : state.reports.filter((report) => new Date(String(report.reported_at)).getTime() >= sinceMs);
     return { data };
+  });
+
+  // Serves a hostile response from /volcanic-reports until reset with {"case":null}.
+  app.post<{ Body: { case?: unknown } | undefined }>('/admin/fuzz', async (request, reply) => {
+    const requested = request.body?.case;
+    if (requested !== null && !FUZZ_CASES.includes(requested as FuzzCase)) {
+      const body: ErrorEnvelope = { error: { code: 'BAD_REQUEST', message: `"case" must be null or one of ${FUZZ_CASES.join(', ')}` } };
+      return reply.code(400).send(body);
+    }
+    state.fuzzCase = requested as FuzzCase | null;
+    return { case: state.fuzzCase };
   });
 
   // Accepts the legacy {enabled} and the {mode} form; both only affect newly generated records.
