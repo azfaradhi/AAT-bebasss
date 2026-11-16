@@ -1,7 +1,7 @@
 import type { VolcanicReport } from '../../../../shared-types/src/volcanic';
 import type { HazardEvent } from '../../../../shared-types/src/hazard-event';
 import { mapVolcanicReportToHazardEvent } from '../mapping/volcanic-mapper';
-import { SchemaIncompatibleError } from '../mapping/volcanic-schema';
+import { SchemaIncompatibleError, type MapperVersion } from '../mapping/volcanic-schema';
 import type { Logger } from '../logger';
 import { CircuitBreaker } from '../resilience/circuit-breaker';
 import { ConcurrencyLimiter } from '../resilience/concurrency-limiter';
@@ -17,6 +17,7 @@ export interface PvmbgClientOptions {
   circuitBreaker: CircuitBreaker;
   limiter: ConcurrencyLimiter;
   ingest?: IngestContext;
+  mapperVersion?: MapperVersion;
 }
 
 export class PvmbgClient implements HazardSourceClient {
@@ -30,15 +31,17 @@ export class PvmbgClient implements HazardSourceClient {
       if (since) url.searchParams.set('since', since);
       const headers = { authorization: `Bearer ${this.opts.accessToken}` };
       const { ingest, logger } = this.opts;
+      const version = this.opts.mapperVersion ?? (process.env.VOLCANIC_MAPPER_VERSION === 'v2' ? 'v2' : 'v1');
+      const map = (report: VolcanicReport) => mapVolcanicReportToHazardEvent(report, version);
       if (ingest) {
         const items = (await fetchGuarded(ingest, 'PVMBG', url, headers, this.opts.timeoutMs, logger)) as VolcanicReport[];
-        return mapIsolated(ingest, 'PVMBG', items, mapVolcanicReportToHazardEvent, (r) => r.report_id, logger);
+        return mapIsolated(ingest, 'PVMBG', items, map, (r) => r.report_id, logger);
       }
       const reports = await fetchData<VolcanicReport>('PVMBG', url, headers, this.opts.timeoutMs, logger);
       const events: HazardEvent[] = [];
       for (const report of reports) {
         try {
-          events.push(mapVolcanicReportToHazardEvent(report));
+          events.push(map(report));
         } catch (err) {
           if (!(err instanceof SchemaIncompatibleError)) throw err;
           this.opts.logger.warn({ reason_code: err.reason_code, detail: err.detail }, 'pvmbg record skipped');

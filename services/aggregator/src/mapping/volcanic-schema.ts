@@ -20,6 +20,26 @@ function requireType(raw: Record<string, unknown>, field: string, type: 'string'
   }
 }
 
+export type MapperVersion = 'v1' | 'v2';
+
+const NUMERIC = /^-?\d+(\.\d+)?$/;
+
+// v1 = the declared policy (rename and type change are parked). v2 additionally understands the two incompatible
+// shapes the mock produces: `volcano_code` for `volcano_id`, and numeric strings for the two numeric fields.
+export function normalizeVolcanicReport(raw: unknown, version: MapperVersion): unknown {
+  if (version === 'v1' || typeof raw !== 'object' || raw === null || Array.isArray(raw)) return raw;
+  const record = { ...(raw as Record<string, unknown>) };
+  if (record.volcano_id === undefined && typeof record.volcano_code === 'string') {
+    record.volcano_id = record.volcano_code;
+    delete record.volcano_code;
+  }
+  for (const field of ['eruption_count_24h', 'ash_column_height_m']) {
+    const value = record[field];
+    if (typeof value === 'string' && NUMERIC.test(value.trim())) record[field] = Number(value);
+  }
+  return record;
+}
+
 // Absorbs additive changes (extra fields, nulls on optional fields, int to float); parks the rest.
 export function checkVolcanicReport(raw: unknown): VolcanicReport {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {

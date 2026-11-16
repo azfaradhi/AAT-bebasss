@@ -10,3 +10,8 @@ export { mapIsolated } from './isolate';
 export { ParkingStore, storeRetryHandler } from './parking-store';
 export { IngestRetrySweeper } from './retry-sweeper';
 export { IngestMetrics } from './metrics';
+export { storageClientWriter, canonicalStoreWriter } from './hazard-writer';
+export type { HazardWriter } from './hazard-writer';
+export { replayHandler, replayParked } from './replay';
+export type { ReplayDeps, ReplayQuery } from './replay';
+export { registerReplayRoute, createReplayApp } from './replay-route';

@@ -1,12 +1,13 @@
 import { VolcanicReport } from '../../../../shared-types/src/volcanic';
 import { HazardEvent, Severity } from '../../../../shared-types/src/hazard-event';
 import { VOLCANO_REFERENCE } from './volcano-reference';
-import { checkVolcanicReport } from './volcanic-schema';
+import { checkVolcanicReport, normalizeVolcanicReport, type MapperVersion } from './volcanic-schema';
 
 export function mapVolcanicReportToHazardEvent(
-  input: VolcanicReport
+  input: VolcanicReport,
+  version: MapperVersion = 'v1',
 ): HazardEvent {
-  const report = checkVolcanicReport(input);
+  const report = checkVolcanicReport(normalizeVolcanicReport(input, version));
   const {
     report_id,
     volcano_id,
