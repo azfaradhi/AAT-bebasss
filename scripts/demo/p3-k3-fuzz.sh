@@ -15,10 +15,12 @@ if [[ -n "${AGGREGATOR_NAMESPACE:-}" ]] && command -v kubectl >/dev/null; then
   echo "cluster restartCount before:"; restarts
 fi
 
+if curl -fs "$PVMBG_URL/ready" >/dev/null 2>&1; then echo "port $PORT is already in use by another mock; stop it first" >&2; exit 3; fi
 cd "$ROOT/services/pvmbg-mock"
 npx tsx src/index.ts >/dev/null 2>&1 &
 MOCK_PID=$!
-trap 'kill $MOCK_PID 2>/dev/null || true' EXIT
+kill_tree() { for c in $(pgrep -P "$1" 2>/dev/null); do kill_tree "$c"; done; kill "$1" 2>/dev/null || true; }
+trap 'kill_tree $MOCK_PID' EXIT
 for _ in $(seq 1 50); do curl -fs "$PVMBG_URL/ready" >/dev/null 2>&1 && break; sleep 0.2; done
 
 cd "$ROOT/services/aggregator"

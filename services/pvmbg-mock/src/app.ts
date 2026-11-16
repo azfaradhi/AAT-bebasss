@@ -3,7 +3,7 @@ import Fastify, { FastifyError, FastifyInstance } from 'fastify';
 import jwt from 'jsonwebtoken';
 import type { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/envelopes';
 import type { PvmbgConfig } from './config';
-import { SCHEMA_MODES, type PvmbgState, type SchemaMode } from './data';
+import { addLiveReport, SCHEMA_MODES, type PvmbgState, type SchemaMode } from './data';
 import { buildFuzzResponse, FUZZ_CASES, type FuzzCase } from './fuzz';
 import { registerOps } from './ops';
 
@@ -106,6 +106,17 @@ export function buildApp({ config, state, logger = true }: PvmbgAppOptions): Fas
     }
     state.fuzzCase = requested as FuzzCase | null;
     return { case: state.fuzzCase };
+  });
+
+  // Creates `count` reports in the current schema mode right now (deterministic demos and tests, no waiting for the live timer).
+  app.post<{ Body: { count?: unknown } | undefined }>('/admin/generate', async (request, reply) => {
+    const count = request.body?.count;
+    if (typeof count !== 'number' || !Number.isInteger(count) || count < 1 || count > 1000) {
+      const body: ErrorEnvelope = { error: { code: 'BAD_REQUEST', message: '"count" must be an integer between 1 and 1000' } };
+      return reply.code(400).send(body);
+    }
+    for (let i = 0; i < count; i++) addLiveReport(state);
+    return { generated: count, mode: state.schemaMode };
   });
 
   // Accepts the legacy {enabled} and the {mode} form; both only affect newly generated records.

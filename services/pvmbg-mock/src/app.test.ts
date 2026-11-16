@@ -218,3 +218,16 @@ describe('POST /admin/fuzz', () => {
     expect((await app.inject({ method: 'POST', url: '/admin/fuzz', payload: { case: 'nope' } })).statusCode).toBe(400);
   });
 });
+
+describe('POST /admin/generate', () => {
+  it('creates reports in the current mode and rejects a bad count', async () => {
+    const { app, state } = freshApp();
+    await app.inject({ method: 'POST', url: '/admin/schema-version', payload: { mode: 'rename' } });
+    const before = state.reports.length;
+    const res = await app.inject({ method: 'POST', url: '/admin/generate', payload: { count: 3 } });
+    expect(res.json()).toEqual({ generated: 3, mode: 'rename' });
+    expect(state.reports).toHaveLength(before + 3);
+    expect(state.reports[before].volcano_code).toBeDefined();
+    expect((await app.inject({ method: 'POST', url: '/admin/generate', payload: { count: 0 } })).statusCode).toBe(400);
+  });
+});

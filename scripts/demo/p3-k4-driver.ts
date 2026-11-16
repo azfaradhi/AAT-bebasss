@@ -17,14 +17,11 @@ const quiet = { info: () => undefined, warn: () => undefined, error: () => undef
 const setMode = (mode: string) => fetch(`${BASE}/admin/schema-version`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode }) });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Creates exactly n reports in the current mode (no live timer involved, so the counts are deterministic).
 async function fresh(since: string, n: number): Promise<Array<Record<string, unknown>>> {
-  for (let i = 0; i < 100; i++) {
-    const res = await fetch(`${BASE}/volcanic-reports?since=${encodeURIComponent(since)}`, { headers: { authorization: `Bearer ${token}` } });
-    const data = ((await res.json()) as { data: Array<Record<string, unknown>> }).data;
-    if (data.length >= n) return data;
-    await sleep(100);
-  }
-  throw new Error('mock produced no fresh records');
+  await fetch(`${BASE}/admin/generate`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ count: n }) });
+  const res = await fetch(`${BASE}/volcanic-reports?since=${encodeURIComponent(since)}`, { headers: { authorization: `Bearer ${token}` } });
+  return ((await res.json()) as { data: Array<Record<string, unknown>> }).data;
 }
 
 (async () => {
