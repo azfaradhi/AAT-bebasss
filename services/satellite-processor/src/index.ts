@@ -7,7 +7,7 @@ import { FeedClient } from './feed-client';
 import { SatelliteMetrics } from './metrics';
 import { runSatellite } from './processor';
 import { buildServer } from './server';
-import { CollectingSink } from './sink';
+import { FireSink } from './fire/fire-sink';
 
 async function main(): Promise<void> {
   const config = loadConfig(process.env);
@@ -40,7 +40,7 @@ async function main(): Promise<void> {
   process.on('SIGINT', shutdown);
 
   ready = true;
-  await runSatellite({ coordinator, ingest, sink: new CollectingSink(), config, client, metrics, logger });
+  await runSatellite({ coordinator, ingest, sink: new FireSink(storage), config, client, metrics, logger });
 }
 
 main().catch((err) => {

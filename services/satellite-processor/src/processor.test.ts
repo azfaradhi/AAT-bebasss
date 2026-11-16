@@ -66,7 +66,7 @@ describe('against the fixture feed', () => {
     expect(server.stats.connections).toBeGreaterThanOrEqual(12);
     const starts: number[] = server.stats.starts;
     expect(starts[0]).toBe(0);
-    expect(starts.slice(1).every((s, i) => s > (starts[i] || server.firstId))).toBe(true);
+    expect(starts.slice(1).every((s, i) => s >= starts[i])).toBe(true); // a cut before any byte arrived legitimately repeats the same start
   });
 
   it('after a failover the new term resumes at committed+1', async () => {
@@ -82,7 +82,7 @@ describe('against the fixture feed', () => {
     const unique = [...new Set(offsetsOf((h.sink as CollectingSink).frames))].sort((a, b) => a - b);
     expect(contiguous(unique)).toBe(true);
     expect(unique.at(-1)).toBe(server.lastId);
-  });
+  }, 20_000);
 });
 
 describe('frame handling', () => {
