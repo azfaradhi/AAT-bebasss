@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: satellite-processor-config
+  namespace: sistem-informasi-kebencanaan-bnpb
+data:
+  SAT_FEED_BASE_URL: "http://replace-with-feed-base-url"
+  SAT_CHECKPOINT_EVERY_N: "100"
+  SAT_BATCH_SIZE: "500"
+  SAT_IDLE_TIMEOUT_MS: "30000"
+  SAT_RECONNECT_MIN_MS: "200"
+  SAT_RECONNECT_MAX_MS: "15000"
+  SATELLITE_PORT: "8095"
