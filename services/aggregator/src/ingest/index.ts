@@ -15,3 +15,4 @@ export type { HazardWriter } from './hazard-writer';
 export { replayHandler, replayParked } from './replay';
 export type { ReplayDeps, ReplayQuery } from './replay';
 export { registerReplayRoute, createReplayApp } from './replay-route';
+export { unprocessedProvider, toAuditItem, registerUnprocessedRoutes, createUnprocessedApp } from './audit-unprocessed';
