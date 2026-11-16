@@ -16,3 +16,6 @@ export { replayHandler, replayParked } from './replay';
 export type { ReplayDeps, ReplayQuery } from './replay';
 export { registerReplayRoute, createReplayApp } from './replay-route';
 export { unprocessedProvider, toAuditItem, registerUnprocessedRoutes, createUnprocessedApp } from './audit-unprocessed';
+export { FieldReportStore, validateFieldReport, fieldReportsProvider, MAX_REPORT_BYTES, MAX_KEY_LENGTH } from '../../../../shared-types/src/field-reports';
+export type { AcceptResult, Validation } from '../../../../shared-types/src/field-reports';
+export { registerFieldReportAuditRoute, createFieldReportAuditApp } from './field-report-audit';

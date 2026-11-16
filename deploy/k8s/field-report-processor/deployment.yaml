@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: field-report-processor
+  namespace: sistem-informasi-kebencanaan-bnpb
+  labels: { app: field-report-processor, role: consumer, app.kubernetes.io/part-of: bnpb }
+spec:
+  replicas: 1 # interim in-memory Coordinator: raise to 2 once the real one is wired
+  strategy: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } }
+  selector: { matchLabels: { app: field-report-processor } }
+  template:
+    metadata:
+      labels: { app: field-report-processor, role: consumer, app.kubernetes.io/part-of: bnpb }
+      annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8096", prometheus.io/path: /metrics }
+    spec:
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app: field-report-processor } } }
+      containers:
+        - name: field-report-processor
+          image: registry.local/bnpb-field-report-processor:latest
+          ports: [{ containerPort: 8096 }]
+          envFrom: [{ configMapRef: { name: field-report-processor-config } }]
+          env:
+            - { name: POD_NAME, valueFrom: { fieldRef: { fieldPath: metadata.name } } }
+          resources:
+            requests: { memory: 128Mi }
+            limits: { memory: 256Mi }
+          startupProbe: { httpGet: { path: /health, port: 8096 }, failureThreshold: 30, periodSeconds: 2 }
+          readinessProbe: { httpGet: { path: /ready, port: 8096 }, periodSeconds: 2, failureThreshold: 2 }
+          livenessProbe: { httpGet: { path: /health, port: 8096 }, periodSeconds: 10, failureThreshold: 6 }
+          lifecycle: { preStop: { exec: { command: ["sleep", "10"] } } }
