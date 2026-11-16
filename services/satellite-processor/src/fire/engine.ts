@@ -74,16 +74,30 @@ export class FireEngine {
   }
 
   // Rebuilds the in-memory indexes from persisted detections and fires.
-  hydrate(dets: Det[], fires: Array<{ id: string; keys: string[] }>, state?: { max_t: number | null; counters: Counters; late_log: LateEntry[] }): void {
+  // The detections are the only authoritative state. Fires are re-derived from them (the fold is order independent), so a
+  // crash between persisting detections and fire documents can never leave the two inconsistent.
+  hydrate(dets: Det[], _fires: unknown, state?: { max_t: number | null; counters: Counters; late_log: LateEntry[] }): void {
     for (const d of dets) {
       this.dets.set(d.key, d);
       if (eligible(d)) this.indexAdd(d);
     }
-    for (const f of fires) {
-      if (f.keys.length === 0) continue; // finalized summary
-      this.fires.set(f.id, new Set(f.keys));
-      for (const k of f.keys) this.fireOf.set(k, f.id);
-      this.latestT.set(f.id, Math.max(...f.keys.map((k) => this.dets.get(k)!.t)));
+    const seen = new Set<string>();
+    for (const start of [...this.dets.keys()].sort()) {
+      const d0 = this.dets.get(start)!;
+      if (seen.has(start) || !eligible(d0)) continue;
+      const comp: string[] = [];
+      const stack = [start];
+      seen.add(start);
+      while (stack.length) {
+        const k = stack.pop()!;
+        comp.push(k);
+        for (const n of this.neighbours(this.dets.get(k)!)) if (!seen.has(n)) { seen.add(n); stack.push(n); }
+      }
+      if (comp.length < 2) continue;
+      const id = fireId(comp);
+      this.fires.set(id, new Set(comp));
+      for (const k of comp) this.fireOf.set(k, id);
+      this.latestT.set(id, Math.max(...comp.map((k) => this.dets.get(k)!.t)));
     }
     if (state) {
       this.maxT = state.max_t ?? Number.NEGATIVE_INFINITY;

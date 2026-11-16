@@ -6,7 +6,6 @@ import { FireEngine, type Counters, type Det, type LateEntry } from './engine';
 import { fireToEvent } from './mapping';
 
 interface Meta { last_applied_offset: number; last_ingested_at: string | null; max_t?: number | null; counters?: Counters }
-interface FireDoc { id: string; keys: string[] }
 
 const detDocKey = (key: string) => `det:${createHash('sha256').update(key).digest('hex').slice(0, 20)}`;
 const fireDocKey = (id: string) => `fire:${id}`;
@@ -26,18 +25,15 @@ export class FireSink implements FrameSink {
   // Restores engine state and the applied-offset marker from `fire_state` (a new leader, or a restarted pod).
   async load(): Promise<void> {
     const dets: Det[] = [];
-    const fires: FireDoc[] = [];
-    for (const [prefix, sink] of [['det:', dets], ['fire:', fires]] as const) {
-      let cursor: string | undefined;
-      do {
-        const page = await this.storage.listDocs<Det & FireDoc>('fire_state', { prefix, limit: 500, cursor });
-        for (const { doc } of page.items) (sink as unknown[]).push(doc);
-        cursor = page.next_cursor ?? undefined;
-      } while (cursor);
-    }
+    let cursor: string | undefined;
+    do {
+      const page = await this.storage.listDocs<Det>('fire_state', { prefix: 'det:', limit: 500, cursor });
+      for (const { doc } of page.items) dets.push(doc);
+      cursor = page.next_cursor ?? undefined;
+    } while (cursor);
     this.meta = (await this.storage.getDoc<Meta>('fire_state', 'meta')) ?? this.meta;
     const lateLog = (await this.storage.getDoc<LateEntry[]>('fire_state', 'late_log')) ?? [];
-    this.engine.hydrate(dets, fires, { max_t: this.meta.max_t ?? null, counters: this.meta.counters ?? this.engine.counters, late_log: lateLog });
+    this.engine.hydrate(dets, undefined, { max_t: this.meta.max_t ?? null, counters: this.meta.counters ?? this.engine.counters, late_log: lateLog });
     this.loaded = true;
   }
 
@@ -60,14 +56,15 @@ export class FireSink implements FrameSink {
       outbox: { mode: 'on_apply', priority: 'normal' },
     });
 
-    for (const key of changes.dets) await this.storage.putDoc('fire_state', detDocKey(key), this.engine.dets.get(key), wctx(`det-${key}`));
-    for (const key of changes.evicted) await this.storage.deleteDoc('fire_state', detDocKey(key), wctx(`evict-${key}`));
+    // Order matters for crash safety: derived output first (fire documents, events), then the detections they were derived
+    // from, then the applied-offset marker. A crash at any point replays the batch and converges: output written before the
+    // detections is re-written identically (same ids, same versions), and a detection that is already persisted implies
+    // that every event depending on it already is.
     for (const [id, change] of changes.fires) {
       if (change.kind === 'upsert') await this.storage.putDoc('fire_state', fireDocKey(id), { id, status: 'open', keys: [...this.engine.fires.get(id)!] }, wctx(`fire-${id}`));
       else if (change.kind === 'finalized') await this.storage.putDoc('fire_state', fireDocKey(id), { id, status: 'finalized', keys: [] }, wctx(`fire-${id}`));
       else await this.storage.deleteDoc('fire_state', fireDocKey(id), wctx(`fire-${id}`));
     }
-    if (changes.lateLogChanged) await this.storage.putDoc('fire_state', 'late_log', this.engine.lateLog, wctx(`late-${endOffset}`));
 
     let floor = this.meta.last_ingested_at;
     for (const [id, change] of changes.fires) {
@@ -80,6 +77,10 @@ export class FireSink implements FrameSink {
         await this.storage.tombstoneEvent(hazardIdOf(id), change.offset, wctx(`tomb-${id}-${change.offset}`), change.mergedInto ? hazardIdOf(change.mergedInto) : undefined);
       }
     }
+
+    for (const key of changes.dets) await this.storage.putDoc('fire_state', detDocKey(key), this.engine.dets.get(key), wctx(`det-${key}`));
+    for (const key of changes.evicted) await this.storage.deleteDoc('fire_state', detDocKey(key), wctx(`evict-${key}`));
+    if (changes.lateLogChanged) await this.storage.putDoc('fire_state', 'late_log', this.engine.lateLog, wctx(`late-${endOffset}`));
 
     this.meta = { last_applied_offset: endOffset, last_ingested_at: floor ?? isoMs(this.clock()), ...this.engine.persistedState() };
     await this.storage.putDoc('fire_state', 'meta', this.meta, wctx(`meta-${endOffset}`));
