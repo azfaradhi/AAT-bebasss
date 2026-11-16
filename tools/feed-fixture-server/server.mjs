@@ -4,10 +4,27 @@ import { gunzipSync } from 'node:zlib';
 
 const DEFAULT_FIXTURE = new URL('./fixtures/feed-slice-offsets-11900-14899.jsonl.gz', import.meta.url);
 
-export function loadFrames(path = DEFAULT_FIXTURE) {
+const shiftDate = (date, days) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
+
+// `repeat` > 1 chains copies of the slice into one long stream (offsets keep counting, every copy is one day later), so a
+// 60x burst of the size of the real backlog (~108k frames) can be replayed deterministically from the 3 000 committed frames.
+export function loadFrames(path = DEFAULT_FIXTURE, repeat = 1) {
   const raw = readFileSync(path);
   const text = String(path).endsWith('.gz') ? gunzipSync(raw).toString('utf8') : raw.toString('utf8');
-  return text.split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  const base = text.split('\n').filter(Boolean).map((line) => JSON.parse(line));
+  if (repeat <= 1) return base;
+  const span = base[base.length - 1].id - base[0].id + 1;
+  const frames = [];
+  for (let c = 0; c < repeat; c++) {
+    for (const f of base) {
+      if (c === 0) { frames.push(f); continue; }
+      const data = { ...f.data, offset: f.id + c * span };
+      if (data.detection) data.detection = { ...data.detection, acq_date: shiftDate(data.detection.acq_date, c) };
+      if (typeof data.key === 'string') { const p = data.key.split('|'); p[1] = shiftDate(p[1], c); data.key = p.join('|'); }
+      frames.push({ id: f.id + c * span, event: f.event, data });
+    }
+  }
+  return frames;
 }
 
 const envelope = (res, status, code, message) => {
@@ -17,7 +34,7 @@ const envelope = (res, status, code, message) => {
 
 // Replays captured frames like the real feed: shared offsets, one connection at a time, inclusive from= / exclusive Last-Event-ID.
 export function startFixtureServer(opts = {}) {
-  const frames = opts.frames ?? loadFrames(opts.fixturePath);
+  const frames = opts.frames ?? loadFrames(opts.fixturePath, opts.repeat ?? 1);
   const fps = opts.framesPerSecond ?? Infinity;
   const token = opts.token ?? null;
   const stats = { connections: 0, rejected: 0, framesSent: 0, starts: [] };
@@ -28,6 +45,8 @@ export function startFixtureServer(opts = {}) {
   const server = createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
     if (url.pathname === '/admin/stats') return json(res, { ...stats, active: !!active });
+    if (url.pathname === '/admin/info') return json(res, { first_id: frames[0].id, last_id: frames[frames.length - 1].id, total: frames.length });
+    if (url.pathname === '/admin/frames') return json(res, frames);
     if (url.pathname === '/admin/disconnect' && req.method === 'POST') {
       const had = !!active;
       active?.destroy();
@@ -79,7 +98,7 @@ export function startFixtureServer(opts = {}) {
     const pump = () => {
       if (res.destroyed || res.writableEnded) return;
       if (index >= frames.length) return res.end();
-      const batch = Number.isFinite(fps) ? 1 : 200;
+      const batch = Number.isFinite(fps) ? Math.max(1, Math.round(fps / 100)) : 200; // paced in ~10 ms ticks
       for (let i = 0; i < batch && index < frames.length; i++) {
         const f = frames[index++];
         res.write(`id: ${f.id}\nevent: ${f.event}\ndata: ${JSON.stringify(f.data)}\n\n`);
@@ -87,7 +106,7 @@ export function startFixtureServer(opts = {}) {
         sentThisConnection++;
         if (disconnectEveryN && sentThisConnection >= disconnectEveryN) return res.destroy();
       }
-      timer = setTimeout(pump, Number.isFinite(fps) ? 1000 / fps : 0);
+      timer = setTimeout(pump, Number.isFinite(fps) ? (batch * 1000) / fps : 0);
     };
     pump();
   });
@@ -112,6 +131,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const s = await startFixtureServer({
     port: Number(process.env.PORT ?? 8099),
     frames: process.env.FRAMES_FILE ? loadFrames(process.env.FRAMES_FILE) : undefined,
+    repeat: Number(process.env.REPEAT_CYCLES ?? 1),
     framesPerSecond: process.env.FRAMES_PER_SECOND ? Number(process.env.FRAMES_PER_SECOND) : Infinity,
     disconnectEveryN: Number(process.env.DISCONNECT_EVERY_N ?? 0),
     closeAfterMs: Number(process.env.CLOSE_AFTER_MS ?? 0),

@@ -15,7 +15,18 @@ export class SatelliteMetrics {
   private e2eCount = 0;
 
   // Time from a frame arriving at the processor to its effects being stored (P4-K4 latency).
+  // Bounded list of raw samples so a test run can report an exact percentile.
+  readonly samples: number[] = [];
+  private static readonly SAMPLE_CAP = 200_000;
+
+  percentile(q: number): number | null {
+    if (this.samples.length === 0) return null;
+    const sorted = [...this.samples].sort((a, b) => a - b);
+    return sorted[Math.min(sorted.length - 1, Math.floor(q * sorted.length))];
+  }
+
   observeEventToStore(seconds: number): void {
+    if (this.samples.length < SatelliteMetrics.SAMPLE_CAP) this.samples.push(seconds);
     this.e2eBuckets.forEach((le, i) => { if (seconds <= le) this.e2eCounts[i]++; });
     this.e2eSum += seconds;
     this.e2eCount++;

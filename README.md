@@ -63,7 +63,7 @@ Contoh di bawah memakai `bash` (macOS dan Linux). Di Windows PowerShell, ganti `
 | Aggregator | `AGGREGATOR_PORT`, `POLL_INTERVAL_MS`, `POLL_LOOKBACK_MS`, `SOURCE_REQUEST_TIMEOUT_MS`, `CIRCUIT_BREAKER_FAILURE_THRESHOLD`, `CIRCUIT_BREAKER_COOLDOWN_MS`, `PVMBG_MAX_CONCURRENT_CALLS`, `DATABASE_URL`, `RABBITMQ_URL`, `INTERNAL_SERVICE_KEY` | aggregator |
 | Ingest guard / parking | `MAX_MESSAGE_BYTES` (262144), `MAX_JSON_DEPTH` (32), `PARK_MAX_ATTEMPTS` (8) | aggregator (`src/ingest/`) |
 | Mapper PVMBG | `VOLCANIC_MAPPER_VERSION` (`v1` default, `v2` after a schema change) | aggregator (`src/mapping/`) |
-| Satelit | `SAT_FEED_BASE_URL`, `SAT_GROUP_TOKEN`, `SAT_ALLOWED_LATENESS_MIN` (360), `SAT_FLUSH_INTERVAL_MS` (250), `SAT_CHECKPOINT_EVERY_N` (100), `SAT_BATCH_SIZE` (500), `SAT_IDLE_TIMEOUT_MS` (30000), `SAT_RECONNECT_MIN_MS`, `SAT_RECONNECT_MAX_MS`, `SAT_SESSION_POLL_MS`, `SATELLITE_PORT` (8095) | satellite-processor |
+| Satelit | `SAT_FEED_BASE_URL`, `SAT_GROUP_TOKEN`, `SAT_ALLOWED_LATENESS_MIN` (360), `SAT_FLUSH_INTERVAL_MS` (250), `SAT_WRITE_CONCURRENCY` (32), `SAT_CHECKPOINT_EVERY_N` (100), `SAT_BATCH_SIZE` (500), `SAT_IDLE_TIMEOUT_MS` (30000), `SAT_RECONNECT_MIN_MS`, `SAT_RECONNECT_MAX_MS`, `SAT_SESSION_POLL_MS`, `SATELLITE_PORT` (8095) | satellite-processor |
 | Laporan lapangan | `SWEEP_INTERVAL_MS` (200), `RECONCILE_INTERVAL_MS` (60000), `FIELD_REPORT_PORT` (8096) | field-report-processor |
 | Client API | `CLIENT_API_PORT`, `CLIENT_JWT_SECRET`, `AGGREGATOR_REQUEST_TIMEOUT_MS`, `INTERNAL_SERVICE_KEY` | client-api |
 | Auth | `AUTH_SERVICE_PORT`, `CLIENT_JWT_SECRET`, `ACCESS_TOKEN_TTL_SECONDS` (default 60), `REFRESH_TOKEN_TTL_SECONDS` (default 900), `AUTH_{MEDIA,LAPANGAN,INTERNAL}_CLIENT_ID`, `AUTH_{MEDIA,LAPANGAN,INTERNAL}_CLIENT_SECRET` | auth-service |
@@ -122,6 +122,8 @@ Kedua mock menyediakan `GET /admin/request-log?since=<ISO>` (log request dengan 
 | `scripts/demo/p4-k1-multi-satellite.sh` | Satu kebakaran yang terlihat beberapa satelit menjadi tepat satu HazardEvent |
 | `scripts/demo/p4-k3-update-retract.sh` | `update` mempertahankan `hazard_id` dan mengubah atribut; `retract` di bawah 2 deteksi menghapus event; deteksi ulang menghidupkannya kembali dengan id sama |
 | `scripts/demo/p4-k2-late-data.sh` | Deteksi terlambat di kedua sisi batas 360 menit: yang di dalam batas diterapkan, yang di luar dihitung dan dilaporkan |
+| `scripts/demo/p4-k5-crash.sh` | Pipeline dibunuh 40 kali di titik tulis acak: hasil akhir identik byte-per-byte dengan run tanpa gangguan |
+| `scripts/demo/p4-k4-burst.sh` | Burst ~108 000 frame: lag, waktu catch-up, p95 event-to-store, memori, tanpa kehilangan data; `WRITE_LATENCY_MS` memodelkan latensi tulis ring |
 
 Statistik proses: `GET :8095/internal/satellite/stats` (watermark, kebakaran terbuka, penghitung keterlambatan) dan `/metrics` (`bnpb_sat_offset_lag`, `bnpb_sat_late_*`, `bnpb_sat_event_to_store_seconds`).
 ## Problem 2 Demo

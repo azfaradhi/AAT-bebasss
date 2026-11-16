@@ -16,7 +16,8 @@ export interface Det {
   status: 'live' | 'retracted';
 }
 
-export interface FireChange { kind: 'upsert' | 'gone' | 'finalized'; offset: number; mergedInto?: string }
+// `snapshot` keeps the members of a fire that was changed and finalized inside the same batch, so its event is still written.
+export interface FireChange { kind: 'upsert' | 'gone' | 'finalized'; offset: number; mergedInto?: string; snapshot?: Det[]; finalized?: boolean }
 
 export interface ChangeSet {
   fires: Map<string, FireChange>;
@@ -124,11 +125,13 @@ export class FireEngine {
     this.lastScanWatermark = wm;
     for (const [id, keys] of [...this.fires]) {
       if (this.latestT.get(id)! + CONNECT_MS >= wm) continue;
+      const pending = this.changes.fires.get(id);
+      const snapshot = pending?.kind === 'upsert' ? [...keys].map((k) => this.dets.get(k)!) : undefined;
       for (const k of keys) this.evict(k);
       this.fires.delete(id);
       this.latestT.delete(id);
       this.counters.finalizedFires++;
-      this.changes.fires.set(id, { kind: 'finalized', offset });
+      this.changes.fires.set(id, snapshot ? { kind: 'upsert', offset: pending!.offset, snapshot, finalized: true } : { kind: 'finalized', offset });
     }
     for (const d of [...this.dets.values()]) if (!this.fireOf.has(d.key) && d.t + CONNECT_MS < wm) this.evict(d.key);
   }

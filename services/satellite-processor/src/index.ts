@@ -31,7 +31,7 @@ async function main(): Promise<void> {
   const storage = new InMemoryStorage();
   const coordinator = new InMemoryCoordinator(storage, config.POD_NAME);
   const ingest = createIngestContext({ storage });
-  const sink = new FireSink(storage, Date.now, config.SAT_ALLOWED_LATENESS_MIN * 60_000);
+  const sink = new FireSink(storage, Date.now, config.SAT_ALLOWED_LATENESS_MIN * 60_000, config.SAT_WRITE_CONCURRENCY);
   const client = new FeedClient({ baseUrl: config.SAT_FEED_BASE_URL, token: config.SAT_GROUP_TOKEN, idleTimeoutMs: config.SAT_IDLE_TIMEOUT_MS });
 
   let ready = false;

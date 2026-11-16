@@ -16,7 +16,7 @@ export class FireSink implements FrameSink {
   private meta: Meta = { last_applied_offset: -1, last_ingested_at: null };
   private loaded = false;
 
-  constructor(private readonly storage: StorageClient, private readonly clock: () => number = Date.now, latenessMs?: number) {
+  constructor(private readonly storage: StorageClient, private readonly clock: () => number = Date.now, latenessMs?: number, private readonly writeConcurrency = 32) {
     this.engine = new FireEngine(latenessMs);
   }
 
@@ -60,27 +60,42 @@ export class FireSink implements FrameSink {
     // from, then the applied-offset marker. A crash at any point replays the batch and converges: output written before the
     // detections is re-written identically (same ids, same versions), and a detection that is already persisted implies
     // that every event depending on it already is.
-    for (const [id, change] of changes.fires) {
-      if (change.kind === 'upsert') await this.storage.putDoc('fire_state', fireDocKey(id), { id, status: 'open', keys: [...this.engine.fires.get(id)!] }, wctx(`fire-${id}`));
-      else if (change.kind === 'finalized') await this.storage.putDoc('fire_state', fireDocKey(id), { id, status: 'finalized', keys: [] }, wctx(`fire-${id}`));
-      else await this.storage.deleteDoc('fire_state', fireDocKey(id), wctx(`fire-${id}`));
-    }
-
+    // Payloads are built first (sequentially, so ids and ingested_at stay deterministic); the writes of one phase are
+    // independent and run with bounded concurrency. Phases never overlap, which keeps the order above.
+    const outputWrites: Array<() => Promise<unknown>> = [];
     let floor = this.meta.last_ingested_at;
     for (const [id, change] of changes.fires) {
+      if (change.kind === 'upsert') {
+        const doc = change.finalized ? { id, status: 'finalized', keys: [] } : { id, status: 'open', keys: [...this.engine.fires.get(id)!] };
+        outputWrites.push(() => this.storage.putDoc('fire_state', fireDocKey(id), doc, wctx(`fire-${id}`)));
+      } else if (change.kind === 'finalized') {
+        outputWrites.push(() => this.storage.putDoc('fire_state', fireDocKey(id), { id, status: 'finalized', keys: [] }, wctx(`fire-${id}`)));
+      } else {
+        outputWrites.push(() => this.storage.deleteDoc('fire_state', fireDocKey(id), wctx(`fire-${id}`)));
+      }
       if (change.kind === 'finalized') continue; // the published event stays as it is
       if (change.kind === 'upsert') {
-        const members = [...this.engine.fires.get(id)!].map((k) => this.engine.dets.get(k)!);
+        const members = change.snapshot ?? [...this.engine.fires.get(id)!].map((k) => this.engine.dets.get(k)!);
         floor = nextIngestedAt(this.clock(), floor);
-        await this.storage.upsertEvent({ ...fireToEvent(id, members, floor), version: change.offset }, wctx(`event-${id}-${change.offset}`));
+        const event = { ...fireToEvent(id, members, floor), version: change.offset };
+        outputWrites.push(() => this.storage.upsertEvent(event, wctx(`event-${id}-${change.offset}`)));
       } else {
-        await this.storage.tombstoneEvent(hazardIdOf(id), change.offset, wctx(`tomb-${id}-${change.offset}`), change.mergedInto ? hazardIdOf(change.mergedInto) : undefined);
+        outputWrites.push(() => this.storage.tombstoneEvent(hazardIdOf(id), change.offset, wctx(`tomb-${id}-${change.offset}`), change.mergedInto ? hazardIdOf(change.mergedInto) : undefined));
       }
     }
+    await runLimited(outputWrites, this.writeConcurrency);
 
-    for (const key of changes.dets) await this.storage.putDoc('fire_state', detDocKey(key), this.engine.dets.get(key), wctx(`det-${key}`));
-    for (const key of changes.evicted) await this.storage.deleteDoc('fire_state', detDocKey(key), wctx(`evict-${key}`));
-    if (changes.lateLogChanged) await this.storage.putDoc('fire_state', 'late_log', this.engine.lateLog, wctx(`late-${endOffset}`));
+    const inputWrites: Array<() => Promise<unknown>> = [];
+    for (const key of changes.dets) {
+      const det = this.engine.dets.get(key);
+      inputWrites.push(() => this.storage.putDoc('fire_state', detDocKey(key), det, wctx(`det-${key}`)));
+    }
+    for (const key of changes.evicted) inputWrites.push(() => this.storage.deleteDoc('fire_state', detDocKey(key), wctx(`evict-${key}`)));
+    if (changes.lateLogChanged) {
+      const log = [...this.engine.lateLog];
+      inputWrites.push(() => this.storage.putDoc('fire_state', 'late_log', log, wctx(`late-${endOffset}`)));
+    }
+    await runLimited(inputWrites, this.writeConcurrency);
 
     this.meta = { last_applied_offset: endOffset, last_ingested_at: floor ?? isoMs(this.clock()), ...this.engine.persistedState() };
     await this.storage.putDoc('fire_state', 'meta', this.meta, wctx(`meta-${endOffset}`));
@@ -88,3 +103,18 @@ export class FireSink implements FrameSink {
 }
 
 const hazardIdOf = (fireIdValue: string): string => hazardId('SATELIT', fireIdValue);
+
+// Runs the tasks with at most `limit` in flight; rejects with the first failure after the running ones settle.
+async function runLimited(tasks: Array<() => Promise<unknown>>, limit: number): Promise<void> {
+  let next = 0;
+  let failure: unknown;
+  let failed = false;
+  const worker = async (): Promise<void> => {
+    while (!failed && next < tasks.length) {
+      const task = tasks[next++];
+      try { await task(); } catch (err) { if (!failed) { failed = true; failure = err; } }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+  if (failed) throw failure;
+}
