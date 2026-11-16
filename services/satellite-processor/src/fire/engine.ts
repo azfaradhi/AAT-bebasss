@@ -28,7 +28,7 @@ export interface ChangeSet {
 
 export interface LateEntry { key: string; offset: number; t: string }
 
-export interface Counters { lateApplied: number; lateBeyond: number; frozenIgnored: number; finalizedFires: number; evictedDetections: number }
+export interface Counters { lateApplied: number; lateBeyond: number; frozenIgnored: number; finalizedFires: number; evictedDetections: number; singletonsEvicted: number }
 
 const LATE_LOG_CAP = 1000;
 const SCAN_STEP_MS = 5 * 60_000;
@@ -46,7 +46,7 @@ export class FireEngine {
   private changes: ChangeSet = emptyChanges();
   private maxT = Number.NEGATIVE_INFINITY;
   private lastScanWatermark = Number.NEGATIVE_INFINITY;
-  readonly counters: Counters = { lateApplied: 0, lateBeyond: 0, frozenIgnored: 0, finalizedFires: 0, evictedDetections: 0 };
+  readonly counters: Counters = { lateApplied: 0, lateBeyond: 0, frozenIgnored: 0, finalizedFires: 0, evictedDetections: 0, singletonsEvicted: 0 };
   readonly lateLog: LateEntry[] = [];
 
   constructor(private readonly latenessMs = CONNECT_MS) {}
@@ -61,10 +61,13 @@ export class FireEngine {
     return out;
   }
 
-  stats(): { watermark: string | null; open_fires: number; singletons: number; stored_detections: number } & Counters {
+  // FIRE-5: detections that are not (yet) part of a fire, including the ones already evicted from state.
+  singlesTotal(): number { return this.singletons() + this.counters.singletonsEvicted; }
+
+  stats(): { watermark: string | null; open_fires: number; singletons: number; singles_total: number; stored_detections: number } & Counters {
     return {
       watermark: Number.isFinite(this.maxT) ? new Date(this.watermark).toISOString() : null,
-      open_fires: this.fires.size, singletons: this.singletons(), stored_detections: this.dets.size, ...this.counters,
+      open_fires: this.fires.size, singletons: this.singletons(), singles_total: this.singlesTotal(), stored_detections: this.dets.size, ...this.counters,
     };
   }
 
@@ -133,7 +136,11 @@ export class FireEngine {
       this.counters.finalizedFires++;
       this.changes.fires.set(id, snapshot ? { kind: 'upsert', offset: pending!.offset, snapshot, finalized: true } : { kind: 'finalized', offset });
     }
-    for (const d of [...this.dets.values()]) if (!this.fireOf.has(d.key) && d.t + CONNECT_MS < wm) this.evict(d.key);
+    for (const d of [...this.dets.values()]) {
+      if (this.fireOf.has(d.key) || d.t + CONNECT_MS >= wm) continue;
+      if (eligible(d)) this.counters.singletonsEvicted++;
+      this.evict(d.key);
+    }
   }
 
   private evict(key: string): void {

@@ -18,6 +18,7 @@ function lateMetrics(sink: FireSink): string {
     `bnpb_sat_frozen_ignored_total ${c.frozenIgnored}`,
     `bnpb_sat_finalized_fires_total ${c.finalizedFires}`,
     `bnpb_sat_open_fires ${sink.engine.fires.size}`,
+    `bnpb_sat_detections_single ${sink.engine.singlesTotal()}`,
     '',
   ].join('\n');
 }

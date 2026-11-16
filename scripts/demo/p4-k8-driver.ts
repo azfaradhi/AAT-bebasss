@@ -28,7 +28,7 @@ const KILLS = Number(process.env.KILLS ?? 25);
     if (kills >= KILLS) return;
     const r = (await (await fetch(`${FEED}/admin/disconnect`, { method: 'POST' })).json()) as { disconnected: boolean };
     if (r.disconnected) kills++;
-  }, 120);
+  }, 80);
 
   const deadline = Date.now() + 120_000;
   while (metrics.committedOffset < session.latest_offset && Date.now() < deadline) await new Promise((r) => setTimeout(r, 50));

@@ -70,17 +70,20 @@ async function leaderTerm(deps: ProcessorDeps, fence: number, signal: AbortSigna
     metrics.committedOffset = offset;
   };
 
+  let applied = committed; // highest offset the sink has applied (may be ahead of the committed cursor)
   const flush = async (force: boolean): Promise<void> => {
-    if (batch.length === 0) return;
-    const frames = batch.flatMap((e) => (e.frame ? [e.frame] : []));
-    if (signal.aborted) throw new LeadershipLost('leadership lost before apply');
-    if (frames.length > 0) await sink.apply(frames, { fence, signal });
-    const stored = Date.now();
-    for (const e of batch) if (e.frame) metrics.observeEventToStore((stored - e.receivedAt) / 1000);
-    sinceCommit += batch.length;
-    const last = batch[batch.length - 1].offset;
-    batch = [];
-    if (force || sinceCommit >= config.SAT_CHECKPOINT_EVERY_N) await commit(last);
+    if (batch.length > 0) {
+      const frames = batch.flatMap((e) => (e.frame ? [e.frame] : []));
+      if (signal.aborted) throw new LeadershipLost('leadership lost before apply');
+      if (frames.length > 0) await sink.apply(frames, { fence, signal });
+      const stored = Date.now();
+      for (const e of batch) if (e.frame) metrics.observeEventToStore((stored - e.receivedAt) / 1000);
+      sinceCommit += batch.length;
+      applied = batch[batch.length - 1].offset;
+      batch = [];
+    }
+    // A forced flush also commits work that an earlier time-based flush applied but did not commit.
+    if ((force || sinceCommit >= config.SAT_CHECKPOINT_EVERY_N) && applied > committed) await commit(applied);
   };
 
   const park = async (raw: RawFrame, reason_code: ReasonCode, detail: string, offset: number | null): Promise<void> => {

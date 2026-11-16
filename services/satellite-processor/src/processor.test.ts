@@ -144,6 +144,23 @@ describe('frame handling', () => {
     expect(events.indexOf('apply:2')).toBeLessThan(events.indexOf('commit:2'));
   });
 
+  it('commits frames that a time-based flush applied once the stream ends (no uncommitted tail)', async () => {
+    const encoder = new TextEncoder();
+    const first = `id: 1\nevent: detection\ndata: ${det(1)}\n\nid: 2\nevent: detection\ndata: ${det(2)}\n\n`;
+    let calls = 0;
+    const fetchImpl = (async () => {
+      calls++;
+      if (calls > 1) return new Response('', { headers: { 'content-type': 'text/event-stream' } });
+      return new Response(new ReadableStream<Uint8Array>({
+        start(c) { c.enqueue(encoder.encode(first)); setTimeout(() => c.close(), 120); }, // longer than the 20 ms flush interval, shorter than a checkpoint of 1000 frames
+      }));
+    }) as unknown as typeof fetch;
+    const h = harness({ fetchImpl, config: { SAT_CHECKPOINT_EVERY_N: 1000, SAT_BATCH_SIZE: 500 } });
+    await until(() => h.metrics.committedOffset === 2);
+    await h.stop();
+    expect(offsetsOf((h.sink as CollectingSink).frames)).toEqual([1, 2]);
+  });
+
   it('stops committing once leadership is lost (zombie leader)', async () => {
     const { fetchImpl } = scripted(sse([[1, 'detection', det(1)]]), '');
     let release: () => void = () => undefined;

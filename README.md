@@ -122,6 +122,9 @@ Kedua mock menyediakan `GET /admin/request-log?since=<ISO>` (log request dengan 
 | `scripts/demo/p4-k1-multi-satellite.sh` | Satu kebakaran yang terlihat beberapa satelit menjadi tepat satu HazardEvent |
 | `scripts/demo/p4-k3-update-retract.sh` | `update` mempertahankan `hazard_id` dan mengubah atribut; `retract` di bawah 2 deteksi menghapus event; deteksi ulang menghidupkannya kembali dengan id sama |
 | `scripts/demo/p4-k2-late-data.sh` | Deteksi terlambat di kedua sisi batas 360 menit: yang di dalam batas diterapkan, yang di luar dihitung dan dilaporkan |
+| `scripts/demo/p4-k6-reference-diff.sh` | Hasil pipeline dibandingkan dengan perhitungan batch independen (brute-force) atas aliran yang sama; selisih dikategorikan per penyebab (`LATENESS_MIN=60` memperlihatkan selisih akibat batas keterlambatan) |
+| `scripts/demo/p4-k7-live.sh` | Pipeline pada feed satelit NYATA ≥ 5 menit (token dibaca dari `.env.local`, tidak pernah dicetak); buka panel lag/keterlambatan di layar saat berjalan |
+| `scripts/demo/p4-k8-disconnect.sh` | Pada feed nyata, koneksi kami diputus berkala: offset tetap kontigu, tanpa duplikat (mode cluster `KUBE=1` belum diimplementasi) |
 | `scripts/demo/p4-k5-crash.sh` | Pipeline dibunuh 40 kali di titik tulis acak: hasil akhir identik byte-per-byte dengan run tanpa gangguan |
 | `scripts/demo/p4-k4-burst.sh` | Burst ~108 000 frame: lag, waktu catch-up, p95 event-to-store, memori, tanpa kehilangan data; `WRITE_LATENCY_MS` memodelkan latensi tulis ring |
 
