@@ -16,12 +16,22 @@ export interface Det {
   status: 'live' | 'retracted';
 }
 
-export interface FireChange { kind: 'upsert' | 'gone'; offset: number; mergedInto?: string }
+export interface FireChange { kind: 'upsert' | 'gone' | 'finalized'; offset: number; mergedInto?: string }
 
 export interface ChangeSet {
   fires: Map<string, FireChange>;
   dets: Set<string>;
+  evicted: Set<string>;
+  lateLogChanged: boolean;
 }
+
+export interface LateEntry { key: string; offset: number; t: string }
+
+export interface Counters { lateApplied: number; lateBeyond: number; frozenIgnored: number; finalizedFires: number; evictedDetections: number }
+
+const LATE_LOG_CAP = 1000;
+const SCAN_STEP_MS = 5 * 60_000;
+const emptyChanges = (): ChangeSet => ({ fires: new Map(), dets: new Set(), evicted: new Set(), lateLogChanged: false });
 
 const eligible = (d: Det): boolean => d.status === 'live' && d.confidence !== 'l';
 
@@ -31,12 +41,30 @@ export class FireEngine {
   readonly fires = new Map<string, Set<string>>();
   private readonly fireOf = new Map<string, string>();
   private readonly cells = new Map<string, Set<string>>();
-  private changes: ChangeSet = { fires: new Map(), dets: new Set() };
+  private readonly latestT = new Map<string, number>();
+  private changes: ChangeSet = emptyChanges();
+  private maxT = Number.NEGATIVE_INFINITY;
+  private lastScanWatermark = Number.NEGATIVE_INFINITY;
+  readonly counters: Counters = { lateApplied: 0, lateBeyond: 0, frozenIgnored: 0, finalizedFires: 0, evictedDetections: 0 };
+  readonly lateLog: LateEntry[] = [];
+
+  constructor(private readonly latenessMs = CONNECT_MS) {}
+
+  // Detections older than this are beyond the allowed lateness: counted, never merged.
+  get watermark(): number { return this.maxT - this.latenessMs; }
+  get maxEventTime(): number { return this.maxT; }
 
   takeChanges(): ChangeSet {
     const out = this.changes;
-    this.changes = { fires: new Map(), dets: new Set() };
+    this.changes = emptyChanges();
     return out;
+  }
+
+  stats(): { watermark: string | null; open_fires: number; singletons: number; stored_detections: number } & Counters {
+    return {
+      watermark: Number.isFinite(this.maxT) ? new Date(this.watermark).toISOString() : null,
+      open_fires: this.fires.size, singletons: this.singletons(), stored_detections: this.dets.size, ...this.counters,
+    };
   }
 
   singletons(): number {
@@ -46,21 +74,82 @@ export class FireEngine {
   }
 
   // Rebuilds the in-memory indexes from persisted detections and fires.
-  hydrate(dets: Det[], fires: Array<{ id: string; keys: string[] }>): void {
+  hydrate(dets: Det[], fires: Array<{ id: string; keys: string[] }>, state?: { max_t: number | null; counters: Counters; late_log: LateEntry[] }): void {
     for (const d of dets) {
       this.dets.set(d.key, d);
       if (eligible(d)) this.indexAdd(d);
     }
     for (const f of fires) {
+      if (f.keys.length === 0) continue; // finalized summary
       this.fires.set(f.id, new Set(f.keys));
       for (const k of f.keys) this.fireOf.set(k, f.id);
+      this.latestT.set(f.id, Math.max(...f.keys.map((k) => this.dets.get(k)!.t)));
     }
+    if (state) {
+      this.maxT = state.max_t ?? Number.NEGATIVE_INFINITY;
+      Object.assign(this.counters, state.counters);
+      this.lateLog.push(...state.late_log);
+    }
+  }
+
+  persistedState(): { max_t: number | null; counters: Counters } {
+    return { max_t: Number.isFinite(this.maxT) ? this.maxT : null, counters: { ...this.counters } };
+  }
+
+  // A detection (or fire) that no in-bound frame can reach any more: connectivity needs |dt| <= 360 min.
+  private frozen(d: Det): boolean {
+    const f = this.fireOf.get(d.key);
+    const latest = f ? this.latestT.get(f)! : d.t;
+    return latest + CONNECT_MS < this.watermark;
+  }
+
+  // Memory only: frozen state can no longer change results, so dropping it never alters output.
+  closeExpired(offset: number): void {
+    const wm = this.watermark;
+    if (!Number.isFinite(wm) || wm - this.lastScanWatermark < SCAN_STEP_MS) return;
+    this.lastScanWatermark = wm;
+    for (const [id, keys] of [...this.fires]) {
+      if (this.latestT.get(id)! + CONNECT_MS >= wm) continue;
+      for (const k of keys) this.evict(k);
+      this.fires.delete(id);
+      this.latestT.delete(id);
+      this.counters.finalizedFires++;
+      this.changes.fires.set(id, { kind: 'finalized', offset });
+    }
+    for (const d of [...this.dets.values()]) if (!this.fireOf.has(d.key) && d.t + CONNECT_MS < wm) this.evict(d.key);
+  }
+
+  private evict(key: string): void {
+    const d = this.dets.get(key);
+    if (!d) return;
+    if (eligible(d)) this.indexRemove(d);
+    this.dets.delete(key);
+    this.fireOf.delete(key);
+    this.changes.dets.delete(key);
+    this.changes.evicted.add(key);
+    this.counters.evictedDetections++;
   }
 
   detection(offset: number, raw: Detection): void {
     const key = detectionKey(raw);
+    const t = Date.parse(detectionTimeUtc(raw));
+    const existing = this.dets.get(key);
+    if (!existing) {
+      if (t < this.watermark) {
+        this.counters.lateBeyond++;
+        this.lateLog.push({ key, offset, t: new Date(t).toISOString() });
+        if (this.lateLog.length > LATE_LOG_CAP) this.lateLog.shift();
+        this.changes.lateLogChanged = true;
+        return;
+      }
+      if (t < this.maxT) this.counters.lateApplied++;
+    } else if (this.frozen(existing)) {
+      this.counters.frozenIgnored++;
+      return;
+    }
+    this.maxT = Math.max(this.maxT, t);
     const next: Det = {
-      key, offset, t: Date.parse(detectionTimeUtc(raw)), lat: raw.latitude, lon: raw.longitude,
+      key, offset, t, lat: raw.latitude, lon: raw.longitude,
       confidence: raw.confidence, frp: raw.frp, satellite: raw.satellite, status: 'live',
     };
     this.write(next);
@@ -69,6 +158,7 @@ export class FireEngine {
   update(offset: number, key: string, changes: Partial<Detection>): void {
     const cur = this.dets.get(key);
     if (!cur || cur.status !== 'live' || offset <= cur.offset) return; // unknown, retracted or stale
+    if (this.frozen(cur)) { this.counters.frozenIgnored++; return; }
     this.write({
       ...cur, offset,
       confidence: changes.confidence ?? cur.confidence,
@@ -79,6 +169,7 @@ export class FireEngine {
   retract(offset: number, key: string): void {
     const cur = this.dets.get(key);
     if (!cur || cur.status === 'retracted' || offset <= cur.offset) return;
+    if (this.frozen(cur)) { this.counters.frozenIgnored++; return; }
     this.write({ ...cur, offset, status: 'retracted' });
   }
 
@@ -175,6 +266,9 @@ export class FireEngine {
       this.fires.set(id, new Set(comp));
       for (const k of comp) this.fireOf.set(k, id);
     }
+
+    for (const id of affected) this.latestT.delete(id);
+    for (const [id, keys] of newIds) this.latestT.set(id, Math.max(...[...keys].map((k) => this.dets.get(k)!.t)));
 
     for (const [id, keys] of newIds) {
       const before = oldKeys.get(id);

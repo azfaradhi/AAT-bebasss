@@ -111,6 +111,7 @@ export function startFixtureServer(opts = {}) {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const s = await startFixtureServer({
     port: Number(process.env.PORT ?? 8099),
+    frames: process.env.FRAMES_FILE ? loadFrames(process.env.FRAMES_FILE) : undefined,
     framesPerSecond: process.env.FRAMES_PER_SECOND ? Number(process.env.FRAMES_PER_SECOND) : Infinity,
     disconnectEveryN: Number(process.env.DISCONNECT_EVERY_N ?? 0),
     closeAfterMs: Number(process.env.CLOSE_AFTER_MS ?? 0),

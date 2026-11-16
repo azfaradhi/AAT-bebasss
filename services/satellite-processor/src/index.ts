@@ -9,6 +9,18 @@ import { runSatellite } from './processor';
 import { buildServer } from './server';
 import { FireSink } from './fire/fire-sink';
 
+function lateMetrics(sink: FireSink): string {
+  const c = sink.engine.counters;
+  return [
+    `bnpb_sat_late_applied_total ${c.lateApplied}`,
+    `bnpb_sat_late_beyond_bound_total ${c.lateBeyond}`,
+    `bnpb_sat_frozen_ignored_total ${c.frozenIgnored}`,
+    `bnpb_sat_finalized_fires_total ${c.finalizedFires}`,
+    `bnpb_sat_open_fires ${sink.engine.fires.size}`,
+    '',
+  ].join('\n');
+}
+
 async function main(): Promise<void> {
   const config = loadConfig(process.env);
   const logger = pino({ base: null, messageKey: 'message', formatters: { level: (label) => ({ level: label }) } });
@@ -18,10 +30,11 @@ async function main(): Promise<void> {
   const storage = new InMemoryStorage();
   const coordinator = new InMemoryCoordinator(storage, config.POD_NAME);
   const ingest = createIngestContext({ storage });
+  const sink = new FireSink(storage, Date.now, config.SAT_ALLOWED_LATENESS_MIN * 60_000);
   const client = new FeedClient({ baseUrl: config.SAT_FEED_BASE_URL, token: config.SAT_GROUP_TOKEN, idleTimeoutMs: config.SAT_IDLE_TIMEOUT_MS });
 
   let ready = false;
-  const server = buildServer(metrics, () => ready, () => ingest.metrics.render());
+  const server = buildServer(metrics, () => ready, () => ingest.metrics.render() + lateMetrics(sink), () => sink.engine.stats());
   await server.listen({ port: config.SATELLITE_PORT, host: '0.0.0.0' });
 
   const poll = setInterval(() => {
@@ -40,7 +53,7 @@ async function main(): Promise<void> {
   process.on('SIGINT', shutdown);
 
   ready = true;
-  await runSatellite({ coordinator, ingest, sink: new FireSink(storage), config, client, metrics, logger });
+  await runSatellite({ coordinator, ingest, sink, config, client, metrics, logger });
 }
 
 main().catch((err) => {
