@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bmkg-mock
+  namespace: sistem-informasi-kebencanaan-bnpb
+  labels: { app: bmkg-mock, role: mock, app.kubernetes.io/part-of: bnpb }
+spec:
+  replicas: 1
+  strategy: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } }
+  selector: { matchLabels: { app: bmkg-mock } }
+  template:
+    metadata:
+      labels: { app: bmkg-mock, role: mock, app.kubernetes.io/part-of: bnpb }
+      annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8081", prometheus.io/path: /metrics }
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: bmkg-mock
+          image: registry.local/bnpb-bmkg-mock:latest
+          ports: [{ containerPort: 8081 }]
+          envFrom: [{ configMapRef: { name: bmkg-mock-config } }]
+          env:
+            - { name: POD_NAME, valueFrom: { fieldRef: { fieldPath: metadata.name } } }
+            - { name: NODE_NAME, valueFrom: { fieldRef: { fieldPath: spec.nodeName } } }
+            - { name: BMKG_API_KEY, valueFrom: { secretKeyRef: { name: bmkg, key: api-key } } }
+          resources:
+            requests: { memory: 64Mi }
+            limits: { memory: 128Mi }
+          startupProbe: { httpGet: { path: /health, port: 8081 }, failureThreshold: 30, periodSeconds: 2 }
+          readinessProbe: { httpGet: { path: /ready, port: 8081 }, periodSeconds: 2, failureThreshold: 2 }
+          livenessProbe: { httpGet: { path: /health, port: 8081 }, periodSeconds: 10, failureThreshold: 6 }
+          lifecycle: { preStop: { exec: { command: ["sleep", "10"] } } }

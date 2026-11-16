@@ -1,12 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import type { ErrorEnvelope } from '../../../../shared-types/src/envelopes';
-import { FieldReportStore, MAX_KEY_LENGTH, MAX_REPORT_BYTES, validateFieldReport } from '../../../../shared-types/src/field-reports';
+import { FieldReportStore, FieldReportMetrics, MAX_KEY_LENGTH, MAX_REPORT_BYTES, validateFieldReport } from '../../../../shared-types/src/field-reports';
 import { StorageUnavailableError } from '../../../../shared-types/src/m2/types';
 import { currentCorrelationId } from '../context';
 import { AppError } from '../errors';
 
-export interface FieldReportsRouteOptions { store: FieldReportStore }
+export interface FieldReportsRouteOptions { store: FieldReportStore; metrics?: FieldReportMetrics }
 
 // POST /field-reports: 202 only after the report is durably written to the ring; Lapangan scope only.
 export function registerFieldReportsRoute(app: FastifyInstance, opts: FieldReportsRouteOptions): void {
@@ -30,13 +30,15 @@ export function registerFieldReportsRoute(app: FastifyInstance, opts: FieldRepor
       throw new AppError(400, 'BAD_REQUEST', `Idempotency-Key header is required (1 to ${MAX_KEY_LENGTH} characters)`);
     }
     const validation = validateFieldReport(request.body);
-    if (!validation.ok) throw new AppError(400, 'BAD_REQUEST', validation.message);
+    if (!validation.ok) { opts.metrics?.record('rejected'); throw new AppError(400, 'BAD_REQUEST', validation.message); }
 
     try {
       const accepted = await opts.store.accept(reporter, key, validation.value, currentCorrelationId() ?? randomUUID());
+      opts.metrics?.record(accepted.duplicate ? 'duplicate' : 'accepted');
       return reply.code(202).send({ report_id: accepted.report_id, status: 'accepted', received_at: accepted.received_at });
     } catch (err) {
       if (err instanceof StorageUnavailableError) {
+        opts.metrics?.record('unavailable');
         reply.header('retry-after', '1');
         throw new AppError(503, 'STORAGE_UNAVAILABLE', 'Report could not be stored durably; retry with the same Idempotency-Key');
       }

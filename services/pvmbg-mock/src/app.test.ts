@@ -196,6 +196,7 @@ describe('request log, /ready and /metrics', () => {
     const metrics = await app.inject({ method: 'GET', url: '/metrics' });
     expect(metrics.statusCode).toBe(200);
     expect(metrics.body).toContain('mock_http_requests_total{service="pvmbg-mock",method="GET",path="/volcanic-reports",status="200"} 1');
+    expect(metrics.body).toContain('bnpb_http_server_request_duration_seconds_count{service="pvmbg-mock",route="/volcanic-reports",method="GET",status_class="2xx"} 1');
   });
 });
 

@@ -20,7 +20,7 @@ const KILLS = Number(process.env.KILLS ?? 25);
   const done = runSatellite({
     coordinator, ingest: createIngestContext({ storage, env: {} }), sink, metrics, logger: quiet,
     client: new FeedClient({ baseUrl: FEED, token: 'x', idleTimeoutMs: 10_000 }),
-    config: { SAT_CHECKPOINT_EVERY_N: 100, SAT_BATCH_SIZE: 100, SAT_RECONNECT_MIN_MS: 10, SAT_RECONNECT_MAX_MS: 200, POD_NAME: 'p4-k8' },
+    config: { SAT_CHECKPOINT_EVERY_N: 100, SAT_BATCH_SIZE: 100, SAT_FLUSH_INTERVAL_MS: 50, SAT_RECONNECT_MIN_MS: 10, SAT_RECONNECT_MAX_MS: 200, POD_NAME: 'p4-k8' },
   });
 
   let kills = 0;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FieldReportStore } from '../../../../shared-types/src/field-reports';
+import { FieldReportMetrics, FieldReportStore } from '../../../../shared-types/src/field-reports';
 import { InMemoryStorage } from '../../../aggregator/test-support/contract-fakes/fakes/in-memory-storage';
 import { signAccessToken, TEST_SECRET } from '../test-helpers';
 import { buildOpsApp } from './ops-app';
@@ -65,5 +65,20 @@ describe('POST /field-reports', () => {
     const res = await post(app, report);
     expect(res.statusCode).toBe(503);
     expect(res.headers['retry-after']).toBe('1');
+  });
+});
+
+describe('field report metrics', () => {
+  it('counts accepted, duplicate and rejected outcomes', async () => {
+    const storage = new InMemoryStorage();
+    const metrics = new FieldReportMetrics();
+    const app = buildOpsApp({ jwtSecret: TEST_SECRET, aggregatorBaseUrl: 'http://x', internalServiceKey: 'k', fieldReportStore: new FieldReportStore(storage), fieldReportMetrics: metrics });
+    await post(app, report);
+    await post(app, report);
+    await post(app, { ...report, category: 'X' });
+    const text = metrics.render();
+    expect(text).toContain('outcome="accepted"} 1');
+    expect(text).toContain('outcome="duplicate"} 1');
+    expect(text).toContain('outcome="rejected"} 1');
   });
 });

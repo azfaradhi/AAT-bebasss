@@ -32,6 +32,17 @@ export function validateFieldReport(body: unknown): Validation {
   };
 }
 
+export type FieldReportOutcome = 'accepted' | 'duplicate' | 'rejected' | 'unavailable';
+
+// bnpb_field_reports_total{outcome} for the intake handler.
+export class FieldReportMetrics {
+  private readonly counts: Record<FieldReportOutcome, number> = { accepted: 0, duplicate: 0, rejected: 0, unavailable: 0 };
+  record(outcome: FieldReportOutcome): void { this.counts[outcome]++; }
+  render(): string {
+    return ['# TYPE bnpb_field_reports_total counter', ...Object.entries(this.counts).map(([o, n]) => `bnpb_field_reports_total{outcome="${o}"} ${n}`), ''].join('\n');
+  }
+}
+
 export interface FieldReportStoreOptions { clock?: () => number }
 export interface AcceptResult { report_id: string; received_at: string; duplicate: boolean }
 

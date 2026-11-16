@@ -5,6 +5,7 @@ const schema = z.object({
   SAT_GROUP_TOKEN: z.string().min(1),
   SAT_ALLOWED_LATENESS_MIN: z.coerce.number().int().nonnegative().default(360),
   SAT_CHECKPOINT_EVERY_N: z.coerce.number().int().positive().default(100),
+  SAT_FLUSH_INTERVAL_MS: z.coerce.number().int().positive().default(250),
   SAT_BATCH_SIZE: z.coerce.number().int().positive().default(500),
   SAT_IDLE_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
   SAT_RECONNECT_MIN_MS: z.coerce.number().int().nonnegative().default(200),

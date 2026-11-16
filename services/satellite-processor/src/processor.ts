@@ -16,7 +16,7 @@ export interface ProcessorDeps {
   coordinator: Coordinator;
   ingest: IngestContext;
   sink: FrameSink;
-  config: Pick<SatelliteConfig, 'SAT_CHECKPOINT_EVERY_N' | 'SAT_BATCH_SIZE' | 'SAT_RECONNECT_MIN_MS' | 'SAT_RECONNECT_MAX_MS' | 'POD_NAME'>;
+  config: Pick<SatelliteConfig, 'SAT_CHECKPOINT_EVERY_N' | 'SAT_BATCH_SIZE' | 'SAT_FLUSH_INTERVAL_MS' | 'SAT_RECONNECT_MIN_MS' | 'SAT_RECONNECT_MAX_MS' | 'POD_NAME'>;
   client: FeedClient;
   metrics: SatelliteMetrics;
   logger: LoggerLike;
@@ -30,7 +30,7 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 class LeadershipLost extends Error {}
 class GapDetected extends Error {}
 
-interface Entry { offset: number; frame: SatFrame | null }
+interface Entry { offset: number; frame: SatFrame | null; receivedAt: number }
 
 const defaultSleep = (ms: number, signal: AbortSignal) => new Promise<void>((resolve) => {
   const onAbort = () => { clearTimeout(timer); resolve(); };
@@ -75,6 +75,8 @@ async function leaderTerm(deps: ProcessorDeps, fence: number, signal: AbortSigna
     const frames = batch.flatMap((e) => (e.frame ? [e.frame] : []));
     if (signal.aborted) throw new LeadershipLost('leadership lost before apply');
     if (frames.length > 0) await sink.apply(frames, { fence, signal });
+    const stored = Date.now();
+    for (const e of batch) if (e.frame) metrics.observeEventToStore((stored - e.receivedAt) / 1000);
     sinceCommit += batch.length;
     const last = batch[batch.length - 1].offset;
     batch = [];
@@ -107,27 +109,41 @@ async function leaderTerm(deps: ProcessorDeps, fence: number, signal: AbortSigna
     if (reason) await park(raw, reason, detail, offset);
     else metrics.frames++;
     lastSeen = offset;
-    batch.push({ offset, frame });
+    batch.push({ offset, frame, receivedAt: Date.now() });
     if (batch.length >= config.SAT_BATCH_SIZE) await flush(false);
   };
 
+  // Frames are applied when the batch is full or has waited SAT_FLUSH_INTERVAL_MS, so a quiet live feed is not held back.
+  let chain: Promise<unknown> = Promise.resolve();
+  const exclusive = <T>(fn: () => Promise<T>): Promise<T> => { const run = chain.then(fn); chain = run.catch(() => undefined); return run; };
+  let timerError: unknown = null;
+  const flushTimer = setInterval(() => {
+    if (batch.length > 0 && Date.now() - batch[0].receivedAt >= config.SAT_FLUSH_INTERVAL_MS) {
+      void exclusive(() => (batch.length > 0 ? flush(false) : Promise.resolve())).catch((err) => { timerError = err; });
+    }
+  }, Math.max(10, Math.floor(config.SAT_FLUSH_INTERVAL_MS / 2)));
+
   let backoff = config.SAT_RECONNECT_MIN_MS;
+  try {
   while (!signal.aborted) {
     let gotFrame = false;
     let delay = 0;
     try {
-      await flush(true); // finish any batch left by a failed attempt before reading more
+      await exclusive(() => flush(true)); // finish any batch left by a failed attempt before reading more
       for await (const raw of client.stream(lastSeen + 1, signal)) {
+        if (timerError) throw timerError;
         gotFrame = true;
-        await handle(raw);
+        await exclusive(() => handle(raw));
       }
-      await flush(true);
+      if (timerError) throw timerError;
+      await exclusive(() => flush(true));
       delay = random() * config.SAT_RECONNECT_MIN_MS * 2; // normal server-side close: reconnect at once
     } catch (err) {
       if (signal.aborted || err instanceof LeadershipLost) break;
       const permanent = err instanceof FeedHttpError && err.permanent;
       logger[permanent ? 'error' : 'warn']({ err: err instanceof Error ? err.message : String(err), permanent }, 'satellite stream ended abnormally');
-      try { await flush(true); } catch (flushErr) { if (flushErr instanceof LeadershipLost) break; }
+      timerError = null;
+      try { await exclusive(() => flush(true)); } catch (flushErr) { if (flushErr instanceof LeadershipLost) break; }
       backoff = gotFrame ? config.SAT_RECONNECT_MIN_MS : Math.min(config.SAT_RECONNECT_MAX_MS, backoff * 2);
       delay = permanent ? config.SAT_RECONNECT_MAX_MS : random() * backoff;
       if (err instanceof GapDetected) delay = 0;
@@ -135,6 +151,9 @@ async function leaderTerm(deps: ProcessorDeps, fence: number, signal: AbortSigna
     if (signal.aborted) break;
     metrics.reconnects++;
     await sleep(delay, signal);
+  }
+  } finally {
+    clearInterval(flushTimer);
   }
   logger.info({ committed: metrics.committedOffset, fence }, 'satellite leader term ended');
 }

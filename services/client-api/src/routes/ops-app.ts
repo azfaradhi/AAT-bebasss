@@ -3,12 +3,12 @@ import type { ErrorEnvelope } from '../../../../shared-types/src/envelopes';
 import { AppError } from '../errors';
 import { createAuthMiddleware } from '../middleware/auth';
 import { bindCorrelationId } from '../middleware/correlation-id';
-import type { FieldReportStore } from '../../../../shared-types/src/field-reports';
+import type { FieldReportMetrics, FieldReportStore } from '../../../../shared-types/src/field-reports';
 import { registerFieldReportsRoute } from './field-reports';
 import { registerOpsReplayRoute } from './ops-replay';
 import { registerOpsUnprocessedRoute } from './ops-unprocessed';
 
-export interface OpsAppOptions { jwtSecret: string; aggregatorBaseUrl: string; internalServiceKey: string; fieldReportStore?: FieldReportStore }
+export interface OpsAppOptions { jwtSecret: string; aggregatorBaseUrl: string; internalServiceKey: string; fieldReportStore?: FieldReportStore; fieldReportMetrics?: FieldReportMetrics }
 
 // The Ops routes (and the field-report intake when a store is given) behind client authentication, as their own app (used by demos and tests).
 export function buildOpsApp(opts: OpsAppOptions): FastifyInstance {
@@ -22,7 +22,7 @@ export function buildOpsApp(opts: OpsAppOptions): FastifyInstance {
     routes.addHook('preHandler', createAuthMiddleware(opts.jwtSecret));
     registerOpsUnprocessedRoute(routes, opts);
     registerOpsReplayRoute(routes, opts);
-    if (opts.fieldReportStore) registerFieldReportsRoute(routes, { store: opts.fieldReportStore });
+    if (opts.fieldReportStore) registerFieldReportsRoute(routes, { store: opts.fieldReportStore, metrics: opts.fieldReportMetrics });
   });
   return app;
 }

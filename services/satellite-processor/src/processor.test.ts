@@ -10,7 +10,7 @@ import { runSatellite } from './processor';
 import { CollectingSink, type FrameSink, type SatFrame } from './sink';
 
 const quiet = { info: () => undefined, warn: () => undefined, error: () => undefined };
-const baseConfig = { SAT_CHECKPOINT_EVERY_N: 100, SAT_BATCH_SIZE: 50, SAT_RECONNECT_MIN_MS: 0, SAT_RECONNECT_MAX_MS: 5, POD_NAME: 'test' };
+const baseConfig = { SAT_CHECKPOINT_EVERY_N: 100, SAT_BATCH_SIZE: 50, SAT_FLUSH_INTERVAL_MS: 20, SAT_RECONNECT_MIN_MS: 0, SAT_RECONNECT_MAX_MS: 5, POD_NAME: 'test' };
 const sse = (frames: Array<[number, string, string]>) => frames.map(([id, event, data]) => `id: ${id}\nevent: ${event}\ndata: ${data}\n\n`).join('');
 const det = (n: number) => JSON.stringify({ offset: n, detection: { latitude: -1, longitude: 100, acq_date: '2026-11-27', acq_time: 6, satellite: 'N' } });
 

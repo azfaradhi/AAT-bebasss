@@ -1,4 +1,5 @@
 import pino from 'pino';
+import { loggerOptions } from '../../../shared-types/src/obs-lite';
 import { createIngestContext } from '../../aggregator/src/ingest/context';
 import { InMemoryCoordinator } from '../test-support/contract-fakes/fakes/in-memory-coordinator';
 import { InMemoryStorage } from '../test-support/contract-fakes/fakes/in-memory-storage';
@@ -23,7 +24,7 @@ function lateMetrics(sink: FireSink): string {
 
 async function main(): Promise<void> {
   const config = loadConfig(process.env);
-  const logger = pino({ base: null, messageKey: 'message', formatters: { level: (label) => ({ level: label }) } });
+  const logger = pino(loggerOptions('satellite-processor'));
   const metrics = new SatelliteMetrics();
 
   // Interim backends until Member 2's real StorageClient/Coordinator are wired; both sit behind the contract interfaces.
