@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-service-config
+  namespace: sistem-informasi-kebencanaan-bnpb
+data:
+  AUTH_SERVICE_PORT: "8091"
+  ACCESS_TOKEN_TTL_SECONDS: "60"
+  REFRESH_TOKEN_TTL_SECONDS: "900"
+  JWT_CLOCK_TOLERANCE_S: "60"
