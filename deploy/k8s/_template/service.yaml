@@ -1,0 +1,13 @@
+# Shared Service Template (CONTRACT-MEMBER-3.md §1.2)
+apiVersion: v1
+kind: Service
+metadata:
+  name: <NAME>
+  namespace: sistem-informasi-kebencanaan-bnpb
+  labels: { app: <NAME>, role: <ROLE> }
+spec:
+  selector: { app: <NAME> }
+  ports:
+    - name: http
+      port: <PORT>
+      targetPort: http
