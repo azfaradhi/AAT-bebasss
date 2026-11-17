@@ -1,0 +1,77 @@
+# OpenTelemetry Collector: receives OTLP HTTP/gRPC spans from all services and exports to Tempo
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: observability
+data:
+  otel-collector.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+          http:
+            endpoint: 0.0.0.0:4318
+    processors:
+      memory_limiter:
+        check_interval: 1s
+        limit_mib: 180
+        spike_limit_mib: 40
+      batch:
+        timeout: 2s
+        send_batch_size: 256
+    exporters:
+      otlp:
+        endpoint: tempo.observability.svc.cluster.local:4317
+        tls:
+          insecure: true
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [memory_limiter, batch]
+          exporters: [otlp]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels: { app: otel-collector, role: other }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: otel-collector }
+  template:
+    metadata:
+      labels: { app: otel-collector, role: other }
+    spec:
+      containers:
+        - name: otel-collector
+          image: otel/opentelemetry-collector:0.98.0
+          args: ["--config=/etc/otelcol/otel-collector.yaml"]
+          ports:
+            - { name: otlp-grpc, containerPort: 4317 }
+            - { name: otlp-http, containerPort: 4318 }
+          volumeMounts:
+            - name: config
+              mountPath: /etc/otelcol
+          resources:
+            requests: { memory: "128Mi", cpu: "50m" }
+            limits:   { memory: "256Mi", cpu: "250m" }
+      volumes:
+        - name: config
+          configMap: { name: otel-collector-config }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels: { app: otel-collector, role: other }
+spec:
+  selector: { app: otel-collector }
+  ports:
+    - { name: otlp-grpc, port: 4317, targetPort: otlp-grpc }
+    - { name: otlp-http, port: 4318, targetPort: otlp-http }

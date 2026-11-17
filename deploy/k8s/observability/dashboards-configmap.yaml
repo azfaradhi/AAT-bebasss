@@ -1,0 +1,208 @@
+# Provisioned Grafana Dashboards for P1..P5 (MB3-T12)
+# Every panel queries exact metric names from CONTRACT-MEMBER-3.md §2 / types.ts METRICS.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboards
+  namespace: observability
+data:
+  p1-storage-ring.json: |
+    {
+      "uid": "bnpb-p1-storage",
+      "title": "P1 — Distributed Storage Ring & Replication",
+      "schemaVersion": 39,
+      "refresh": "5s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Storage Unit Health (bnpb_storage_unit_up)",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 8, "x": 0, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "bnpb_storage_unit_up", "legendFormat": "{{unit}} ({{node}})" }]
+        },
+        {
+          "id": 2,
+          "title": "Ring Epoch (bnpb_ring_epoch)",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 8, "x": 8, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "max(bnpb_ring_epoch)", "legendFormat": "epoch" }]
+        },
+        {
+          "id": 3,
+          "title": "Partial Responses Rate (bnpb_partial_responses_total)",
+          "type": "timeseries",
+          "gridPos": { "h": 6, "w": 8, "x": 16, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (endpoint) (rate(bnpb_partial_responses_total[1m]))", "legendFormat": "{{endpoint}}" }]
+        },
+        {
+          "id": 4,
+          "title": "Keys Stored per Unit (bnpb_unit_keys)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "bnpb_unit_keys", "legendFormat": "{{unit}} ({{node}})" }]
+        },
+        {
+          "id": 5,
+          "title": "Writes/sec per Unit (bnpb_unit_writes_total)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "rate(bnpb_unit_writes_total[1m])", "legendFormat": "{{unit}} ({{node}})" }]
+        }
+      ]
+    }
+  p2-coordination-scaling.json: |
+    {
+      "uid": "bnpb-p2-coordination",
+      "title": "P2 — Leader Election, Fencing & Stateless Scaling",
+      "schemaVersion": 39,
+      "refresh": "5s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Active Leader per Lease (bnpb_leader)",
+          "type": "state-timeline",
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "bnpb_leader == 1", "legendFormat": "{{name}} -> {{pod}}" }]
+        },
+        {
+          "id": 2,
+          "title": "Fencing Token Rejections (bnpb_fencing_rejections_total)",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (name) (increase(bnpb_fencing_rejections_total[5m]))", "legendFormat": "lease={{name}}" }]
+        },
+        {
+          "id": 3,
+          "title": "Request Distribution Across Aggregator Replicas",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 7 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (pod) (rate(bnpb_http_server_request_duration_seconds_count{service=\"aggregator\"}[1m]))", "legendFormat": "{{pod}}" }]
+        }
+      ]
+    }
+  p3-ingest-parking.json: |
+    {
+      "uid": "bnpb-p3-ingest",
+      "title": "P3 — Data Quality, Poison-Pill Quarantine & Field Reports",
+      "schemaVersion": 39,
+      "refresh": "5s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Ingest Events by Source & Outcome (bnpb_ingest_events_total)",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (source, outcome) (rate(bnpb_ingest_events_total[1m]))", "legendFormat": "{{source}} ({{outcome}})" }]
+        },
+        {
+          "id": 2,
+          "title": "Parked / Retrying Messages by Reason (bnpb_parked_messages)",
+          "type": "bargauge",
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (status, reason_code) (bnpb_parked_messages)", "legendFormat": "{{status}}: {{reason_code}}" }]
+        },
+        {
+          "id": 3,
+          "title": "Field Reports Throughput (bnpb_field_reports_total)",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 24, "x": 0, "y": 7 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (outcome) (rate(bnpb_field_reports_total[1m]))", "legendFormat": "{{outcome}}" }]
+        }
+      ]
+    }
+  p4-satellite-stream.json: |
+    {
+      "uid": "bnpb-p4-satellite",
+      "title": "P4 — Satellite Stream (VIIRS) & Fire Recognition",
+      "schemaVersion": 39,
+      "refresh": "5s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Satellite Stream Offset Lag (bnpb_sat_offset_lag)",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 8, "x": 0, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "max(bnpb_sat_offset_lag)", "legendFormat": "offset lag" }]
+        },
+        {
+          "id": 2,
+          "title": "Event-to-Store Latency p95 (bnpb_sat_event_to_store_seconds)",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 8, "x": 8, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.95, sum by (le) (rate(bnpb_sat_event_to_store_seconds_bucket[1m])))", "legendFormat": "p95 (s)" }]
+        },
+        {
+          "id": 3,
+          "title": "Late Detections Applied vs Beyond Bound",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 8, "x": 16, "y": 0 },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(bnpb_sat_late_applied_total[5m]))", "legendFormat": "late_applied" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum(increase(bnpb_sat_late_beyond_bound_total[5m]))", "legendFormat": "beyond_bound" }
+          ]
+        }
+      ]
+    }
+  p5-resilience-slo.json: |
+    {
+      "uid": "bnpb-p5-resilience",
+      "title": "P5 — Sensor Pantai Resilience, Critical Alerts & SLO Error Budget",
+      "schemaVersion": 39,
+      "refresh": "5s",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Critical Alert E2E Latency p95 (SLO <= 5s)",
+          "type": "gauge",
+          "gridPos": { "h": 6, "w": 6, "x": 0, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sli:critical_alert_e2e_p95:seconds_5m", "legendFormat": "p95 (s)" }]
+        },
+        {
+          "id": 2,
+          "title": "Circuit Breaker State (0=CLOSED, 1=HALF_OPEN, 2=OPEN)",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 6, "x": 6, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "bnpb_breaker_state", "legendFormat": "{{target}}" }]
+        },
+        {
+          "id": 3,
+          "title": "SLO-1 Error Budget Remaining & Burn Rate",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 6, "x": 12, "y": 0 },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "slo:client_api_error_budget_remaining:ratio * 100", "legendFormat": "Budget %" },
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "slo:client_api_burn_rate:5m", "legendFormat": "Burn Rate (5m)" }
+          ]
+        },
+        {
+          "id": 4,
+          "title": "Outbox Pending Messages (bnpb_outbox_pending)",
+          "type": "stat",
+          "gridPos": { "h": 6, "w": 6, "x": 18, "y": 0 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "max(bnpb_outbox_pending)", "legendFormat": "pending" }]
+        },
+        {
+          "id": 5,
+          "title": "Priority Load Shedding by Identity Class (bnpb_shed_total)",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 12, "x": 0, "y": 6 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (identity_class) (rate(bnpb_shed_total[1m]))", "legendFormat": "shed: {{identity_class}}" }]
+        },
+        {
+          "id": 6,
+          "title": "Critical Alerts Delivered vs Published (bnpb_critical_total)",
+          "type": "timeseries",
+          "gridPos": { "h": 7, "w": 12, "x": 12, "y": 6 },
+          "targets": [{ "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "sum by (outcome) (increase(bnpb_critical_total[5m]))", "legendFormat": "{{outcome}}" }]
+        },
+        {
+          "id": 7,
+          "title": "HTTP Server Request Rate & Latency p99 by Service (RED)",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 24, "x": 0, "y": 13 },
+          "targets": [
+            { "datasource": { "type": "prometheus", "uid": "prometheus" }, "expr": "histogram_quantile(0.99, sum by (service, le) (rate(bnpb_http_server_request_duration_seconds_bucket[1m])))", "legendFormat": "p99 {{service}}" }
+          ]
+        }
+      ]
+    }
