@@ -8,7 +8,12 @@ async function main(): Promise<void> {
   const logger = createLogger(SERVICE_NAME);
   const app = buildApp(logger, {
     registry: new ClientRegistry(config.clients),
-    tokens: new TokenService(config.jwtSecret, config.accessTokenTtlSeconds, config.refreshTokenTtlSeconds),
+    tokens: new TokenService(
+      config.jwtSecret,
+      config.accessTokenTtlSeconds,
+      config.refreshTokenTtlSeconds,
+      config.jwtClockToleranceSeconds,
+    ),
   });
 
   const shutdown = async (): Promise<void> => {

@@ -3,12 +3,25 @@ import type {
   ClientAccessTokenClaims,
   ClientRefreshTokenClaims,
   ClientScope,
+  Permission,
   TokenResponse,
 } from '../../../../shared-types/src/auth';
 import { InvalidTokenError, TokenExpiredError } from '../errors';
 
 const AUDIENCE = 'bnpb-client';
 const ALGORITHM = 'HS256';
+
+export function permissionsForScope(scope: ClientScope): Permission[] {
+  switch (scope) {
+    case 'lapangan':
+      return ['field-reports:write'];
+    case 'internal':
+      return ['ops:read', 'ops:replay'];
+    case 'media':
+    default:
+      return [];
+  }
+}
 
 export interface TokenSubject {
   clientId: string;
@@ -20,6 +33,7 @@ export class TokenService {
     private readonly secret: string,
     private readonly accessTtlSeconds: number,
     private readonly refreshTtlSeconds: number,
+    private readonly clockToleranceSeconds = 0,
   ) {}
 
   issueTokenPair(subject: TokenSubject): TokenResponse {
@@ -32,7 +46,11 @@ export class TokenService {
   }
 
   verifyAccessToken(token: string): ClientAccessTokenClaims {
-    return this.verify(token, 'access') as ClientAccessTokenClaims;
+    const decoded = this.verify(token, 'access') as ClientAccessTokenClaims;
+    return {
+      ...decoded,
+      permissions: decoded.permissions ?? permissionsForScope(decoded.scope),
+    };
   }
 
   verifyRefreshToken(token: string): ClientRefreshTokenClaims {
@@ -40,7 +58,12 @@ export class TokenService {
   }
 
   private sign(subject: TokenSubject, purpose: 'access' | 'refresh', ttlSeconds: number): string {
-    return jwt.sign({ scope: subject.scope, purpose }, this.secret, {
+    const payload =
+      purpose === 'access'
+        ? { scope: subject.scope, permissions: permissionsForScope(subject.scope), purpose }
+        : { scope: subject.scope, purpose };
+
+    return jwt.sign(payload, this.secret, {
       algorithm: ALGORITHM,
       subject: subject.clientId,
       audience: AUDIENCE,
@@ -51,12 +74,15 @@ export class TokenService {
   private verify(token: string, expectedPurpose: 'access' | 'refresh'): jwt.JwtPayload {
     let decoded: string | jwt.JwtPayload;
     try {
-      decoded = jwt.verify(token, this.secret, { algorithms: [ALGORITHM], audience: AUDIENCE });
+      decoded = jwt.verify(token, this.secret, {
+        algorithms: [ALGORITHM],
+        audience: AUDIENCE,
+        clockTolerance: this.clockToleranceSeconds,
+      });
     } catch (err) {
       if (err instanceof jwt.TokenExpiredError) throw new TokenExpiredError();
       throw new InvalidTokenError();
     }
-    // An access token must not be usable as a refresh token, or the other way around.
     if (typeof decoded === 'string' || decoded.purpose !== expectedPurpose) {
       throw new InvalidTokenError(`Token is not a ${expectedPurpose} token`);
     }
