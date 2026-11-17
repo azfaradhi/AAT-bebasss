@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bmkg-mock-config
+  namespace: sistem-informasi-kebencanaan-bnpb
+data:
+  BMKG_PORT: "8081"
+  BMKG_DELAY_MIN_MS: "50"
+  BMKG_DELAY_MAX_MS: "150"

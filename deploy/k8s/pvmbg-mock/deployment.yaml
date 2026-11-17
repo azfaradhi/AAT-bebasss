@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pvmbg-mock
+  namespace: sistem-informasi-kebencanaan-bnpb
+  labels: { app: pvmbg-mock, role: mock }
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: pvmbg-mock }
+  template:
+    metadata:
+      labels: { app: pvmbg-mock, role: mock }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 15
+      containers:
+        - name: pvmbg-mock
+          image: node-a:5000/bnpb-pvmbg-mock:m2
+          ports: [{ name: http, containerPort: 8082 }]
+          env:
+            - name: PVMBG_JWT_SECRET
+              valueFrom: { secretKeyRef: { name: bnpb-secrets, key: PVMBG_JWT_SECRET } }
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.observability.svc.cluster.local:4318"
+          envFrom:
+            - configMapRef: { name: pvmbg-mock-config }
+          readinessProbe:
+            tcpSocket: { port: http } # mock protects /healthz with its API key (401), so probe the port
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          livenessProbe:
+            tcpSocket: { port: http } # mock protects /healthz with its API key (401), so probe the port
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { memory: "64Mi", cpu: "25m" }
+            limits:   { memory: "128Mi", cpu: "250m" }
