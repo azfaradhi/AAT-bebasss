@@ -1,5 +1,5 @@
-export type HazardSource = 'BMKG' | 'PVMBG';
-export type HazardType = 'SEISMIC' | 'VOLCANIC';
+export type HazardSource = 'BMKG' | 'PVMBG' | 'SATELIT' | 'SENSOR_PANTAI';
+export type HazardType = 'SEISMIC' | 'VOLCANIC' | 'WILDFIRE' | 'COASTAL';
 export type Severity = 'NORMAL' | 'WASPADA' | 'SIAGA' | 'AWAS';
 
 export interface HazardEvent {
@@ -29,5 +29,8 @@ export interface HazardEventResponse {
   data: HazardEvent[];
   meta: {
     stale_since: string | null;
+    partial?: boolean;
+    unavailable_units?: string[];
+    next_cursor?: string | null;
   };
 }
