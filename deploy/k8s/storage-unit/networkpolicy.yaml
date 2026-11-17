@@ -1,0 +1,22 @@
+# PLAT-8: NetworkPolicy isolating storage units so ONLY pods with role=aggregator or role=store
+# (plus Prometheus scraping in namespace observability) can connect to storage-unit pods.
+# Pods with role=api, role=consumer, role=mock, role=sensor, etc. are strictly denied.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: store-ingress
+  namespace: sistem-informasi-kebencanaan-bnpb
+spec:
+  podSelector:
+    matchLabels: { role: store }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - key: role
+                operator: In
+                values: [aggregator, store]
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability

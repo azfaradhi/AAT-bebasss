@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: satellite-processor-config
+  namespace: sistem-informasi-kebencanaan-bnpb
+data:
+  SAT_PROCESSOR_PORT: "8094"
+  SAT_SPATIAL_EPS_KM: "2.5"
+  SAT_TEMPORAL_WINDOW_HOURS: "6"
+  SAT_LATE_WINDOW_HOURS: "24"
+  STORAGE_PEERS: "http://storage-unit:8100"
+  LEASE_NAMESPACE: "sistem-informasi-kebencanaan-bnpb"
+  LOG_LEVEL: "info"

@@ -1,0 +1,60 @@
+# P1-K1 & PLAT-2: DaemonSet placing 1 storage unit per labelled node (bnpb/storage=true)
+# with node-local persistent storage on hostPath /var/lib/bnpb/store.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: storage-unit
+  namespace: sistem-informasi-kebencanaan-bnpb
+  labels: { app: storage-unit, role: store }
+spec:
+  selector:
+    matchLabels: { app: storage-unit }
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels: { app: storage-unit, role: store } # TA-6 & PLAT-8
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8100"
+        prometheus.io/path: "/metrics"
+    spec:
+      nodeSelector:
+        bnpb/storage: "true"
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: storage-unit
+          image: node-a:5000/bnpb-storage-unit:m2
+          ports: [{ name: http, containerPort: 8100 }]
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+            - name: POD_IP
+              valueFrom: { fieldRef: { fieldPath: status.podIP } }
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.observability.svc.cluster.local:4318"
+          envFrom:
+            - configMapRef: { name: storage-unit-config }
+          volumeMounts:
+            - name: store-data
+              mountPath: /var/lib/bnpb/store
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { memory: "512Mi", cpu: "100m" }
+            limits:   { memory: "1Gi", cpu: "500m" }
+      volumes:
+        - name: store-data
+          hostPath:
+            path: /var/lib/bnpb/store
+            type: DirectoryOrCreate

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: storage-unit-config
+  namespace: sistem-informasi-kebencanaan-bnpb
+data:
+  STORAGE_UNIT_PORT: "8100"
+  STORAGE_DATA_DIR: "/var/lib/bnpb/store"
+  STORAGE_RF: "2"
+  STORAGE_REPAIR_INTERVAL_MS: "5000"
+  LOG_LEVEL: "info"
