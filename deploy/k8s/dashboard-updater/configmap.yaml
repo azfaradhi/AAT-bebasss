@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-updater-config
+  namespace: sistem-informasi-kebencanaan-bnpb
+data:
+  DASHBOARD_CONSUMER_PORT: "8092"
