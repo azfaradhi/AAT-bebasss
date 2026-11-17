@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: field-report-processor-config
+  namespace: sistem-informasi-kebencanaan-bnpb
+data:
+  FIELD_REPORT_PROCESSOR_PORT: "8095"
+  AGGREGATOR_BASE_URL: "http://aggregator:8090"
+  LOG_LEVEL: "info"

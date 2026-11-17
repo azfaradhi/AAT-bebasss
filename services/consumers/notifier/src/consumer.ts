@@ -1,7 +1,7 @@
 import amqp from 'amqplib';
-import { processMessage, type HandlerDeps } from './handler';
+import { processCriticalAlert, processMessage, type HandlerDeps } from './handler';
 import type { Logger } from './logger';
-import { assertTopology, QUEUE_NAME } from './topology';
+import { assertCriticalTopology, assertTopology, CRITICAL_QUEUE_NAME, QUEUE_NAME } from './topology';
 
 type Connection = Awaited<ReturnType<typeof amqp.connect>>;
 
@@ -53,6 +53,33 @@ export class HazardEventConsumer {
       connection.on('error', (err: Error) => logger.error({ err: err.message }, 'broker connection error'));
       connection.on('close', () => this.onDisconnected('broker connection closed'));
 
+      // 1. Dedicated fast-path channel for critical_alerts_queue
+      const critChannel = await connection.createChannel();
+      await assertCriticalTopology(critChannel);
+      await critChannel.prefetch(4);
+      await critChannel.consume(
+        CRITICAL_QUEUE_NAME,
+        async (msg) => {
+          if (msg === null) {
+            this.onDisconnected('critical consumer cancelled by broker');
+            return;
+          }
+          const outcome = await processCriticalAlert(
+            msg.content,
+            this.opts.handler,
+            msg.properties?.headers as Record<string, unknown> | undefined,
+          );
+          try {
+            if (outcome === 'ack') critChannel.ack(msg);
+            else critChannel.nack(msg, false, outcome === 'requeue');
+          } catch (err) {
+            logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'could not settle critical delivery');
+          }
+        },
+        { noAck: false },
+      );
+
+      // 2. Normal fanout channel for notifier_queue
       const channel = await connection.createChannel();
       await assertTopology(channel);
       await channel.prefetch(1);
@@ -60,16 +87,18 @@ export class HazardEventConsumer {
         QUEUE_NAME,
         async (msg) => {
           if (msg === null) {
-            // Server cancelled the consumer (e.g. queue deleted): treat like a disconnect.
             this.onDisconnected('consumer cancelled by broker');
             return;
           }
-          const outcome = await processMessage(msg.content, this.opts.handler);
+          const outcome = await processMessage(
+            msg.content,
+            this.opts.handler,
+            msg.properties?.headers as Record<string, unknown> | undefined,
+          );
           try {
             if (outcome === 'ack') channel.ack(msg);
             else channel.nack(msg, false, outcome === 'requeue');
           } catch (err) {
-            // Channel died between processing and ack: the broker will redeliver, and dedup absorbs the repeat.
             logger.warn({ err: err instanceof Error ? err.message : String(err) }, 'could not settle delivery');
           }
         },
@@ -79,7 +108,7 @@ export class HazardEventConsumer {
       this.connection = connection;
       this.connected = true;
       this.retryDelayMs = this.reconnectMinMs;
-      logger.info({ queue: QUEUE_NAME }, 'consuming');
+      logger.info({ queues: [CRITICAL_QUEUE_NAME, QUEUE_NAME] }, 'consuming critical and normal queues');
     } catch (err) {
       logger.error({ err: err instanceof Error ? err.message : String(err) }, 'broker connect failed');
       this.scheduleReconnect();

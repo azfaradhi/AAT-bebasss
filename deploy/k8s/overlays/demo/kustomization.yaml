@@ -1,0 +1,52 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - ../../bmkg-mock
+  - ../../pvmbg-mock
+  - ../../storage-unit
+  - ../../rabbitmq
+  - ../../sensor-pantai
+  - ../../aggregator
+  - ../../auth-service
+  - ../../client-api
+  - ../../dashboard-updater
+  - ../../notifier
+  - ../../satellite-processor
+  - ../../field-report-processor
+  - ../../analytics-dashboard
+  - ../../observability
+images:
+  - name: node-a:5000/bnpb-bmkg-mock
+    newName: node-a:5000/bnpb-bmkg-mock
+    newTag: m2
+  - name: node-a:5000/bnpb-pvmbg-mock
+    newName: node-a:5000/bnpb-pvmbg-mock
+    newTag: m2
+  - name: node-a:5000/bnpb-storage-unit
+    newName: node-a:5000/bnpb-storage-unit
+    newTag: m2
+  - name: node-a:5000/bnpb-aggregator
+    newName: node-a:5000/bnpb-aggregator
+    newTag: m2
+  - name: node-a:5000/bnpb-auth-service
+    newName: node-a:5000/bnpb-auth-service
+    newTag: m2
+  - name: node-a:5000/bnpb-client-api
+    newName: node-a:5000/bnpb-client-api
+    newTag: m2
+  - name: node-a:5000/bnpb-dashboard-updater
+    newName: node-a:5000/bnpb-dashboard-updater
+    newTag: m2
+  - name: node-a:5000/bnpb-notifier
+    newName: node-a:5000/bnpb-notifier
+    newTag: m2
+  - name: node-a:5000/bnpb-satellite-processor
+    newName: node-a:5000/bnpb-satellite-processor
+    newTag: m2
+  - name: node-a:5000/bnpb-field-report-processor
+    newName: node-a:5000/bnpb-field-report-processor
+    newTag: m2
+  - name: node-a:5000/bnpb-analytics-dashboard
+    newName: node-a:5000/bnpb-analytics-dashboard
+    newTag: m2

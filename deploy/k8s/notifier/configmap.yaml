@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notifier-config
+  namespace: sistem-informasi-kebencanaan-bnpb
+data:
+  NOTIFIER_CONSUMER_PORT: "8093"

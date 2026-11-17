@@ -1,0 +1,23 @@
+# MB3-C2: HorizontalPodAutoscaler for stateless aggregator pods (3 -> 5 replicas under load)
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: aggregator-hpa
+  namespace: sistem-informasi-kebencanaan-bnpb
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: aggregator
+  minReplicas: 3
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60

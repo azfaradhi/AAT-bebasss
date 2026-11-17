@@ -69,6 +69,7 @@ web_modules/
 .env
 .env.*
 !.env.example
+!.env.local.example
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -141,3 +142,11 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# M2: never commit generated secrets, keys or archives
+deploy/k8s/**/secret.yaml
+deploy/k8s/**/secrets.yaml
+!deploy/k8s/base/secrets.example.yaml
+*.key
+*.pem
+services.zip

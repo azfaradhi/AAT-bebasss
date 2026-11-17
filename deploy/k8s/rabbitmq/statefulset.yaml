@@ -1,0 +1,95 @@
+# 3-pod RabbitMQ HA Cluster StatefulSet with Quorum Queues (R6, MB3-T07)
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: rabbitmq
+  namespace: sistem-informasi-kebencanaan-bnpb
+  labels: { app: rabbitmq, role: broker }
+spec:
+  serviceName: rabbitmq-headless
+  replicas: 3
+  podManagementPolicy: OrderedReady # Parallel makes the 3 nodes race and form a partitioned cluster
+  selector:
+    matchLabels: { app: rabbitmq }
+  template:
+    metadata:
+      labels: { app: rabbitmq, role: broker } # TA-6
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "15692"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: rabbitmq-sa
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: rabbitmq }
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3.13-management-alpine
+          ports:
+            - { name: amqp, containerPort: 5672 }
+            - { name: management, containerPort: 15672 }
+            - { name: prometheus, containerPort: 15692 }
+            - { name: epmd, containerPort: 4369 }
+            - { name: dist, containerPort: 25672 }
+          env:
+            - name: MY_POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: MY_POD_NAMESPACE
+              valueFrom: { fieldRef: { fieldPath: metadata.namespace } }
+            - name: RABBITMQ_USE_LONGNAME
+              value: "true"
+            - name: K8S_SERVICE_NAME
+              value: "rabbitmq-headless"
+            - name: RABBITMQ_NODENAME
+              value: "rabbit@$(MY_POD_NAME).$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE).svc.cluster.local"
+            - name: K8S_HOSTNAME_SUFFIX
+              value: ".$(K8S_SERVICE_NAME).$(MY_POD_NAMESPACE).svc.cluster.local"
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef: { name: bnpb-secrets, key: RABBITMQ_DEFAULT_USER }
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef: { name: bnpb-secrets, key: RABBITMQ_DEFAULT_PASS }
+            - name: RABBITMQ_ERLANG_COOKIE
+              valueFrom:
+                secretKeyRef: { name: bnpb-secrets, key: RABBITMQ_ERLANG_COOKIE }
+          volumeMounts:
+            - name: config
+              mountPath: /etc/rabbitmq/rabbitmq.conf
+              subPath: rabbitmq.conf
+            - name: config
+              mountPath: /etc/rabbitmq/enabled_plugins
+              subPath: enabled_plugins
+            - name: data
+              mountPath: /var/lib/rabbitmq
+          startupProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            periodSeconds: 10
+            timeoutSeconds: 15
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "check_running"]
+            periodSeconds: 10
+            timeoutSeconds: 15
+          livenessProbe:
+            exec:
+              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            periodSeconds: 20
+            timeoutSeconds: 15
+            failureThreshold: 6
+          resources:
+            requests: { memory: "512Mi", cpu: "100m" }
+            limits:   { memory: "1Gi", cpu: "1000m" }
+      volumes:
+        - name: config
+          configMap:
+            name: rabbitmq-config
+        - name: data
+          emptyDir: {}

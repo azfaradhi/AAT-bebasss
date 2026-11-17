@@ -1,0 +1,158 @@
+# Prometheus server, RBAC, scrape config, and P5-K8 SLI/SLO + Error Budget recording rules
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus-sa
+  namespace: observability
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-scraper
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "nodes/metrics", "services", "endpoints", "pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-scraper-binding
+subjects:
+  - kind: ServiceAccount
+    name: prometheus-sa
+    namespace: observability
+roleRef:
+  kind: ClusterRole
+  name: prometheus-scraper
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: observability
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 5s
+      evaluation_interval: 5s
+    rule_files:
+      - /etc/prometheus/slo_rules.yml
+    scrape_configs:
+      - job_name: 'bnpb-pods'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names: ['sistem-informasi-kebencanaan-bnpb']
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: replace
+            target_label: app
+          - source_labels: [__meta_kubernetes_pod_label_role]
+            action: replace
+            target_label: role
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: pod
+          - source_labels: [__meta_kubernetes_pod_node_name]
+            action: replace
+            target_label: node
+  slo_rules.yml: |
+    groups:
+      - name: bnpb_sli_slo_rules
+        interval: 5s
+        rules:
+          # SLO-1a: Availability of client-api GET /api/v1/hazards (target >= 99.5%)
+          - record: sli:client_api_availability:ratio_rate5m
+            expr: |
+              1 - (
+                sum(rate(bnpb_http_server_request_duration_seconds_count{service="client-api",status_class="5xx"}[5m]))
+                /
+                clamp_min(sum(rate(bnpb_http_server_request_duration_seconds_count{service="client-api"}[5m])), 1e-9)
+              )
+          # SLO-1b: Latency p99 of client-api GET /api/v1/hazards (target <= 0.500s)
+          - record: sli:client_api_latency_p99:seconds_5m
+            expr: |
+              histogram_quantile(0.99, sum by (le) (rate(bnpb_http_server_request_duration_seconds_bucket{service="client-api"}[5m])))
+          # SLO-1 Error budget remaining (budget = 0.5% 5xx rate)
+          - record: slo:client_api_error_budget_remaining:ratio
+            expr: |
+              clamp_min(1 - ((1 - sli:client_api_availability:ratio_rate5m) / 0.005), -1)
+          # SLO-1 Fast burn rate (1.0 = burning at exact 0.5% budget rate; >14.4 = critical page)
+          - record: slo:client_api_burn_rate:5m
+            expr: |
+              (1 - sli:client_api_availability:ratio_rate5m) / 0.005
+          # SLO-2: Critical alert E2E latency p95 (target <= 5.0s, 0 lost)
+          - record: sli:critical_alert_e2e_p95:seconds_5m
+            expr: |
+              histogram_quantile(0.95, sum by (le) (rate(bnpb_critical_e2e_seconds_bucket[5m])))
+          # SLO-3: Storage write availability / ring health
+          - record: sli:storage_units_healthy:count
+            expr: |
+              sum(bnpb_storage_unit_up)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: observability
+  labels: { app: prometheus, role: other }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: prometheus }
+  template:
+    metadata:
+      labels: { app: prometheus, role: other }
+    spec:
+      serviceAccountName: prometheus-sa
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.51.2
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=6h"
+            - "--web.enable-lifecycle"
+          ports: [{ name: http, containerPort: 9090 }]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/prometheus
+            - name: tsdb
+              mountPath: /prometheus
+          readinessProbe:
+            httpGet: { path: /-/ready, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          resources:
+            requests: { memory: "128Mi", cpu: "50m" }
+            limits:   { memory: "256Mi", cpu: "500m" }
+      volumes:
+        - name: config
+          configMap: { name: prometheus-config }
+        - name: tsdb
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: observability
+  labels: { app: prometheus, role: other }
+spec:
+  selector: { app: prometheus }
+  ports:
+    - { name: http, port: 9090, targetPort: http }

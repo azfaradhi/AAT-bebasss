@@ -7,6 +7,7 @@ import type { TokenService } from './domain/token-service';
 import { AppError } from './errors';
 import { registerRefreshRoute } from './routes/refresh';
 import { registerTokenRoute } from './routes/token';
+import { registerHttpMetrics } from './obs/index';
 
 export const SERVICE_NAME = 'auth-service';
 
@@ -17,6 +18,8 @@ export interface AppDeps {
 
 export function buildApp(logger: FastifyBaseLogger, deps: AppDeps): FastifyInstance {
   const app = Fastify({ loggerInstance: logger });
+
+  registerHttpMetrics(app, SERVICE_NAME);
 
   // Bind X-Correlation-ID once per request via AsyncLocalStorage
   app.addHook('onRequest', (request, reply, done) => {
@@ -46,11 +49,13 @@ export function buildApp(logger: FastifyBaseLogger, deps: AppDeps): FastifyInsta
     return reply.code(500).send(body);
   });
 
-  app.get('/health', async (): Promise<HealthResponse> => ({
+  const healthHandler = async (): Promise<HealthResponse> => ({
     status: 'ok',
     service: SERVICE_NAME,
     timestamp: new Date().toISOString(),
-  }));
+  });
+  app.get('/health', healthHandler);
+  app.get('/healthz', healthHandler);
 
   registerTokenRoute(app, deps.registry, deps.tokens);
   registerRefreshRoute(app, deps.registry, deps.tokens);

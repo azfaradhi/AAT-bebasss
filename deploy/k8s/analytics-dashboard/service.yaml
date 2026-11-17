@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: analytics-dashboard
+  namespace: sistem-informasi-kebencanaan-bnpb
+  labels: { app: analytics-dashboard, role: other }
+spec:
+  selector: { app: analytics-dashboard }
+  ports:
+    - name: http
+      port: 8110
+      targetPort: http

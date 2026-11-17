@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: satellite-processor
+  namespace: sistem-informasi-kebencanaan-bnpb
+  labels: { app: satellite-processor, role: broker }
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: satellite-processor }
+  template:
+    metadata:
+      labels: { app: satellite-processor, role: broker } # TA-6 & Lampiran B (Stream processor = broker 512Mi/1Gi)
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8094"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: aggregator-sa
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: satellite-processor }
+      containers:
+        - name: satellite-processor
+          image: node-a:5000/bnpb-satellite-processor:m2
+          ports: [{ name: http, containerPort: 8094 }]
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.observability.svc.cluster.local:4318"
+          envFrom:
+            - configMapRef: { name: satellite-processor-config }
+            - secretRef: { name: bnpb-secrets }
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests: { memory: "512Mi", cpu: "100m" }
+            limits:   { memory: "1Gi", cpu: "500m" }

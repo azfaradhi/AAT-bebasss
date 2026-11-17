@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: client-api-config
+  namespace: sistem-informasi-kebencanaan-bnpb
+data:
+  CLIENT_API_PORT: "8080"
+  AGGREGATOR_BASE_URL: "http://aggregator:8090"
+  AGGREGATOR_REQUEST_TIMEOUT_MS: "2000"
+  JWT_CLOCK_TOLERANCE_S: "60"
+  ADMISSION_MAX_INFLIGHT: "64"
+  ADMISSION_LAPANGAN_RESERVED: "16"
+  ADMISSION_MEDIA_MAX_INFLIGHT: "24"
+  ADMISSION_RETRY_AFTER_S: "3"
