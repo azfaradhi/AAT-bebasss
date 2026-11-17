@@ -1,0 +1,9 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: aggregator-pdb
+  namespace: sistem-informasi-kebencanaan-bnpb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels: { app: aggregator }
