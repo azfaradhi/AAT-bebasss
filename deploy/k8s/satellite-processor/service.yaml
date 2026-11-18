@@ -1,4 +1,12 @@
 apiVersion: v1
 kind: Service
-metadata: { name: satellite-processor, namespace: sistem-informasi-kebencanaan-bnpb, labels: { app: satellite-processor } }
-spec: { selector: { app: satellite-processor }, ports: [{ port: 8095, targetPort: 8095 }] }
+metadata:
+  name: satellite-processor
+  namespace: sistem-informasi-kebencanaan-bnpb
+  labels: { app: satellite-processor, role: broker }
+spec:
+  selector: { app: satellite-processor }
+  ports:
+    - name: http
+      port: 8094
+      targetPort: http

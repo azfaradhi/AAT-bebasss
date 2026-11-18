@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aggregator
+  namespace: sistem-informasi-kebencanaan-bnpb
+  labels: { app: aggregator, role: aggregator }
+spec:
+  selector: { app: aggregator }
+  ports:
+    - name: http
+      port: 8090
+      targetPort: http

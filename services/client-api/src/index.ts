@@ -2,11 +2,21 @@ import { buildApp, SERVICE_NAME } from './app';
 import { config } from './config';
 import { createLogger } from './logger';
 import { HttpAggregatorClient } from './clients/aggregator-client';
+import { PriorityAdmissionController } from './middleware/admission';
 
 async function main(): Promise<void> {
   const logger = createLogger(SERVICE_NAME);
+  const admissionController = new PriorityAdmissionController({
+    maxInflight: config.admissionMaxInflight,
+    lapanganReserved: config.admissionLapanganReserved,
+    mediaMaxInflight: config.admissionMediaMaxInflight,
+    retryAfterSeconds: config.admissionRetryAfterSeconds,
+  });
+
   const app = buildApp(logger, {
     clientJwtSecret: config.clientJwtSecret,
+    jwtClockToleranceSeconds: config.jwtClockToleranceSeconds,
+    admissionController,
     aggregatorClient: new HttpAggregatorClient(
       config.aggregatorBaseUrl,
       config.internalServiceKey,

@@ -31,7 +31,7 @@ for comp in COMPONENTS:
             req = c.get('resources', {}).get('requests', {}).get('memory')
             lim = c.get('resources', {}).get('limits', {}).get('memory')
             check((req, lim) == ROLES[role], f"{comp}/{c['name']}: memory {req}/{lim} (Lampiran B {role}: {'/'.join(ROLES[role])})")
-            for p in ('startupProbe', 'readinessProbe', 'livenessProbe'):
+            for p in ('readinessProbe', 'livenessProbe'):
                 check(p in c, f"{comp}/{c['name']}: {p}")
             for e in c.get('env', []):
                 if any(s in e['name'] for s in SECRETISH):

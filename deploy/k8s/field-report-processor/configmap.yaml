@@ -4,6 +4,8 @@ metadata:
   name: field-report-processor-config
   namespace: sistem-informasi-kebencanaan-bnpb
 data:
+  FIELD_REPORT_PORT: "8095"
   SWEEP_INTERVAL_MS: "200"
   RECONCILE_INTERVAL_MS: "60000"
-  FIELD_REPORT_PORT: "8096"
+  STORAGE_PEERS: "http://storage-unit:8100"
+  LOG_LEVEL: "info"

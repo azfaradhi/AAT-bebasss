@@ -12,7 +12,7 @@ const schema = z.object({
   SAT_RECONNECT_MIN_MS: z.coerce.number().int().nonnegative().default(200),
   SAT_RECONNECT_MAX_MS: z.coerce.number().int().positive().default(15_000),
   SAT_SESSION_POLL_MS: z.coerce.number().int().positive().default(5_000),
-  SATELLITE_PORT: z.coerce.number().int().positive().default(8095),
+  SATELLITE_PORT: z.coerce.number().int().positive().default(8094),
   POD_NAME: z.string().default('satellite-processor-local'),
 });
 

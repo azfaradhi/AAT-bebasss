@@ -17,7 +17,7 @@ COPY services/satellite-processor/package*.json ./
 RUN npm ci --omit=dev
 COPY --from=builder /app/services/satellite-processor/dist ./dist
 USER node
-EXPOSE 8095
+EXPOSE 8094
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO- http://127.0.0.1:${SATELLITE_PORT:-8095}/health || exit 1
+  CMD wget -qO- http://127.0.0.1:${SATELLITE_PORT:-8094}/health || exit 1
 CMD ["node", "dist/services/satellite-processor/src/index.js"]

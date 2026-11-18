@@ -1,0 +1,60 @@
+# Shared Deployment Template (CONTRACT-MEMBER-3.md §1.2)
+# Replace <NAME>, <ROLE>, <REPLICAS>, <PORT>, <REQ_MEM>, <LIM_MEM> per Lampiran B.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: <NAME>
+  namespace: sistem-informasi-kebencanaan-bnpb
+  labels: { app: <NAME>, role: <ROLE> }
+spec:
+  replicas: <REPLICAS>
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } # P2-K4 zero-downtime rollout
+  selector:
+    matchLabels: { app: <NAME> }
+  template:
+    metadata:
+      labels: { app: <NAME>, role: <ROLE> } # TA-6: role label MUST be on the Pod
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "<PORT>"
+        prometheus.io/path: "/metrics"
+    spec:
+      terminationGracePeriodSeconds: 30
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app: <NAME> }
+      containers:
+        - name: <NAME>
+          image: ${IMAGE_REGISTRY}/bnpb-<NAME>:${IMAGE_TAG}
+          ports: [{ name: http, containerPort: <PORT> }]
+          env:
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.observability.svc.cluster.local:4318"
+          envFrom:
+            - configMapRef: { name: <NAME>-config }
+            - secretRef: { name: bnpb-secrets }
+          readinessProbe:
+            httpGet: { path: /ready, port: http }
+            initialDelaySeconds: 2
+            periodSeconds: 3
+            failureThreshold: 2
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec: { command: ["/bin/sh", "-c", "sleep ${PRESTOP_DRAIN_SECONDS:-3}"] }
+          resources:
+            requests: { memory: "<REQ_MEM>", cpu: "50m" }
+            limits:   { memory: "<LIM_MEM>", cpu: "500m" }

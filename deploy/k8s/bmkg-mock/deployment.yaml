@@ -3,30 +3,46 @@ kind: Deployment
 metadata:
   name: bmkg-mock
   namespace: sistem-informasi-kebencanaan-bnpb
-  labels: { app: bmkg-mock, role: mock, app.kubernetes.io/part-of: bnpb }
+  labels: { app: bmkg-mock, role: mock }
 spec:
   replicas: 1
-  strategy: { type: RollingUpdate, rollingUpdate: { maxUnavailable: 0, maxSurge: 1 } }
-  selector: { matchLabels: { app: bmkg-mock } }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: bmkg-mock }
   template:
     metadata:
-      labels: { app: bmkg-mock, role: mock, app.kubernetes.io/part-of: bnpb }
-      annotations: { prometheus.io/scrape: "true", prometheus.io/port: "8081", prometheus.io/path: /metrics }
+      labels: { app: bmkg-mock, role: mock }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8081"
+        prometheus.io/path: "/metrics"
     spec:
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 15
       containers:
         - name: bmkg-mock
-          image: registry.local/bnpb-bmkg-mock:latest
-          ports: [{ containerPort: 8081 }]
-          envFrom: [{ configMapRef: { name: bmkg-mock-config } }]
+          image: node-a:5000/bnpb-bmkg-mock:m2
+          ports: [{ name: http, containerPort: 8081 }]
           env:
-            - { name: POD_NAME, valueFrom: { fieldRef: { fieldPath: metadata.name } } }
-            - { name: NODE_NAME, valueFrom: { fieldRef: { fieldPath: spec.nodeName } } }
-            - { name: BMKG_API_KEY, valueFrom: { secretKeyRef: { name: bmkg, key: api-key } } }
+            - name: BMKG_API_KEY
+              valueFrom: { secretKeyRef: { name: bnpb-secrets, key: BMKG_API_KEY } }
+            - name: POD_NAME
+              valueFrom: { fieldRef: { fieldPath: metadata.name } }
+            - name: NODE_NAME
+              valueFrom: { fieldRef: { fieldPath: spec.nodeName } }
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.observability.svc.cluster.local:4318"
+          envFrom:
+            - configMapRef: { name: bmkg-mock-config }
+          readinessProbe:
+            tcpSocket: { port: http } # mock protects /healthz with its API key (401), so probe the port
+            initialDelaySeconds: 2
+            periodSeconds: 3
+          livenessProbe:
+            tcpSocket: { port: http } # mock protects /healthz with its API key (401), so probe the port
+            initialDelaySeconds: 5
+            periodSeconds: 5
           resources:
-            requests: { memory: 64Mi }
-            limits: { memory: 128Mi }
-          startupProbe: { httpGet: { path: /health, port: 8081 }, failureThreshold: 30, periodSeconds: 2 }
-          readinessProbe: { httpGet: { path: /ready, port: 8081 }, periodSeconds: 2, failureThreshold: 2 }
-          livenessProbe: { httpGet: { path: /health, port: 8081 }, periodSeconds: 10, failureThreshold: 6 }
-          lifecycle: { preStop: { exec: { command: ["sleep", "10"] } } }
+            requests: { memory: "64Mi", cpu: "25m" }
+            limits:   { memory: "128Mi", cpu: "250m" }

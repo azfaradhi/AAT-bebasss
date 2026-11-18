@@ -4,10 +4,14 @@ metadata:
   name: satellite-processor-config
   namespace: sistem-informasi-kebencanaan-bnpb
 data:
-  SAT_FEED_BASE_URL: "http://replace-with-feed-base-url"
+  SATELLITE_PORT: "8094"
+  SAT_FEED_BASE_URL: "https://satellite.naufarrel.dev"
+  SAT_ALLOWED_LATENESS_MIN: "360"
   SAT_CHECKPOINT_EVERY_N: "100"
   SAT_BATCH_SIZE: "500"
+  SAT_FLUSH_INTERVAL_MS: "250"
+  SAT_WRITE_CONCURRENCY: "32"
   SAT_IDLE_TIMEOUT_MS: "30000"
-  SAT_RECONNECT_MIN_MS: "200"
-  SAT_RECONNECT_MAX_MS: "15000"
-  SATELLITE_PORT: "8095"
+  STORAGE_PEERS: "http://storage-unit:8100"
+  LEASE_NAMESPACE: "sistem-informasi-kebencanaan-bnpb"
+  LOG_LEVEL: "info"

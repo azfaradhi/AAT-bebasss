@@ -1,4 +1,9 @@
-// Shared types and interfaces. Types only; runtime helpers live in ids.ts.
+/**
+ * M2 CONTRACT — shared types and interfaces (single source of truth for signatures).
+ * Version: see ../README.md. Change only through the contract change protocol.
+ * Pure types: no runtime logic here (runtime helpers live in ids.ts).
+ *
+ */
 
 /* ───────────────────────── Domain enums (CHG-1/2) ───────────────────────── */
 export type HazardSource = 'BMKG' | 'PVMBG' | 'SATELIT' | 'SENSOR_PANTAI';
@@ -250,7 +255,7 @@ export interface Parker {
   ): Promise<ReplayReport>;
 }
 
-/* ───────────────────────── Resilience primitives ───────────────────────── */
+/* ───────────────────────── Resilience primitives (Member 3 owns the implementation) ───────────────────────── */
 export type BreakerState = 'closed' | 'half_open' | 'open';
 export interface CircuitBreaker {
   readonly target: string;
@@ -292,7 +297,7 @@ export type FeedEvent =
   | { kind: 'heartbeat'; offset?: number; raw?: unknown };
 // Offsets are one shared monotonic, gap-free sequence across ALL kinds. SSE `id:` == offset.
 
-/** Output of fire recognition (P4). Cross-service view; internal state is private. */
+/** Output of fire recognition (P4). Internal state shape is Member 1's; this is the cross-member view. */
 export interface FireSummary {
   fire_id: string;
   detection_count: number;
@@ -356,7 +361,7 @@ export interface AuditUnprocessedItem {
 export interface AuditUnprocessedResponse { items: AuditUnprocessedItem[]; next_cursor: string | null }
 export interface ErrorEnvelope { error: { code: string; message: string } }
 
-/* ───────────────────────── Metric names ───────────────────────── */
+/* ───────────────────────── Metric names (contract §6) ───────────────────────── */
 export const METRICS = {
   httpServerDuration: 'bnpb_http_server_request_duration_seconds',
   httpClientDuration: 'bnpb_http_client_request_duration_seconds',
@@ -381,17 +386,17 @@ export const METRICS = {
   fieldReports: 'bnpb_field_reports_total', // {outcome}
 } as const;
 
-/* ───────────────────────── Audit plug-in points ───────────────────────── */
+/* ───────────────────────── Audit plug-in points (Member 2 owns the router; 1 and 3 supply providers) ───────────────────────── */
 export interface AuditProviders {
-  /** Wraps Parker.listUnprocessed → Lampiran A item shape (retrying|parked only). */
+  /** Member 1. Wraps Parker.listUnprocessed → Lampiran A item shape (retrying|parked only). */
   unprocessed(q: { source?: ParkSource; limit: number; cursor?: string }): Promise<AuditUnprocessedResponse>;
-  /** Counters + ids of field reports (P3-K6 proof). */
+  /** Member 1. Counters + ids of field reports (P3-K6 proof). */
   fieldReports(q: { limit: number; cursor?: string }): Promise<FieldReportAudit & { next_cursor: string | null }>;
-  /** Deliveries recorded by notifier-lapangan (P5-K1 proof). */
+  /** Member 3. Deliveries recorded by notifier-lapangan (P5-K1 proof). */
   criticalDeliveries(q: { limit: number; cursor?: string }): Promise<{ items: DeliveryRecord[]; total: number; p95_seconds: number | null; next_cursor: string | null }>;
 }
 
-/* ───────────────────────── Broker payloads ───────────────────────── */
+/* ───────────────────────── Broker payloads (Member 3 owns topology, producers own payload content) ───────────────────────── */
 /** Message on `field_reports_queue` (quorum, durable). Producer = client-api handler (M1); consumer = field-report-processor (M1). */
 export interface FieldReportQueueMessage {
   report_id: string;
@@ -400,13 +405,13 @@ export interface FieldReportQueueMessage {
   correlation_id: string;
   body: FieldReportRequest;
 }
-/** Leader election names double as fence names (WriteCtx.fenceName). */
+/** Names are part of the contract: leader election names double as fence names (WriteCtx.fenceName). */
 export const LEADER_NAMES = {
-  bmkg: 'bmkg', // BMKG poller lease
-  pvmbg: 'pvmbg',
-  satellite: 'satellite', // single SSE connection (a 2nd one gets 429)
-  pantai: 'pantai',
-  ingestRetry: 'ingest-retry', // sweeper re-attempting status=retrying parked messages
+  bmkg: 'bmkg', // Member 2 runs the BMKG poller under this lease
+  pvmbg: 'pvmbg', // Member 2
+  satellite: 'satellite', // Member 1 (single SSE connection: the feed answers 429 to a 2nd one)
+  pantai: 'pantai', // Member 3
+  ingestRetry: 'ingest-retry', // Member 1: sweeper that re-attempts status=retrying parked messages
 } as const;
 export const BROKER = {
   hazardExchange: 'hazard_events_exchange', // fanout, durable (M1 name kept)

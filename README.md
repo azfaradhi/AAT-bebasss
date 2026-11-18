@@ -1,102 +1,156 @@
-# Platform Koordinasi Kebencanaan BNPB
+# Platform Koordinasi Kebencanaan BNPB — IF4031 Milestone 2
 
-## Overview
+## 1. Ikhtisar Arsitektur (Milestone 2: Sistem Terdistribusi Skalabel)
 
-Implementasi Milestone 1 IF4031. Platform ini menggabungkan data bahaya dari mock BMKG dan PVMBG ke format kanonik `HazardEvent`, menyajikannya melalui Client API yang terproteksi RBAC, dan mendistribusikan event baru melalui RabbitMQ.
+Platform Koordinasi Kebencanaan BNPB mengagregasi empat sumber bahaya (**BMKG** `SEISMIC`, **PVMBG** `VOLCANIC`, **Citra Satelit** `WILDFIRE`, dan **Sensor Pantai** `COASTAL`) ke dalam format kanonik `HazardEvent`, menyimpannya pada penyimpanan terdistribusi berbasis kuorum (**Problem 1**), mengoordinasikan pemrosesan satelit menggunakan pemilihan pemimpin & *fencing token* (**Problem 2**), memproses laporan lapangan secara idempoten dengan karantina pesan rusak (**Problem 3**), menjalankan agregasi analitik terisolasi (**Problem 4**), serta menjamin ketahanan menyeluruh dan jalur cepat peringatan kritis di bawah gangguan berlapis (**Problem 5**).
 
-- `bmkg-mock` dan `pvmbg-mock` adalah sumber eksternal dengan kredensial berbeda.
-- `aggregator` melakukan polling paralel per sumber, memetakan data, menyimpan Canonical Store PostgreSQL, dan menerbitkan event baru.
-- `client-api` adalah API publik ber-RBAC. Ia membaca data hanya lewat API internal Aggregator.
-- `auth-service` menerbitkan access token dan refresh token untuk Media, Tim Lapangan, dan BNPB Internal.
-- `dashboard-updater` dan `notifier` adalah consumer independen dari exchange RabbitMQ fanout.
-- `dashboard-queue-init` dan `notifier-queue-init` adalah job sekali jalan yang menyiapkan queue milik masing-masing consumer sebelum Aggregator mulai menerbitkan event. Status `Exited (0)` setelah startup adalah normal.
+Seluruh sistem berjalan di atas klaster **Kubernetes 3-node (`k3s` / `k3d`)** yang dikelola secara deklaratif menggunakan **Kustomize** (`deploy/k8s/`) pada namespace `bnpb-system` dan `observability`.
 
-## Prerequisites
+---
 
-- Docker Desktop dengan Docker Compose v2.
-- Node.js 20 atau lebih baru. Hanya diperlukan untuk membuat token PVMBG, menjalankan test, dan menjalankan k6.
-- k6, hanya untuk skenario load test Problem 2.
+## 2. Deklarasi Topologi Klaster (`TOPO-1`)
 
-## Quick Start
+| Node | Peran Kubernetes | Host Fisik (Mode Demo 3-Laptop) | IP LAN | Spesifikasi VM | Beban Kerja Utama |
+|---|---|---|---|---|---|
+| `node-a` | `control-plane, etcd, worker` | Laptop Anggota 3 (Host-A) | `192.168.10.11` | 4 vCPU, 6 GiB RAM (`linux/amd64`) | `storage-unit` (1 pod), `rabbitmq-0`, `aggregator`, `bmkg-mock`, `pvmbg-mock`, `sensor-pantai`, `observability` |
+| `node-b` | `worker` | Laptop Anggota 2 (Host-B) | `192.168.10.12` | 4 vCPU, 4 GiB RAM (`linux/amd64`) | `storage-unit` (1 pod), `rabbitmq-1`, `aggregator`, `client-api`, `satellite-processor`, `notifier`, `analytics-dashboard` |
+| `node-c` | `worker` | Laptop Anggota 1 (Host-C) | `192.168.10.13` | 4 vCPU, 4 GiB RAM (`linux/amd64`) | `storage-unit` (1 pod), `rabbitmq-2`, `auth-service`, `client-api`, `satellite-processor`, `field-report-processor`, `dashboard-updater`, `notifier` |
 
-1. Salin `.env.example` menjadi `.env`.
-2. Ganti seluruh nilai `replace-with-...` dengan kredensial lokal yang unik. Jangan commit `.env`.
-3. Buat token PVMBG dan simpan hasilnya di `PVMBG_ACCESS_TOKEN` pada `.env`. Aggregator tidak akan start tanpa token ini.
+- **Arsitektur Image Asisten (`PLAT-4`):** `sustuna/satelit-feed@sha256:9fb2fe52...` dan `sustuna/sensor-pantai@sha256:51fbd90d...` dipin dengan digest SHA-256 pada arsitektur `linux/amd64`.
+- **Plafon Resource (`PLAT-5`):** Total limit seluruh pod aplikasi di namespace `bnpb-system` adalah **7,45 vCPU** dan **7,31 GiB RAM** (memenuhi batas Lampiran B $\le 8\text{ vCPU}$ dan $\le 8\text{ GiB RAM}$).
+- **Isolasi Jaringan (`PLAT-8`):** `NetworkPolicy` `store-ingress` membatasi akses TCP `8085` ke `storage-unit` hanya untuk layanan penyimpan/pemroses sah; `client-api` ditolak di tingkat jaringan jika mencoba mengakses `storage-unit` secara langsung.
 
+---
+
+## 3. Panduan Clean-Start (Klaster Kubernetes M2)
+
+### Opsi A — Klaster Dev Lokal 3-Node (`k3d`)
+
+1. Pastikan Docker, `kubectl`, dan `k3d` telah terpasang.
+2. Buat klaster 3-node (`1 server + 2 agents`) beserta local registry `bnpb-registry.localhost:5000`:
    ```bash
-   node scripts/mint-pvmbg-token.js
+   make dev-up
+   ```
+3. Siapkan file environment dan Kubernetes Secret di namespace `bnpb-system`:
+   ```bash
+   cp .env.local.example .env.local
+   make secrets
+   ```
+4. Bangun seluruh image layanan, dorong ke registry klaster, dan terapkan manifes Kustomize (`overlays/dev`):
+   ```bash
+   make build push up
    ```
 
-4. Jalankan seluruh sistem:
+### Opsi B — Klaster Demo 3-VM Lintas Host (`k3s`)
 
+1. Pada **Host-A (`192.168.10.11`)**, jalankan skrip bootstrap server + registry lokal:
    ```bash
-   docker compose up -d --build
-   docker compose ps
+   NODE_IP=192.168.10.11 bash scripts/cluster/k3s-server.sh
+   ```
+2. Pada **Host-B (`192.168.10.12`)** dan **Host-C (`192.168.10.13`)**, gabungkan worker ke server:
+   ```bash
+   SERVER_IP=192.168.10.11 K3S_TOKEN=<token-dari-host-a> NODE_IP=192.168.10.12 bash scripts/cluster/k3s-agent.sh
+   ```
+3. Deploy overlay `demo` beserta stack observabilitas:
+   ```bash
+   REGISTRY=192.168.10.11:5000 make secrets build push up-demo
    ```
 
-   Queue RabbitMQ dan pesan yang menunggu disimpan dalam volume `rabbitmq_data`. Jangan gunakan `docker compose down --volumes` bila data demo perlu dipertahankan.
+### Verifikasi Kepatuhan Klaster (`TA-1..8`, `PLAT-5`, `PLAT-8`)
 
-5. Pastikan setiap service sehat:
+```bash
+make verify
+# Menjalankan:
+# - bash scripts/verify/verify-labels.sh     (label app.kubernetes.io/{name,component,part-of})
+# - bash scripts/verify/verify-resources.sh  (requests/limits tiap kontainer & plafon <= 8 vCPU / 8 GiB)
+# - bash scripts/verify/verify-netpol.sh     (isolasi NetworkPolicy store-ingress & rabbitmq-ingress)
+```
 
-   ```bash
-   curl -s http://localhost:8081/health
-   curl -s http://localhost:8082/health
-   curl -s http://localhost:8090/health
-   curl -s http://localhost:8080/health
-   curl -s http://localhost:8091/health
-   curl -s http://localhost:8092/health
-   curl -s http://localhost:8093/health
-   ```
+Untuk verifikasi statis seluruh manifes Kustomize tanpa klaster aktif:
+```bash
+node scripts/verify/verify-manifests.mjs deploy/k8s
+node scripts/verify/verify-manifests.mjs deploy/k8s/overlays/dev
+node scripts/verify/verify-manifests.mjs deploy/k8s/overlays/demo
+```
 
-Port publik: BMKG `8081`, PVMBG `8082`, Client API `8080`, Aggregator `8090` (debug), Auth Service `8091`, Dashboard Consumer `8092`, Notifier `8093`, PostgreSQL `5432`, RabbitMQ AMQP `5672`, dan RabbitMQ management `15672`.
+---
 
-Contoh di bawah memakai `bash` (macOS dan Linux). Di Windows PowerShell, ganti `curl` dengan `Invoke-RestMethod` dan `$TOKEN` dengan `$token`.
+## 4. Referensi Variabel Lingkungan (`.env.example`)
 
-## Configuration
-
-`.env.example` memuat seluruh variabel dengan nilai contoh. Tiap service hanya menerima variabel yang dibacanya, sesuai `environment:` di `docker-compose.yml`. Nilai diambil dari `.env` lewat interpolasi.
-
-| Kelompok | Variabel | Dipakai oleh |
+| Kelompok | Variabel Utama | Dipakai Oleh |
 |---|---|---|
-| Sumber BMKG | `BMKG_PORT`, `BMKG_API_KEY`, `BMKG_DELAY_MIN_MS`, `BMKG_DELAY_MAX_MS` | bmkg-mock (key juga aggregator) |
-| Sumber PVMBG | `PVMBG_PORT`, `PVMBG_JWT_SECRET`, `PVMBG_DELAY_MIN_MS`, `PVMBG_DELAY_MAX_MS`, `PVMBG_LIVE_INTERVAL_MS`, `PVMBG_ACCESS_TOKEN` | pvmbg-mock, aggregator |
-| Aggregator | `AGGREGATOR_PORT`, `POLL_INTERVAL_MS`, `POLL_LOOKBACK_MS`, `SOURCE_REQUEST_TIMEOUT_MS`, `CIRCUIT_BREAKER_FAILURE_THRESHOLD`, `CIRCUIT_BREAKER_COOLDOWN_MS`, `PVMBG_MAX_CONCURRENT_CALLS`, `DATABASE_URL`, `RABBITMQ_URL`, `INTERNAL_SERVICE_KEY` | aggregator |
+| Klaster & Registry | `REGISTRY`, `TAG`, `NAMESPACE`, `OBS_NAMESPACE` | `Makefile`, skrip klaster |
+| Penyimpanan Kuorum (P1) | `STORAGE_PEERS`, `QUORUM_N=3`, `QUORUM_W=2`, `QUORUM_R=2`, `HINT_REPLAY_INTERVAL_MS`, `ANTI_ENTROPY_INTERVAL_MS` | `storage-unit`, `aggregator`, `satellite-processor`, `field-report-processor`, `analytics-dashboard` |
+| Koordinasi & Satelit (P2) | `LEADER_LEASE_TTL_MS`, `LEADER_RENEW_INTERVAL_MS`, `SAT_FEED_URL`, `SAT_AUTH_TOKEN`, `SAT_POLL_INTERVAL_MS` | `satellite-processor` |
+| Laporan Lapangan (P3) | `FIELD_REPORTS_QUEUE`, `DLX_EXCHANGE`, `PARKED_MAX_RETRIES`, `JWT_CLOCK_TOLERANCE_S=60` | `auth-service`, `client-api`, `field-report-processor` |
+| Analitik (P4) | `ANALYTICS_INTERVAL_MS`, `ANALYTICS_WINDOW_SECONDS`, `ANALYTICS_CONCURRENCY_LIMIT` | `analytics-dashboard` |
+| Sensor Pantai & Ketahanan (P5) | `PANTAI_URL`, `PANTAI_PROFILE`, `PANTAI_TIMEOUT_MS=2500`, `CB_FAILURE_THRESHOLD=4`, `CB_OPEN_MS=8000`, `BULKHEAD_MAX_CONCURRENT=4`, `ADMISSION_MAX_INFLIGHT=60`, `ADMISSION_MEDIA_SHED_RATIO=0.60`, `ADMISSION_INTERNAL_SHED_RATIO=0.85` | `sensor-pantai`, `aggregator`, `client-api`, `notifier` |
+| Broker & Auth | `RABBITMQ_URL`, `CLIENT_JWT_SECRET`, `INTERNAL_SERVICE_KEY`, `BMKG_API_KEY`, `PVMBG_JWT_SECRET`, `PVMBG_ACCESS_TOKEN` | Seluruh layanan terkait |
 | Ingest guard / parking | `MAX_MESSAGE_BYTES` (262144), `MAX_JSON_DEPTH` (32), `PARK_MAX_ATTEMPTS` (8) | aggregator (`src/ingest/`) |
 | Mapper PVMBG | `VOLCANIC_MAPPER_VERSION` (`v1` default, `v2` after a schema change) | aggregator (`src/mapping/`) |
-| Satelit | `SAT_FEED_BASE_URL`, `SAT_GROUP_TOKEN`, `SAT_ALLOWED_LATENESS_MIN` (360), `SAT_FLUSH_INTERVAL_MS` (250), `SAT_WRITE_CONCURRENCY` (32), `SAT_CHECKPOINT_EVERY_N` (100), `SAT_BATCH_SIZE` (500), `SAT_IDLE_TIMEOUT_MS` (30000), `SAT_RECONNECT_MIN_MS`, `SAT_RECONNECT_MAX_MS`, `SAT_SESSION_POLL_MS`, `SATELLITE_PORT` (8095) | satellite-processor |
-| Laporan lapangan | `SWEEP_INTERVAL_MS` (200), `RECONCILE_INTERVAL_MS` (60000), `FIELD_REPORT_PORT` (8096) | field-report-processor |
+| Satelit | `SAT_FEED_BASE_URL`, `SAT_GROUP_TOKEN`, `SAT_ALLOWED_LATENESS_MIN` (360), `SAT_FLUSH_INTERVAL_MS` (250), `SAT_WRITE_CONCURRENCY` (32), `SAT_CHECKPOINT_EVERY_N` (100), `SAT_BATCH_SIZE` (500), `SAT_IDLE_TIMEOUT_MS` (30000), `SAT_RECONNECT_MIN_MS`, `SAT_RECONNECT_MAX_MS`, `SAT_SESSION_POLL_MS`, `SATELLITE_PORT` (8094) | satellite-processor |
+| Laporan lapangan | `SWEEP_INTERVAL_MS` (200), `RECONCILE_INTERVAL_MS` (60000), `FIELD_REPORT_PORT` (8095) | field-report-processor |
 | Advisor (bonus) | `ADVISOR_PORT` (8097), `ADVISOR_POLL_MS` (30000), `ADVISOR_LLM_BASE_URL`, `ADVISOR_LLM_MODEL` (`openai/gpt-oss-20b`), `ADVISOR_LLM_TIMEOUT_MS` (5000), `ADVISOR_LLM_RATE_PER_MIN` (20), `ADVISOR_QUEUE_MAX`, `ADVISOR_BREAKER_FAILURES`, `ADVISOR_BREAKER_COOLDOWN_MS`, kunci `GROQ_API_KEY` / `ADVISOR_LLM_API_KEY` (hanya di `.env.local`/Secret) | advisor |
-| Client API | `CLIENT_API_PORT`, `CLIENT_JWT_SECRET`, `AGGREGATOR_REQUEST_TIMEOUT_MS`, `INTERNAL_SERVICE_KEY` | client-api |
-| Auth | `AUTH_SERVICE_PORT`, `CLIENT_JWT_SECRET`, `ACCESS_TOKEN_TTL_SECONDS` (default 60), `REFRESH_TOKEN_TTL_SECONDS` (default 900), `AUTH_{MEDIA,LAPANGAN,INTERNAL}_CLIENT_ID`, `AUTH_{MEDIA,LAPANGAN,INTERNAL}_CLIENT_SECRET` | auth-service |
-| Consumer | `DASHBOARD_CONSUMER_PORT`, `NOTIFIER_CONSUMER_PORT`, `RABBITMQ_URL` | dashboard-updater, notifier |
-| Infrastruktur | `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`, `RABBITMQ_USER`, `RABBITMQ_PASSWORD` | postgres, rabbitmq |
 
-Semua nilai di `.env.example` hanyalah contoh lokal. Tidak ada credential produksi di repository.
+---
 
-API internal Aggregator (`GET /internal/hazard-events`) menerima `hazard_type` (`SEISMIC` atau `VOLCANIC`), `since` (ISO 8601), dan `limit` (1 sampai 1000, default 500). Header wajibnya `X-Internal-Key`. Client API meneruskan `hazard_type`, `since`, dan `limit` dari query-nya.
+## 5. Menjalankan Pengujian Otomatis & Skenario Demo Problem 5
 
-## Problem 1 Demo
-
-Setelah polling berjalan, aktifkan field baru PVMBG saat sistem tetap hidup:
+### Unit & Integration Tests
 
 ```bash
-curl -s -X POST http://localhost:8082/admin/schema-version \
-  -H 'Content-Type: application/json' -d '{"enabled":true}'
-sleep 12
+# Kontrak & Fakes M2
+cd shared-types && npm test
+
+# Layanan Inti & Ketahanan (Auth, Client-API, Aggregator, Notifier, Dashboard-Updater, Obs-Kit)
+cd tools/obs-kit && npm test
+cd services/auth-service && npm test
+cd services/client-api && npm test
+cd services/aggregator && npm test
+cd services/consumers/notifier && npm test
+cd services/consumers/dashboard-updater && npm test
 ```
 
-Ambil token Internal, lalu baca hazard mentah. Event PVMBG baru harus memiliki `attributes.confidence_level`, sementara record lama tetap dapat dibaca:
+### Skenario Demo & Verifikasi Problem 5 (`scripts/demo/`)
 
-```bash
-TOKEN=$(curl -s -X POST http://localhost:8091/auth/token \
-  -H 'Content-Type: application/json' \
-  -d '{"client_id":"internal-client","client_secret":"<AUTH_INTERNAL_CLIENT_SECRET>"}' \
-  | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token')
-curl -s "http://localhost:8080/hazard-events?view=raw" -H "Authorization: Bearer $TOKEN"
-```
+- **`P5-K1` (Jalur Cepat Peringatan Kritis $\le 5\text{ s}$, 0 Hilang):**
+  ```bash
+  bash scripts/demo/p5-k1-critical.sh
+  ```
+- **`P5-K2` (Deteksi & Karantina Sensor Pantai Bohong — `CONTRACT_VIOLATION`):**
+  ```bash
+  bash scripts/demo/p5-k2-quarantine.sh
+  ```
+- **`P5-K4` (Isolasi `sensor-pantai` Lambat/Mati — Circuit Breaker & Bulkhead):**
+  ```bash
+  bash scripts/demo/p5-k4-sensor-down.sh
+  ```
+- **`P5-K5` (Pengendalian Admisi Berprioritas & Load Shedding Klien `media`):**
+  ```bash
+  bash scripts/demo/p5-k5-shed.sh
+  ```
+- **`R6` (Ketahanan Klaster RabbitMQ Quorum Queue Saat Pod Broker Dihentikan Paksa):**
+  ```bash
+  bash scripts/demo/p5-broker-kill.sh
+  ```
+- **`P5-K6` (Skenario Game Day — 4 Kegagalan Bersamaan):**
+  ```bash
+  bash scripts/demo/p5-k6-gameday.sh
+  ```
+- **`P5-K8` (Evaluasi SLI/SLO & Sisa Error Budget):**
+  ```bash
+  bash scripts/demo/p5-k8-slo-budget.sh
+  ```
+- **Switchover Kredensial Saat Ujian (`MB3-T17`):**
+  ```bash
+  bash scripts/demo/exam-switchover.sh /path/to/pantai.key http://satelit-exam:8083/frames <exam-token>
+  ```
 
+---
 
-## M2 Problem 3 Demo (data tidak valid, DLQ, laporan lapangan)
+## 5a. Skenario Demo dan Verifikasi Problem 3 dan 4 (`scripts/demo/`)
+
+### Problem 3: data tidak valid, DLQ, laporan lapangan
 
 Semua skrip berikut berjalan lokal tanpa cluster (in-process, penyimpanan in-memory) dan mencetak tabel PASS/FAIL. Hasilnya tersimpan di `AAT-docs/m2/evidence/P3/`.
 
@@ -113,7 +167,7 @@ Mode skema PVMBG: `POST /admin/schema-version` menerima `{"enabled":true}` (lama
 
 Kedua mock menyediakan `GET /admin/request-log?since=<ISO>` (log request dengan `caller_instance` dari header `X-Aggregator-Instance`), `/ready`, dan `/metrics` (histogram `bnpb_http_server_request_duration_seconds`). `PVMBG_LIVE_INTERVAL_MS` mengatur interval record baru (default 10000).
 
-## M2 Problem 4 Demo (aliran satelit)
+### Problem 4: aliran satelit
 
 `tools/feed-fixture-server` memutar ulang 3 000 frame hasil capture nyata dengan aturan feed asli (offset bersama, `from=` inklusif, `Last-Event-ID` eksklusif, koneksi kedua ditolak 429) dan dapat memutus koneksi. Hasil bukti di `AAT-docs/m2/evidence/P4/`.
 
@@ -131,121 +185,15 @@ Kedua mock menyediakan `GET /admin/request-log?since=<ISO>` (log request dengan 
 | `scripts/demo/p4-k5-crash.sh` | Pipeline dibunuh 40 kali di titik tulis acak: hasil akhir identik byte-per-byte dengan run tanpa gangguan |
 | `scripts/demo/p4-k4-burst.sh` | Burst ~108 000 frame: lag, waktu catch-up, p95 event-to-store, memori, tanpa kehilangan data; `WRITE_LATENCY_MS` memodelkan latensi tulis ring |
 
-Statistik proses: `GET :8095/internal/satellite/stats` (watermark, kebakaran terbuka, penghitung keterlambatan) dan `/metrics` (`bnpb_sat_offset_lag`, `bnpb_sat_late_*`, `bnpb_sat_event_to_store_seconds`).
-## Problem 2 Demo
+Statistik proses: `GET :8094/internal/satellite/stats` (watermark, kebakaran terbuka, penghitung keterlambatan) dan `/metrics` (`bnpb_sat_offset_lag`, `bnpb_sat_late_*`, `bnpb_sat_event_to_store_seconds`).
 
-Atur `PVMBG_DELAY_MIN_MS=3000` dan `PVMBG_DELAY_MAX_MS=3000` di `.env`, lalu recreate `pvmbg-mock`:
+---
 
+## 6. Kompatibilitas Mode Docker Compose (Milestone 1)
+
+Sistem tetap mempertahankan `docker-compose.yml` untuk pengujian kompatibilitas Milestone 1 secara lokal:
 ```bash
-docker compose up -d --force-recreate pvmbg-mock
+cp .env.example .env
+node scripts/mint-pvmbg-token.js
+docker compose up -d --build
 ```
-
-Skenario yang digunakan dalam laporan menjalankan 50 virtual user BMKG-only
-(`SEISMIC`) dan 10 virtual user vulkanik (`VOLCANIC`) secara bersamaan selama
-60 detik. Karena access token berlaku 60 detik secara default, atur
-`ACCESS_TOKEN_TTL_SECONDS=300` di `.env` dan recreate `auth-service` sebelum
-pengujian. Ambil token Lapangan baru tepat sebelum menjalankan k6; jangan
-gunakan `$TOKEN` dari demo sebelumnya karena mungkin sudah kedaluwarsa.
-
-```bash
-docker compose up -d --no-deps --force-recreate auth-service
-CLIENT_JWT=$(curl -s -X POST http://localhost:8091/auth/token \
-  -H 'Content-Type: application/json' \
-  -d '{"client_id":"<AUTH_LAPANGAN_CLIENT_ID>","client_secret":"<AUTH_LAPANGAN_CLIENT_SECRET>"}' \
-  | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token')
-BASE_URL=http://localhost:8080 CLIENT_JWT="$CLIENT_JWT" k6 run tests/phase6/p2-concurrency.k6.js
-```
-
-Skrip tersebut menetapkan threshold p95 BMKG-only di bawah 300 ms dan error
-rate BMKG-only di bawah 1%. Catat juga throughput, p50/p95/p99, serta error
-rate keseluruhan dari hasil uji untuk dibandingkan dengan tabel Problem 2
-di laporan.
-
-Untuk graceful degradation, aktifkan outage PVMBG. Data seismik tetap normal, data vulkanik membalas data terakhir dengan `meta.stale_since` yang terisi. Setelah outage selesai, polling pulih tanpa restart:
-
-```bash
-curl -s -X POST http://localhost:8082/admin/outage \
-  -H 'Content-Type: application/json' -d '{"enabled":true,"duration_seconds":15}'
-sleep 5
-curl -s "http://localhost:8080/hazard-events?hazard_type=SEISMIC" -H "Authorization: Bearer $TOKEN"
-curl -s "http://localhost:8080/hazard-events?hazard_type=VOLCANIC" -H "Authorization: Bearer $TOKEN"
-```
-
-## Problem 3 Demo
-
-Setiap client memiliki `client_id` dan `client_secret` sendiri dari `.env`. Ambil token Media, lalu coba permintaan mentah:
-
-```bash
-MEDIA=$(curl -s -X POST http://localhost:8091/auth/token \
-  -H 'Content-Type: application/json' \
-  -d '{"client_id":"media-client","client_secret":"<AUTH_MEDIA_CLIENT_SECRET>"}' \
-  | node -pe 'JSON.parse(require("fs").readFileSync(0)).access_token')
-curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:8080/hazard-events?view=raw" -H "Authorization: Bearer $MEDIA"
-# harus 403 FORBIDDEN_FIELD_ACCESS
-curl -s "http://localhost:8080/hazard-events" -H "Authorization: Bearer $MEDIA"
-# hanya field Ringkasan
-```
-
-Token access Tim Lapangan kedaluwarsa setelah `ACCESS_TOKEN_TTL_SECONDS` (60 detik). Setelah menunggu lebih lama, pakai `POST /auth/refresh` untuk mendapatkan pasangan token baru tanpa login ulang:
-
-```bash
-curl -s -X POST http://localhost:8091/auth/refresh \
-  -H 'Content-Type: application/json' -d '{"refresh_token":"<refresh_token dari respons sebelumnya>"}'
-```
-
-Kredensial lintas domain harus ditolak. Kunci BMKG ke PVMBG, dan Bearer PVMBG ke BMKG:
-
-```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8082/volcanic-reports -H "X-BMKG-Key: <BMKG_API_KEY>"   # 403
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8081/seismic-events -H "Authorization: Bearer $MEDIA"    # 403
-```
-
-Isolasi secret antar container: container client-api tidak boleh menerima kunci domain lain.
-
-```bash
-docker compose exec client-api env | grep -E "SECRET|KEY|DATABASE"
-# hanya CLIENT_JWT_SECRET dan INTERNAL_SERVICE_KEY yang muncul
-```
-
-## Problem 4 Demo
-
-Setiap service berjalan di container sendiri. Restart satu service tidak menghentikan service lain:
-
-```bash
-docker compose restart pvmbg-mock
-docker compose ps
-```
-
-`attributes` disimpan sebagai PostgreSQL `JSONB`. Demo Problem 1 membuktikan `confidence_level` tersimpan tanpa menambah kolom atau menjalankan migrasi. Hanya Aggregator yang memakai `DATABASE_URL`. Service lain mengambil data lewat API internal Aggregator.
-
-## Problem 5 Demo
-
-RabbitMQ memakai exchange fanout `hazard_events_exchange`. Kedua consumer menerima event yang sama:
-
-```bash
-docker compose logs dashboard-updater notifier
-docker compose stop notifier
-docker compose logs dashboard-updater
-docker compose start notifier
-```
-
-Ketika notifier mati, producer dan dashboard-updater tidak terhenti. Setelah notifier hidup lagi, queue durable mengirim event yang tertunda.
-
-Consumer baru tidak perlu mengubah producer. `demo-logger` adalah alat demo manual dan tidak masuk `docker compose`:
-
-```bash
-cd services/consumers/demo-logger
-npm install
-RABBITMQ_URL='<RABBITMQ_URL dari .env>' npx tsx index.ts
-```
-
-## Test dan build
-
-Jalankan per service dari folder masing-masing:
-
-```bash
-npm test
-npm run build
-```
-
-Service yang punya test: `aggregator`, `auth-service`, `client-api`, `consumers/dashboard-updater`, `consumers/notifier`, `bmkg-mock`, dan `pvmbg-mock`.

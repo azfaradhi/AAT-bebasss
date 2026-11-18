@@ -1,8 +1,10 @@
 export type ClientScope = 'media' | 'lapangan' | 'internal';
+export type Permission = 'field-reports:write' | 'ops:read' | 'ops:replay';
 
 export interface ClientAccessTokenClaims {
   sub: string;            // client_id
   scope: ClientScope;
+  permissions?: Permission[];
   aud: 'bnpb-client';
   purpose: 'access';
   iat: number;
@@ -14,6 +16,8 @@ export interface TokenResponse {
   token_type: 'Bearer';
   expires_in: number;
   refresh_token: string;
+  scope?: ClientScope;
+  permissions?: Permission[];
 }
 
 export interface ClientRefreshTokenClaims {

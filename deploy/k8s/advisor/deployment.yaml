@@ -18,13 +18,13 @@ spec:
         - { maxSkew: 1, topologyKey: kubernetes.io/hostname, whenUnsatisfiable: ScheduleAnyway, labelSelector: { matchLabels: { app: advisor } } }
       containers:
         - name: advisor
-          image: registry.local/bnpb-advisor:latest
+          image: node-a:5000/bnpb-advisor:m2
           ports: [{ containerPort: 8097 }]
           envFrom: [{ configMapRef: { name: advisor-config } }]
           env:
             - { name: POD_NAME, valueFrom: { fieldRef: { fieldPath: metadata.name } } }
             - { name: ADVISOR_LLM_API_KEY, valueFrom: { secretKeyRef: { name: advisor-llm, key: api-key, optional: true } } } # optional: no key means template-only mode
-            - { name: INTERNAL_SERVICE_KEY, valueFrom: { secretKeyRef: { name: internal-service-key, key: key } } }
+            - { name: INTERNAL_SERVICE_KEY, valueFrom: { secretKeyRef: { name: bnpb-secrets, key: INTERNAL_SERVICE_KEY, optional: true } } }
           resources:
             requests: { memory: 128Mi }
             limits: { memory: 256Mi }

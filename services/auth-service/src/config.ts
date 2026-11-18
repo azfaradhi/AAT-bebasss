@@ -7,6 +7,7 @@ const schema = z.object({
   CLIENT_JWT_SECRET: required,
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(60),
   REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+  JWT_CLOCK_TOLERANCE_S: z.coerce.number().int().min(0).default(60),
   AUTH_MEDIA_CLIENT_ID: required,
   AUTH_MEDIA_CLIENT_SECRET: required,
   AUTH_LAPANGAN_CLIENT_ID: required,
@@ -26,6 +27,7 @@ export const config = {
   jwtSecret: env.CLIENT_JWT_SECRET,
   accessTokenTtlSeconds: env.ACCESS_TOKEN_TTL_SECONDS,
   refreshTokenTtlSeconds: env.REFRESH_TOKEN_TTL_SECONDS,
+  jwtClockToleranceSeconds: env.JWT_CLOCK_TOLERANCE_S,
   clients: [
     { clientId: env.AUTH_MEDIA_CLIENT_ID, clientSecret: env.AUTH_MEDIA_CLIENT_SECRET, scope: 'media' as const },
     { clientId: env.AUTH_LAPANGAN_CLIENT_ID, clientSecret: env.AUTH_LAPANGAN_CLIENT_SECRET, scope: 'lapangan' as const },

@@ -2,10 +2,13 @@ import amqp from 'amqplib';
 import { randomUUID } from 'node:crypto';
 import type { HazardEvent } from '../../../../shared-types/src/hazard-event';
 import type { HazardEventMessage } from '../../../../shared-types/src/envelopes';
-import { assertTopology, EXCHANGE_NAME } from './topology';
+import type { CriticalAlertMessage } from '../../../../shared-types/src/m2/types';
+import { assertTopology, CRITICAL_ALERTS_QUEUE, EXCHANGE_NAME } from './topology';
+import { METRICS, amqpInject, incCounter } from '../resilience/obs';
 
 export interface EventPublisher {
   publish(event: HazardEvent, correlationId: string, messageId?: string): Promise<void>;
+  publishCriticalAlert?(alert: CriticalAlertMessage): Promise<void>;
 }
 
 export interface PublisherLogger {
@@ -74,11 +77,42 @@ export class RabbitMqEventPublisher implements EventPublisher {
     const started = Date.now();
     this.opts.logger.info({ message_id: message.message_id, hazard_id: event.hazard_id }, 'publishing hazard event');
 
-    await this.publishAndConfirm(channel, message);
+    await this.publishAndConfirm(channel, EXCHANGE_NAME, '', message, {
+      messageId: message.message_id,
+      correlationId: message.correlation_id,
+      type: message.event_type,
+      headers: amqpInject({
+        message_id: message.message_id,
+        'x-correlation-id': correlationId,
+      }),
+    });
 
     this.opts.logger.info(
       { message_id: message.message_id, hazard_id: event.hazard_id, latency_ms: Date.now() - started },
       'hazard event published',
+    );
+  }
+
+  async publishCriticalAlert(alert: CriticalAlertMessage): Promise<void> {
+    const channel = this.channel;
+    if (!channel) throw new BrokerUnavailableError();
+
+    const started = Date.now();
+    await this.publishAndConfirm(channel, '', CRITICAL_ALERTS_QUEUE, alert, {
+      messageId: alert.message_id,
+      correlationId: alert.correlation_id,
+      type: 'CriticalAlertCreated',
+      priority: 10,
+      headers: amqpInject({
+        message_id: alert.message_id,
+        'x-correlation-id': alert.correlation_id,
+      }),
+    });
+
+    incCounter(METRICS.criticalTotal, { outcome: 'published' });
+    this.opts.logger.info(
+      { message_id: alert.message_id, hazard_id: alert.hazard_id, latency_ms: Date.now() - started },
+      'critical alert published to fast path',
     );
   }
 
@@ -91,8 +125,13 @@ export class RabbitMqEventPublisher implements EventPublisher {
     await connection?.close().catch(() => undefined);
   }
 
-  // Resolves only after the broker confirms the message was persisted.
-  private publishAndConfirm(channel: ConfirmChannel, message: HazardEventMessage): Promise<void> {
+  private publishAndConfirm(
+    channel: ConfirmChannel,
+    exchange: string,
+    routingKey: string,
+    payload: unknown,
+    options: amqp.Options.Publish,
+  ): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new BrokerUnavailableError(`Publish not confirmed within ${this.publishTimeoutMs}ms`)),
@@ -100,15 +139,13 @@ export class RabbitMqEventPublisher implements EventPublisher {
       );
       try {
         channel.publish(
-          EXCHANGE_NAME,
-          '', // fanout ignores the routing key
-          Buffer.from(JSON.stringify(message)),
+          exchange,
+          routingKey,
+          Buffer.from(JSON.stringify(payload)),
           {
             persistent: true,
             contentType: 'application/json',
-            messageId: message.message_id,
-            correlationId: message.correlation_id,
-            type: message.event_type,
+            ...options,
           },
           (err) => {
             clearTimeout(timer);

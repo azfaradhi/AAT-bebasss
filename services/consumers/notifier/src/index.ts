@@ -1,18 +1,25 @@
 import { buildApp, SERVICE_NAME } from './app';
 import { config } from './config';
 import { HazardEventConsumer } from './consumer';
+import { CriticalDeliveryStore } from './critical-delivery-store';
 import { SeenSet } from './dedup';
 import { createLogger } from './logger';
 import { createNotifierSideEffect } from './side-effect';
 
 async function main(): Promise<void> {
   const logger = createLogger(SERVICE_NAME);
+  const criticalDeliveries = new CriticalDeliveryStore();
   const consumer = new HazardEventConsumer({
     url: config.rabbitmqUrl,
     logger,
-    handler: { seen: new SeenSet(), sideEffect: createNotifierSideEffect(logger), logger },
+    handler: {
+      seen: new SeenSet(),
+      sideEffect: createNotifierSideEffect(logger),
+      logger,
+      criticalDeliveries,
+    },
   });
-  const app = buildApp(logger, () => consumer.isConnected());
+  const app = buildApp(logger, () => consumer.isConnected(), criticalDeliveries);
 
   const shutdown = async (): Promise<void> => {
     await consumer.close();
