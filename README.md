@@ -86,6 +86,11 @@ node scripts/verify/verify-manifests.mjs deploy/k8s/overlays/demo
 | Analitik (P4) | `ANALYTICS_INTERVAL_MS`, `ANALYTICS_WINDOW_SECONDS`, `ANALYTICS_CONCURRENCY_LIMIT` | `analytics-dashboard` |
 | Sensor Pantai & Ketahanan (P5) | `PANTAI_URL`, `PANTAI_PROFILE`, `PANTAI_TIMEOUT_MS=2500`, `CB_FAILURE_THRESHOLD=4`, `CB_OPEN_MS=8000`, `BULKHEAD_MAX_CONCURRENT=4`, `ADMISSION_MAX_INFLIGHT=60`, `ADMISSION_MEDIA_SHED_RATIO=0.60`, `ADMISSION_INTERNAL_SHED_RATIO=0.85` | `sensor-pantai`, `aggregator`, `client-api`, `notifier` |
 | Broker & Auth | `RABBITMQ_URL`, `CLIENT_JWT_SECRET`, `INTERNAL_SERVICE_KEY`, `BMKG_API_KEY`, `PVMBG_JWT_SECRET`, `PVMBG_ACCESS_TOKEN` | Seluruh layanan terkait |
+| Ingest guard / parking | `MAX_MESSAGE_BYTES` (262144), `MAX_JSON_DEPTH` (32), `PARK_MAX_ATTEMPTS` (8) | aggregator (`src/ingest/`) |
+| Mapper PVMBG | `VOLCANIC_MAPPER_VERSION` (`v1` default, `v2` after a schema change) | aggregator (`src/mapping/`) |
+| Satelit | `SAT_FEED_BASE_URL`, `SAT_GROUP_TOKEN`, `SAT_ALLOWED_LATENESS_MIN` (360), `SAT_FLUSH_INTERVAL_MS` (250), `SAT_WRITE_CONCURRENCY` (32), `SAT_CHECKPOINT_EVERY_N` (100), `SAT_BATCH_SIZE` (500), `SAT_IDLE_TIMEOUT_MS` (30000), `SAT_RECONNECT_MIN_MS`, `SAT_RECONNECT_MAX_MS`, `SAT_SESSION_POLL_MS`, `SATELLITE_PORT` (8094) | satellite-processor |
+| Laporan lapangan | `SWEEP_INTERVAL_MS` (200), `RECONCILE_INTERVAL_MS` (60000), `FIELD_REPORT_PORT` (8095) | field-report-processor |
+| Advisor (bonus) | `ADVISOR_PORT` (8097), `ADVISOR_POLL_MS` (30000), `ADVISOR_LLM_BASE_URL`, `ADVISOR_LLM_MODEL` (`openai/gpt-oss-20b`), `ADVISOR_LLM_TIMEOUT_MS` (5000), `ADVISOR_LLM_RATE_PER_MIN` (20), `ADVISOR_QUEUE_MAX`, `ADVISOR_BREAKER_FAILURES`, `ADVISOR_BREAKER_COOLDOWN_MS`, kunci `GROQ_API_KEY` / `ADVISOR_LLM_API_KEY` (hanya di `.env.local`/Secret) | advisor |
 
 ---
 
@@ -140,6 +145,47 @@ cd services/consumers/dashboard-updater && npm test
   ```bash
   bash scripts/demo/exam-switchover.sh /path/to/pantai.key http://satelit-exam:8083/frames <exam-token>
   ```
+
+---
+
+## 5a. Skenario Demo dan Verifikasi Problem 3 dan 4 (`scripts/demo/`)
+
+### Problem 3: data tidak valid, DLQ, laporan lapangan
+
+Semua skrip berikut berjalan lokal tanpa cluster (in-process, penyimpanan in-memory) dan mencetak tabel PASS/FAIL. Hasilnya tersimpan di `AAT-docs/m2/evidence/P3/`.
+
+| Skrip | Membuktikan |
+|---|---|
+| `scripts/demo/p3-k1-schema-policy.sh` | Tiap jenis perubahan skema PVMBG sesuai tabel deklarasi (diterima otomatis atau di-park) |
+| `scripts/demo/p3-k3-fuzz.sh` | 9 respons berbahaya (JSON terpotong, nesting 10 000, UTF-8 rusak, 50 MB, kosong, content-type salah, NUL, BOM, batch campuran) tidak membuat proses crash; yang sehat tetap tersimpan. Dengan `AGGREGATOR_NAMESPACE` terisi, skrip juga memeriksa `restartCount == 0` di cluster |
+| `scripts/demo/p3-k4-replay.sh` | Pesan yang di-park dipulihkan oleh mapper v2 + `POST /ops/replay`, tanpa duplikat, replay kedua tidak mengubah apa pun |
+| `scripts/demo/p3-k5-ops-only.sh` | `/ops/unprocessed`: media 403, lapangan 403, internal 200; endpoint audit menampilkan `retrying` dan `parked` |
+| `scripts/demo/p3-k6-field-reports-kill.sh` | 500 laporan dengan kunci idempoten berulang, receiver dimatikan, processor dijeda lalu dimatikan: tidak ada laporan 202 yang hilang atau diproses dua kali |
+| `scripts/verify/p3-owned-manifests.sh` | Label `role`, memori Lampiran B, probe, dan tidak ada secret literal pada manifest komponen kami |
+
+Mode skema PVMBG: `POST /admin/schema-version` menerima `{"enabled":true}` (lama) atau `{"mode":"baseline|additive|rename|type_change|drop_required"}`; mode hanya berlaku untuk record yang dibuat setelahnya. `POST /admin/fuzz {"case":"truncated_json"|...|null}` membuat mock PVMBG mengirim respons berbahaya. Mapper PVMBG dipilih dengan `VOLCANIC_MAPPER_VERSION` (`v1` kebijakan terdeklarasi, `v2` memahami field yang di-rename dan angka bertipe string).
+
+Kedua mock menyediakan `GET /admin/request-log?since=<ISO>` (log request dengan `caller_instance` dari header `X-Aggregator-Instance`), `/ready`, dan `/metrics` (histogram `bnpb_http_server_request_duration_seconds`). `PVMBG_LIVE_INTERVAL_MS` mengatur interval record baru (default 10000).
+
+### Problem 4: aliran satelit
+
+`tools/feed-fixture-server` memutar ulang 3 000 frame hasil capture nyata dengan aturan feed asli (offset bersama, `from=` inklusif, `Last-Event-ID` eksklusif, koneksi kedua ditolak 429) dan dapat memutus koneksi. Hasil bukti di `AAT-docs/m2/evidence/P4/`.
+
+| Skrip | Membuktikan |
+|---|---|
+| `scripts/demo/p4-k8-reconnect.sh` | 25 pemutusan koneksi paksa: offset 3 000/3 000 kontigu, tanpa duplikat, offset terakhir ter-commit |
+| `scripts/demo/p4-k1-multi-satellite.sh` | Satu kebakaran yang terlihat beberapa satelit menjadi tepat satu HazardEvent |
+| `scripts/demo/p4-k3-update-retract.sh` | `update` mempertahankan `hazard_id` dan mengubah atribut; `retract` di bawah 2 deteksi menghapus event; deteksi ulang menghidupkannya kembali dengan id sama |
+| `scripts/demo/p4-k2-late-data.sh` | Deteksi terlambat di kedua sisi batas 360 menit: yang di dalam batas diterapkan, yang di luar dihitung dan dilaporkan |
+| `scripts/demo/p4-k6-reference-diff.sh` | Hasil pipeline dibandingkan dengan perhitungan batch independen (brute-force) atas aliran yang sama; selisih dikategorikan per penyebab (`LATENESS_MIN=60` memperlihatkan selisih akibat batas keterlambatan) |
+| `scripts/demo/bon2-advisor.sh` | Bonus BON-2: aliran yang sama diproses dengan dan tanpa advisor saat LLM palsu dibuat lambat, mati, dan salah: event identik, advisor menyerap semua kegagalan |
+| `scripts/demo/bon2-real-llm.sh` | Satu panggilan nyata ke LLM gratis (Groq), kunci dibaca dari `.env.local` dan tidak pernah dicetak |
+| `scripts/demo/p4-k7-live.sh` | Pipeline pada feed satelit NYATA ≥ 5 menit (token dibaca dari `.env.local`, tidak pernah dicetak); buka panel lag/keterlambatan di layar saat berjalan |
+| `scripts/demo/p4-k8-disconnect.sh` | Pada feed nyata, koneksi kami diputus berkala: offset tetap kontigu, tanpa duplikat (mode cluster `KUBE=1` belum diimplementasi) |
+| `scripts/demo/p4-k5-crash.sh` | Pipeline dibunuh 40 kali di titik tulis acak: hasil akhir identik byte-per-byte dengan run tanpa gangguan |
+| `scripts/demo/p4-k4-burst.sh` | Burst ~108 000 frame: lag, waktu catch-up, p95 event-to-store, memori, tanpa kehilangan data; `WRITE_LATENCY_MS` memodelkan latensi tulis ring |
+
+Statistik proses: `GET :8094/internal/satellite/stats` (watermark, kebakaran terbuka, penghitung keterlambatan) dan `/metrics` (`bnpb_sat_offset_lag`, `bnpb_sat_late_*`, `bnpb_sat_event_to_store_seconds`).
 
 ---
 

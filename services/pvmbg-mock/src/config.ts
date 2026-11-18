@@ -6,6 +6,7 @@ const schema = z
     PVMBG_JWT_SECRET: z.string().min(1),
     PVMBG_DELAY_MIN_MS: z.coerce.number().int().nonnegative().default(500),
     PVMBG_DELAY_MAX_MS: z.coerce.number().int().nonnegative().default(3000),
+    PVMBG_LIVE_INTERVAL_MS: z.coerce.number().int().positive().default(10_000),
   })
   .refine((c) => c.PVMBG_DELAY_MIN_MS <= c.PVMBG_DELAY_MAX_MS, {
     message: 'PVMBG_DELAY_MIN_MS must not exceed PVMBG_DELAY_MAX_MS',

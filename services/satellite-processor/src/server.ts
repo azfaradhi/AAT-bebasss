@@ -1,0 +1,15 @@
+import Fastify, { type FastifyInstance } from 'fastify';
+import { registerHttpMetrics } from '../../../shared-types/src/obs-lite';
+import type { SatelliteMetrics } from './metrics';
+
+export function buildServer(metrics: SatelliteMetrics, isReady: () => boolean, extraMetrics: () => string, stats: () => object = () => ({})): FastifyInstance {
+  const app = Fastify({ logger: false });
+  const http = registerHttpMetrics(app, 'satellite-processor');
+  app.get('/health', async () => ({ status: 'ok', service: 'satellite-processor', timestamp: new Date().toISOString() }));
+  app.get('/ready', async (_req, reply) => (isReady()
+    ? { status: 'ok' }
+    : reply.code(503).send({ error: { code: 'NOT_READY', message: 'cursor not read yet' } })));
+  app.get('/internal/satellite/stats', async () => ({ committed_offset: metrics.committedOffset, lag: metrics.lag(), ...stats() }));
+  app.get('/metrics', async (_req, reply) => reply.header('content-type', 'text/plain; version=0.0.4').send(metrics.render() + extraMetrics() + http.render()));
+  return app;
+}

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: advisor-config
+  namespace: sistem-informasi-kebencanaan-bnpb
+data:
+  ADVISOR_PORT: "8097"
+  ADVISOR_POLL_MS: "30000"
+  ADVISOR_LLM_BASE_URL: "https://api.groq.com/openai/v1"
+  ADVISOR_LLM_MODEL: "openai/gpt-oss-20b"
+  ADVISOR_LLM_TIMEOUT_MS: "5000"
+  ADVISOR_LLM_RATE_PER_MIN: "20"

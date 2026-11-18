@@ -1,0 +1,6 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: { name: satellite-processor, namespace: sistem-informasi-kebencanaan-bnpb }
+spec:
+  minAvailable: 1
+  selector: { matchLabels: { app: satellite-processor } }

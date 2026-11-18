@@ -1,0 +1,22 @@
+// Approximate geographic centres of the 38 provinces; the fire's province is the nearest centre.
+export const PROVINCES: ReadonlyArray<{ name: string; lat: number; lon: number }> = [
+  { name: 'Aceh', lat: 4.70, lon: 96.75 }, { name: 'Sumatera Utara', lat: 2.19, lon: 99.38 },
+  { name: 'Sumatera Barat', lat: -0.74, lon: 100.80 }, { name: 'Riau', lat: 0.29, lon: 101.71 },
+  { name: 'Kepulauan Riau', lat: 3.95, lon: 108.14 }, { name: 'Jambi', lat: -1.61, lon: 103.61 },
+  { name: 'Sumatera Selatan', lat: -3.32, lon: 104.91 }, { name: 'Kepulauan Bangka Belitung', lat: -2.74, lon: 106.44 },
+  { name: 'Bengkulu', lat: -3.79, lon: 102.26 }, { name: 'Lampung', lat: -4.56, lon: 105.41 },
+  { name: 'DKI Jakarta', lat: -6.21, lon: 106.85 }, { name: 'Banten', lat: -6.41, lon: 106.06 },
+  { name: 'Jawa Barat', lat: -6.91, lon: 107.61 }, { name: 'Jawa Tengah', lat: -7.15, lon: 110.14 },
+  { name: 'DI Yogyakarta', lat: -7.80, lon: 110.36 }, { name: 'Jawa Timur', lat: -7.54, lon: 112.24 },
+  { name: 'Bali', lat: -8.41, lon: 115.19 }, { name: 'Nusa Tenggara Barat', lat: -8.65, lon: 117.36 },
+  { name: 'Nusa Tenggara Timur', lat: -8.66, lon: 121.08 }, { name: 'Kalimantan Barat', lat: -0.28, lon: 111.47 },
+  { name: 'Kalimantan Tengah', lat: -1.68, lon: 113.38 }, { name: 'Kalimantan Selatan', lat: -3.09, lon: 115.28 },
+  { name: 'Kalimantan Timur', lat: 0.54, lon: 116.42 }, { name: 'Kalimantan Utara', lat: 3.07, lon: 116.04 },
+  { name: 'Sulawesi Utara', lat: 0.62, lon: 123.97 }, { name: 'Gorontalo', lat: 0.70, lon: 122.45 },
+  { name: 'Sulawesi Tengah', lat: -1.43, lon: 121.45 }, { name: 'Sulawesi Barat', lat: -2.84, lon: 119.23 },
+  { name: 'Sulawesi Selatan', lat: -3.67, lon: 119.97 }, { name: 'Sulawesi Tenggara', lat: -4.14, lon: 122.17 },
+  { name: 'Maluku Utara', lat: 1.57, lon: 127.81 }, { name: 'Maluku', lat: -3.24, lon: 130.15 },
+  { name: 'Papua Barat', lat: -1.34, lon: 133.17 }, { name: 'Papua Barat Daya', lat: -1.00, lon: 131.50 },
+  { name: 'Papua', lat: -4.27, lon: 138.08 }, { name: 'Papua Tengah', lat: -3.90, lon: 136.00 },
+  { name: 'Papua Pegunungan', lat: -4.10, lon: 139.00 }, { name: 'Papua Selatan', lat: -7.50, lon: 139.50 },
+];

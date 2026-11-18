@@ -1,10 +1,13 @@
 import { VolcanicReport } from '../../../../shared-types/src/volcanic';
 import { HazardEvent, Severity } from '../../../../shared-types/src/hazard-event';
 import { VOLCANO_REFERENCE } from './volcano-reference';
+import { checkVolcanicReport, normalizeVolcanicReport, type MapperVersion } from './volcanic-schema';
 
 export function mapVolcanicReportToHazardEvent(
-  report: VolcanicReport
+  input: VolcanicReport,
+  version: MapperVersion = 'v1',
 ): HazardEvent {
+  const report = checkVolcanicReport(normalizeVolcanicReport(input, version));
   const {
     report_id,
     volcano_id,
@@ -21,12 +24,12 @@ export function mapVolcanicReportToHazardEvent(
   else if (alert_level === 'Waspada') severity = 'WASPADA';
   else if (alert_level === 'Normal') severity = 'NORMAL';
 
-  const volcano = VOLCANO_REFERENCE[volcano_id] || { name: 'Unknown Volcano', lat: 0, lon: 0 };
+  const volcano = VOLCANO_REFERENCE[volcano_id];
 
   const attributes: Record<string, unknown> = {
     eruption_count_24h,
     ash_column_height_m,
-    ...rest
+    ...Object.fromEntries(Object.entries(rest).filter(([, value]) => value !== null)),
   };
 
   return {

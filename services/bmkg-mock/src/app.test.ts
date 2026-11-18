@@ -71,3 +71,14 @@ describe('error envelope', () => {
     expect(res.json().error.code).toBe('NOT_FOUND');
   });
 });
+
+describe('request log, /ready and /metrics', () => {
+  it('logs data requests with caller_instance and serves probes without a key', async () => {
+    await app.inject({ method: 'GET', url: '/seismic-events', headers: { 'x-bmkg-key': KEY, 'x-aggregator-instance': 'agg-2' } });
+
+    const log = (await app.inject({ method: 'GET', url: '/admin/request-log' })).json().data;
+    expect(log.some((e: { path: string; caller_instance: string }) => e.path === '/seismic-events' && e.caller_instance === 'agg-2')).toBe(true);
+    expect((await app.inject({ method: 'GET', url: '/ready' })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/metrics' })).body).toContain('mock_http_requests_total{service="bmkg-mock"');
+  });
+});

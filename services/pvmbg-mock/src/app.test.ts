@@ -118,3 +118,116 @@ describe('error envelope', () => {
     expect(res.json().error.code).toBe('NOT_FOUND');
   });
 });
+
+describe('POST /admin/schema-version {mode}', () => {
+  async function latestAfter(mode: string) {
+    const { app, state } = freshApp();
+    const res = await app.inject({ method: 'POST', url: '/admin/schema-version', payload: { mode } });
+    expect(res.json().mode).toBe(mode);
+    addLiveReport(state);
+    const data = (await app.inject({ method: 'GET', url: '/volcanic-reports', headers: auth })).json().data;
+    return { latest: data[data.length - 1], seeded: data[0] };
+  }
+
+  it('additive adds an optional field, a float height and sometimes null', async () => {
+    const { latest } = await latestAfter('additive');
+    expect(latest.observer_note).toBeDefined();
+    expect(latest.volcano_id).toBeDefined();
+    expect(Number.isInteger(latest.ash_column_height_m)).toBe(false);
+  });
+
+  it('rename replaces volcano_id with volcano_code', async () => {
+    const { latest } = await latestAfter('rename');
+    expect(latest.volcano_id).toBeUndefined();
+    expect(latest.volcano_code).toBeDefined();
+  });
+
+  it('type_change makes eruption_count_24h a string', async () => {
+    const { latest } = await latestAfter('type_change');
+    expect(typeof latest.eruption_count_24h).toBe('string');
+  });
+
+  it('drop_required removes ash_column_height_m, leaving older records untouched', async () => {
+    const { latest, seeded } = await latestAfter('drop_required');
+    expect(latest.ash_column_height_m).toBeUndefined();
+    expect(seeded.ash_column_height_m).toBeDefined();
+  });
+
+  it('baseline restores the original shape', async () => {
+    const { app, state } = freshApp();
+    await app.inject({ method: 'POST', url: '/admin/schema-version', payload: { mode: 'rename' } });
+    await app.inject({ method: 'POST', url: '/admin/schema-version', payload: { mode: 'baseline' } });
+    addLiveReport(state);
+    const data = (await app.inject({ method: 'GET', url: '/volcanic-reports', headers: auth })).json().data;
+    expect(data[data.length - 1].volcano_id).toBeDefined();
+  });
+
+  it('rejects an unknown mode with 400', async () => {
+    const { app } = freshApp();
+    const res = await app.inject({ method: 'POST', url: '/admin/schema-version', payload: { mode: 'chaos' } });
+    expect(res.statusCode).toBe(400);
+    expect(res.json().error.code).toBe('BAD_REQUEST');
+  });
+});
+
+describe('request log, /ready and /metrics', () => {
+  it('logs data requests with caller_instance and correlation id, not probes', async () => {
+    const { app } = freshApp();
+    await app.inject({ method: 'GET', url: '/volcanic-reports', headers: { ...auth, 'x-aggregator-instance': 'agg-1', 'x-correlation-id': 'c-1' } });
+    await app.inject({ method: 'GET', url: '/health' });
+
+    const log = (await app.inject({ method: 'GET', url: '/admin/request-log' })).json().data;
+    expect(log).toHaveLength(1);
+    expect(log[0]).toMatchObject({ method: 'GET', path: '/volcanic-reports', status: 200, caller_instance: 'agg-1', correlation_id: 'c-1' });
+  });
+
+  it('filters by since and rejects a bad timestamp', async () => {
+    const { app } = freshApp();
+    await app.inject({ method: 'GET', url: '/volcanic-reports', headers: auth });
+    const future = new Date(Date.now() + 60_000).toISOString();
+    expect((await app.inject({ method: 'GET', url: `/admin/request-log?since=${future}` })).json().data).toHaveLength(0);
+    expect((await app.inject({ method: 'GET', url: '/admin/request-log?since=nope' })).statusCode).toBe(400);
+  });
+
+  it('serves /ready and Prometheus /metrics without auth', async () => {
+    const { app } = freshApp();
+    await app.inject({ method: 'GET', url: '/volcanic-reports', headers: auth });
+    expect((await app.inject({ method: 'GET', url: '/ready' })).statusCode).toBe(200);
+    const metrics = await app.inject({ method: 'GET', url: '/metrics' });
+    expect(metrics.statusCode).toBe(200);
+    expect(metrics.body).toContain('mock_http_requests_total{service="pvmbg-mock",method="GET",path="/volcanic-reports",status="200"} 1');
+    expect(metrics.body).toContain('bnpb_http_server_request_duration_seconds_count{service="pvmbg-mock",route="/volcanic-reports",method="GET",status_class="2xx"} 1');
+  });
+});
+
+describe('POST /admin/fuzz', () => {
+  it('serves the chosen hostile response until reset', async () => {
+    const { app } = freshApp();
+    await app.inject({ method: 'POST', url: '/admin/fuzz', payload: { case: 'empty_body' } });
+    expect((await app.inject({ method: 'GET', url: '/volcanic-reports', headers: auth })).body).toBe('');
+
+    await app.inject({ method: 'POST', url: '/admin/fuzz', payload: { case: 'wrong_content_type' } });
+    expect((await app.inject({ method: 'GET', url: '/volcanic-reports', headers: auth })).headers['content-type']).toContain('text/html');
+
+    await app.inject({ method: 'POST', url: '/admin/fuzz', payload: { case: null } });
+    expect((await app.inject({ method: 'GET', url: '/volcanic-reports', headers: auth })).json().data.length).toBeGreaterThan(20);
+  });
+
+  it('rejects an unknown case with 400', async () => {
+    const { app } = freshApp();
+    expect((await app.inject({ method: 'POST', url: '/admin/fuzz', payload: { case: 'nope' } })).statusCode).toBe(400);
+  });
+});
+
+describe('POST /admin/generate', () => {
+  it('creates reports in the current mode and rejects a bad count', async () => {
+    const { app, state } = freshApp();
+    await app.inject({ method: 'POST', url: '/admin/schema-version', payload: { mode: 'rename' } });
+    const before = state.reports.length;
+    const res = await app.inject({ method: 'POST', url: '/admin/generate', payload: { count: 3 } });
+    expect(res.json()).toEqual({ generated: 3, mode: 'rename' });
+    expect(state.reports).toHaveLength(before + 3);
+    expect(state.reports[before].volcano_code).toBeDefined();
+    expect((await app.inject({ method: 'POST', url: '/admin/generate', payload: { count: 0 } })).statusCode).toBe(400);
+  });
+});

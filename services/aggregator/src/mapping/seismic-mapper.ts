@@ -1,10 +1,12 @@
 import { SeismicEvent, TsunamiWarning } from '../../../../shared-types/src/seismic';
 import { HazardEvent, Severity } from '../../../../shared-types/src/hazard-event';
+import { checkSeismicEvent } from './seismic-schema';
 
 export function mapSeismicEventToHazardEvent(
-  event: SeismicEvent,
+  input: SeismicEvent,
   relatedWarning: TsunamiWarning | undefined
 ): HazardEvent {
+  const event = checkSeismicEvent(input);
   const {
     event_id,
     region_name,

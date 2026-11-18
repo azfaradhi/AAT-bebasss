@@ -6,7 +6,7 @@ const config = loadConfig(process.env);
 const state = createPvmbgState();
 const app = buildApp({ config, state });
 
-setInterval(() => addLiveReport(state), 10_000);
+setInterval(() => addLiveReport(state), config.PVMBG_LIVE_INTERVAL_MS);
 
 app.listen({ port: config.PVMBG_PORT, host: '0.0.0.0' }, (err, address) => {
   if (err) {
