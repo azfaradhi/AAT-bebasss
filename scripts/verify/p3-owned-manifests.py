@@ -4,10 +4,10 @@ role label on every pod, Lampiran B memory requests/limits on every container, p
 Stand-in for `make verify-labels verify-resources` until the platform Makefile exists."""
 import subprocess, sys, yaml
 
-COMPONENTS = ['bmkg-mock', 'pvmbg-mock', 'satellite-processor', 'field-report-processor']
+COMPONENTS = ['bmkg-mock', 'pvmbg-mock', 'satellite-processor', 'field-report-processor', 'advisor']
 ROLES = {'aggregator': ('256Mi', '512Mi'), 'store': ('512Mi', '1Gi'), 'broker': ('512Mi', '1Gi'), 'consumer': ('128Mi', '256Mi'),
          'api': ('128Mi', '256Mi'), 'mock': ('64Mi', '128Mi'), 'other': ('128Mi', '256Mi'), 'sensor': ('128Mi', '256Mi')}
-EXPECTED_ROLE = {'bmkg-mock': 'mock', 'pvmbg-mock': 'mock', 'satellite-processor': 'broker', 'field-report-processor': 'consumer'}
+EXPECTED_ROLE = {'bmkg-mock': 'mock', 'pvmbg-mock': 'mock', 'satellite-processor': 'broker', 'field-report-processor': 'consumer', 'advisor': 'other'}
 SECRETISH = ('SECRET', 'TOKEN', 'KEY', 'PASSWORD')
 
 fails = 0

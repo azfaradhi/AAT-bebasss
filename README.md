@@ -65,6 +65,7 @@ Contoh di bawah memakai `bash` (macOS dan Linux). Di Windows PowerShell, ganti `
 | Mapper PVMBG | `VOLCANIC_MAPPER_VERSION` (`v1` default, `v2` after a schema change) | aggregator (`src/mapping/`) |
 | Satelit | `SAT_FEED_BASE_URL`, `SAT_GROUP_TOKEN`, `SAT_ALLOWED_LATENESS_MIN` (360), `SAT_FLUSH_INTERVAL_MS` (250), `SAT_WRITE_CONCURRENCY` (32), `SAT_CHECKPOINT_EVERY_N` (100), `SAT_BATCH_SIZE` (500), `SAT_IDLE_TIMEOUT_MS` (30000), `SAT_RECONNECT_MIN_MS`, `SAT_RECONNECT_MAX_MS`, `SAT_SESSION_POLL_MS`, `SATELLITE_PORT` (8095) | satellite-processor |
 | Laporan lapangan | `SWEEP_INTERVAL_MS` (200), `RECONCILE_INTERVAL_MS` (60000), `FIELD_REPORT_PORT` (8096) | field-report-processor |
+| Advisor (bonus) | `ADVISOR_PORT` (8097), `ADVISOR_POLL_MS` (30000), `ADVISOR_LLM_BASE_URL`, `ADVISOR_LLM_MODEL` (`openai/gpt-oss-20b`), `ADVISOR_LLM_TIMEOUT_MS` (5000), `ADVISOR_LLM_RATE_PER_MIN` (20), `ADVISOR_QUEUE_MAX`, `ADVISOR_BREAKER_FAILURES`, `ADVISOR_BREAKER_COOLDOWN_MS`, kunci `GROQ_API_KEY` / `ADVISOR_LLM_API_KEY` (hanya di `.env.local`/Secret) | advisor |
 | Client API | `CLIENT_API_PORT`, `CLIENT_JWT_SECRET`, `AGGREGATOR_REQUEST_TIMEOUT_MS`, `INTERNAL_SERVICE_KEY` | client-api |
 | Auth | `AUTH_SERVICE_PORT`, `CLIENT_JWT_SECRET`, `ACCESS_TOKEN_TTL_SECONDS` (default 60), `REFRESH_TOKEN_TTL_SECONDS` (default 900), `AUTH_{MEDIA,LAPANGAN,INTERNAL}_CLIENT_ID`, `AUTH_{MEDIA,LAPANGAN,INTERNAL}_CLIENT_SECRET` | auth-service |
 | Consumer | `DASHBOARD_CONSUMER_PORT`, `NOTIFIER_CONSUMER_PORT`, `RABBITMQ_URL` | dashboard-updater, notifier |
@@ -123,6 +124,8 @@ Kedua mock menyediakan `GET /admin/request-log?since=<ISO>` (log request dengan 
 | `scripts/demo/p4-k3-update-retract.sh` | `update` mempertahankan `hazard_id` dan mengubah atribut; `retract` di bawah 2 deteksi menghapus event; deteksi ulang menghidupkannya kembali dengan id sama |
 | `scripts/demo/p4-k2-late-data.sh` | Deteksi terlambat di kedua sisi batas 360 menit: yang di dalam batas diterapkan, yang di luar dihitung dan dilaporkan |
 | `scripts/demo/p4-k6-reference-diff.sh` | Hasil pipeline dibandingkan dengan perhitungan batch independen (brute-force) atas aliran yang sama; selisih dikategorikan per penyebab (`LATENESS_MIN=60` memperlihatkan selisih akibat batas keterlambatan) |
+| `scripts/demo/bon2-advisor.sh` | Bonus BON-2: aliran yang sama diproses dengan dan tanpa advisor saat LLM palsu dibuat lambat, mati, dan salah: event identik, advisor menyerap semua kegagalan |
+| `scripts/demo/bon2-real-llm.sh` | Satu panggilan nyata ke LLM gratis (Groq), kunci dibaca dari `.env.local` dan tidak pernah dicetak |
 | `scripts/demo/p4-k7-live.sh` | Pipeline pada feed satelit NYATA ≥ 5 menit (token dibaca dari `.env.local`, tidak pernah dicetak); buka panel lag/keterlambatan di layar saat berjalan |
 | `scripts/demo/p4-k8-disconnect.sh` | Pada feed nyata, koneksi kami diputus berkala: offset tetap kontigu, tanpa duplikat (mode cluster `KUBE=1` belum diimplementasi) |
 | `scripts/demo/p4-k5-crash.sh` | Pipeline dibunuh 40 kali di titik tulis acak: hasil akhir identik byte-per-byte dengan run tanpa gangguan |
