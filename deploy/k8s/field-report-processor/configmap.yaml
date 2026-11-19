@@ -8,4 +8,7 @@ data:
   SWEEP_INTERVAL_MS: "200"
   RECONCILE_INTERVAL_MS: "60000"
   STORAGE_GATEWAY_URL: "http://aggregator:8090"
+  LEASE_NAMESPACE: "sistem-informasi-kebencanaan-bnpb"
+  LEASE_DURATION_SECONDS: "10"
+  LEASE_RENEW_INTERVAL_MS: "3000"
   LOG_LEVEL: "info"

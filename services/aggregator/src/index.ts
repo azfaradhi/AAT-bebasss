@@ -15,6 +15,9 @@ import { registerAudit } from './audit/audit-router';
 import { registerAnalyticsRoutes } from './analytics/analytics-routes';
 import { mountIngest } from './ingest/wiring';
 import { registerStorageGateway } from './storage/gateway-route';
+import { coordinatorFromEnv } from '../../../shared-types/src/coordination/factory';
+import { InMemoryCoordinator } from './coordination/in-memory-coordinator';
+import type { Coordinator } from '../../../shared-types/src/m2/types';
 import type { FastifyInstance } from 'fastify';
 
 async function main(): Promise<void> {
@@ -23,7 +26,11 @@ async function main(): Promise<void> {
   const useRing = Boolean(process.env.STORAGE_UNITS || process.env.STORAGE_UNITS_DNS);
   const storage = useRing ? await createStorageFromEnv() : null;
   if (!storage && !config.databaseUrl) throw new Error('set STORAGE_UNITS(_DNS) or DATABASE_URL');
-  const store: CanonicalStore = storage ? new StorageCanonicalStore({ storage }) : new PostgresCanonicalStore(config.databaseUrl!);
+  const podName = process.env.POD_NAME ?? 'aggregator-local';
+  const coordinator: Coordinator | null = storage ? (coordinatorFromEnv(storage, podName) ?? new InMemoryCoordinator(storage, podName)) : null;
+  const store: CanonicalStore = storage
+    ? new StorageCanonicalStore({ storage, fence: (source) => coordinator?.currentFence(source.toLowerCase()) ?? 1 })
+    : new PostgresCanonicalStore(config.databaseUrl!);
   await store.init();
   const stopRepair = storage ? startRepairLoop(storage, config.storageRepairIntervalMs, (err) => logger.error({ err: String(err) }, 'ring repair failed')) : null;
   const publisher = new RabbitMqEventPublisher({ url: config.rabbitmqUrl, logger });
@@ -31,6 +38,7 @@ async function main(): Promise<void> {
   const dispatcher = new OutboxDispatcher(storage ?? store, publisher, logger);
   const scheduler = new PollingScheduler({
     logger,
+    isLeader: coordinator ? (source) => coordinator.isLeader(source.toLowerCase()) : undefined,
     intervalMs: config.pollIntervalMs,
     lookbackMs: config.pollLookbackMs,
     store,
@@ -61,6 +69,7 @@ async function main(): Promise<void> {
 
   const shutdown = async (): Promise<void> => {
     scheduler.stop();
+    await coordinator?.stop();
     stopRepair?.();
     await dispatcher.stop();
     await publisher.close();
@@ -72,6 +81,10 @@ async function main(): Promise<void> {
   process.on('SIGINT', shutdown);
 
   await app.listen({ port: config.port, host: '0.0.0.0' });
+  // Each source has its own lease; holding it is all the leader function does, the scheduler checks isLeader before every tick.
+  for (const name of ['bmkg', 'pvmbg']) {
+    void coordinator?.runAsLeader(name, ({ signal }) => new Promise<void>((resolve) => signal.addEventListener('abort', () => resolve())));
+  }
   dispatcher.start();
   scheduler.start();
 }

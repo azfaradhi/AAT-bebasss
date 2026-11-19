@@ -11,6 +11,8 @@ export interface PollingSchedulerOptions {
   intervalMs: number;
   lookbackMs: number;
   logger: Logger;
+  // When set, a source is polled only while this instance holds its lease (P2: each source fetched once across replicas).
+  isLeader?: (source: HazardSourceClient['sourceName']) => boolean;
 }
 
 export class PollingScheduler {
@@ -39,6 +41,7 @@ export class PollingScheduler {
   }
 
   async runSourceTick(source: HazardSourceClient): Promise<void> {
+    if (this.opts.isLeader && !this.opts.isLeader(source.sourceName)) return;
     if (this.inFlight.has(source.sourceName)) {
       this.opts.logger.warn(
         { source: source.sourceName },

@@ -1,4 +1,5 @@
 import pino from 'pino';
+import { coordinatorFromEnv } from '../../../shared-types/src/coordination/factory';
 import { storageFromEnvOrNull } from '../../../shared-types/src/ring/factory';
 import type { StorageClient } from '../../../shared-types/src/m2/types';
 import { loggerOptions } from '../../../shared-types/src/obs-lite';
@@ -30,9 +31,9 @@ async function main(): Promise<void> {
   const logger = pino(loggerOptions('satellite-processor'));
   const metrics = new SatelliteMetrics();
 
-  // The ring when STORAGE_UNITS(_DNS) is set, otherwise in-memory; the coordinator is still the single-process one.
+  // The ring (directly or through the Aggregator gateway) when configured, otherwise in-memory; Kubernetes Lease coordinator in a cluster.
   const storage: StorageClient = (await storageFromEnvOrNull()) ?? new InMemoryStorage();
-  const coordinator = new InMemoryCoordinator(storage, config.POD_NAME);
+  const coordinator = coordinatorFromEnv(storage, config.POD_NAME) ?? new InMemoryCoordinator(storage, config.POD_NAME);
   const ingest = createIngestContext({ storage });
   const sink = new FireSink(storage, Date.now, config.SAT_ALLOWED_LATENESS_MIN * 60_000, config.SAT_WRITE_CONCURRENCY);
   const client = new FeedClient({ baseUrl: config.SAT_FEED_BASE_URL, token: config.SAT_GROUP_TOKEN, idleTimeoutMs: config.SAT_IDLE_TIMEOUT_MS });

@@ -1,5 +1,6 @@
 import Fastify from 'fastify';
 import pino from 'pino';
+import { coordinatorFromEnv } from '../../../shared-types/src/coordination/factory';
 import { storageFromEnvOrNull } from '../../../shared-types/src/ring/factory';
 import type { StorageClient } from '../../../shared-types/src/m2/types';
 import { loggerOptions, registerHttpMetrics } from '../../../shared-types/src/obs-lite';
@@ -12,9 +13,9 @@ import { runFieldReportProcessor, type ProcessorStats } from './processor';
 async function main(): Promise<void> {
   const config = loadConfig(process.env);
   const logger = pino(loggerOptions('field-report-processor'));
-  // The ring when STORAGE_UNITS(_DNS) is set, otherwise in-memory; the coordinator is still the single-process one.
+  // The ring (directly or through the Aggregator gateway) when configured, otherwise in-memory; Kubernetes Lease coordinator in a cluster.
   const storage: StorageClient = (await storageFromEnvOrNull()) ?? new InMemoryStorage();
-  const coordinator = new InMemoryCoordinator(storage, config.POD_NAME);
+  const coordinator = coordinatorFromEnv(storage, config.POD_NAME) ?? new InMemoryCoordinator(storage, config.POD_NAME);
   const stats: ProcessorStats = { processed: 0, cleaned: 0, repaired: 0, sweeps: 0, errors: 0 };
   const store = new FieldReportStore(storage);
 
