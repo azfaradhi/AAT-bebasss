@@ -19,3 +19,5 @@ export { unprocessedProvider, toAuditItem, registerUnprocessedRoutes, createUnpr
 export { FieldReportStore, validateFieldReport, fieldReportsProvider, MAX_REPORT_BYTES, MAX_KEY_LENGTH } from '../../../../shared-types/src/field-reports';
 export type { AcceptResult, Validation } from '../../../../shared-types/src/field-reports';
 export { registerFieldReportAuditRoute, createFieldReportAuditApp } from './field-report-audit';
+export { mountIngest } from './wiring';
+export type { IngestWiring, IngestWiringOptions } from './wiring';

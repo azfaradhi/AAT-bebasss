@@ -23,8 +23,12 @@ if [[ "${1:-}" == "--manifest-check" ]]; then
       console.error("[FAIL] NetworkPolicy store-ingress not found!");
       process.exit(1);
     }
-    if (!/role:\s*store/.test(storePol) || !/role:\s*aggregator/.test(storePol)) {
-      console.error("[FAIL] store-ingress NetworkPolicy does not restrict role=store to role=aggregator/store!");
+    const allowed = new Set();
+    for (const m of storePol.matchAll(/role:[ \t]*([a-z-]+)[ \t]*$/gm)) allowed.add(m[1]);
+    const values = storePol.match(/key:\s*role[\s\S]*?values:\s*(?:\[([^\]]*)\]|\n([ \t]*)-[ \t]*\S+(?:\n\2-[ \t]*\S+)*)/);
+    if (values) for (const v of (values[1] ?? values[0].slice(values[0].indexOf("values:") + 7)).split(/[,\n]/)) { const t = v.replace(/^\s*-?\s*/, "").trim(); if (t) allowed.add(t); }
+    if (!allowed.has("store") || !allowed.has("aggregator") || [...allowed].some((r) => !["store", "aggregator"].includes(r))) {
+      console.error("[FAIL] store-ingress NetworkPolicy must allow exactly role=aggregator and role=store, found: " + [...allowed].join(","));
       process.exit(1);
     }
     console.log(`[PASS] Found ${netpols.length} NetworkPolicies including store-ingress (role=store <- role in [aggregator, store]).`);

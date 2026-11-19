@@ -32,6 +32,8 @@ export interface UnprocessedRouteOptions {
   parker: StorageBackedParker;
   auditToken: string;
   internalServiceKey: string;
+  // false when the Audit router already serves /internal/audit/unprocessed through the provider.
+  auditRoute?: boolean;
 }
 
 type Query = { source?: string; limit?: string; cursor?: string };
@@ -49,12 +51,14 @@ const unauthorized = (reply: FastifyReply, message: string) => reply.code(401).s
 
 // GET /internal/audit/unprocessed (audit token) and GET /internal/ops/unprocessed (internal service key, adds raw metadata).
 export function registerUnprocessedRoutes(app: FastifyInstance, opts: UnprocessedRouteOptions): void {
-  app.get<{ Querystring: Query }>('/internal/audit/unprocessed', async (request, reply) => {
-    if (request.headers.authorization !== `Bearer ${opts.auditToken}`) return unauthorized(reply, 'Invalid audit token');
-    const q = parseQuery(request, reply);
-    if (!q) return reply;
-    return unprocessedProvider(opts.parker)(q);
-  });
+  if (opts.auditRoute !== false) {
+    app.get<{ Querystring: Query }>('/internal/audit/unprocessed', async (request, reply) => {
+      if (request.headers.authorization !== `Bearer ${opts.auditToken}`) return unauthorized(reply, 'Invalid audit token');
+      const q = parseQuery(request, reply);
+      if (!q) return reply;
+      return unprocessedProvider(opts.parker)(q);
+    });
+  }
 
   app.get<{ Querystring: Query }>('/internal/ops/unprocessed', async (request, reply) => {
     if (request.headers['x-internal-key'] !== opts.internalServiceKey) return unauthorized(reply, 'Invalid internal service key');

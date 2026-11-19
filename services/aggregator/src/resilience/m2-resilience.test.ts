@@ -20,6 +20,7 @@ describe('M2 Resilience Primitives (MB3-T09, P5-K3, P5-K4, P5-K5)', () => {
       failureThreshold: 3,
       cooldownMs: 5000,
       timeoutMs: 1000,
+      jitterRatio: 0,
       now: () => clock,
     });
 
