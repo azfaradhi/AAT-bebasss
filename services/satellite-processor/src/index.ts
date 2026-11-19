@@ -1,4 +1,6 @@
 import pino from 'pino';
+import { storageFromEnvOrNull } from '../../../shared-types/src/ring/factory';
+import type { StorageClient } from '../../../shared-types/src/m2/types';
 import { loggerOptions } from '../../../shared-types/src/obs-lite';
 import { createIngestContext } from '../../aggregator/src/ingest/context';
 import { InMemoryCoordinator } from '../test-support/contract-fakes/fakes/in-memory-coordinator';
@@ -28,8 +30,8 @@ async function main(): Promise<void> {
   const logger = pino(loggerOptions('satellite-processor'));
   const metrics = new SatelliteMetrics();
 
-  // Interim backends until Member 2's real StorageClient/Coordinator are wired; both sit behind the contract interfaces.
-  const storage = new InMemoryStorage();
+  // The ring when STORAGE_UNITS(_DNS) is set, otherwise in-memory; the coordinator is still the single-process one.
+  const storage: StorageClient = (await storageFromEnvOrNull()) ?? new InMemoryStorage();
   const coordinator = new InMemoryCoordinator(storage, config.POD_NAME);
   const ingest = createIngestContext({ storage });
   const sink = new FireSink(storage, Date.now, config.SAT_ALLOWED_LATENESS_MIN * 60_000, config.SAT_WRITE_CONCURRENCY);

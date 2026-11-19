@@ -1,0 +1,161 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { HttpStorageClient } from '../../../shared-types/src/ring/http-storage-client';
+import { Ring } from '../../../shared-types/src/ring/ring';
+import { computeChecksum, hazardId } from '../../../shared-types/src/m2/ids';
+import type { HazardSource, StoredHazardEvent, WriteCtx } from '../../../shared-types/src/m2/types';
+import { buildUnitApp } from './app';
+import { makeCluster } from './cluster-harness';
+import { UnitEngine } from './engine';
+
+const ctx = (over: Partial<WriteCtx> = {}): WriteCtx => ({ fence: 1, idempotencyKey: 'k', correlationId: 'c', fenceName: 't', ...over });
+const ev = (ref: string, over: Partial<StoredHazardEvent> = {}): StoredHazardEvent => ({
+  hazard_id: hazardId('BMKG', ref), source: 'BMKG' as HazardSource, source_ref_id: ref, hazard_type: 'SEISMIC', severity: 'WASPADA', area_name: 'A',
+  latitude: -2, longitude: 113, occurred_at: '2026-11-12T02:43:00.000Z', ingested_at: '2026-11-12T02:51:08.000Z', attributes: {}, version: 1, ...over,
+});
+const dirs: string[] = [];
+afterEach(() => { for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true }); });
+
+describe('ring placement', () => {
+  it('spreads keys across units within 15% of the ideal share and always picks distinct replicas', () => {
+    const ring = new Ring(['a', 'b', 'c'], 2);
+    const count: Record<string, number> = { a: 0, b: 0, c: 0 };
+    for (let i = 0; i < 6000; i++) {
+      const r = ring.replicas(hazardId('BMKG', `k-${i}`));
+      expect(new Set(r).size).toBe(2);
+      for (const u of r) count[u]++;
+    }
+    for (const u of Object.keys(count)) expect(Math.abs(count[u] - 4000)).toBeLessThan(600);
+  });
+
+  it('is stable: the same key always maps to the same replicas', () => {
+    const a = new Ring(['a', 'b', 'c'], 2), b = new Ring(['c', 'a', 'b'], 2);
+    for (let i = 0; i < 200; i++) expect(a.replicas(`k${i}`)).toEqual(b.replicas(`k${i}`));
+  });
+});
+
+describe('loss, repair and the next loss (P1-K4, K5, K6)', () => {
+  it('loses nothing when a unit and its data vanish, and survives a second loss after repair', async () => {
+    const c = makeCluster();
+    for (let i = 0; i < 120; i++) await c.client.upsertEvent(ev(`e-${i}`), ctx());
+    const before = await c.client.checksum('BMKG');
+
+    c.wipe('unit-node-a');
+    const during = await c.client.checksum('BMKG');
+    expect(during.checksum).toBe(before.checksum);
+    expect(during.partial).toBe(false);
+    expect((await c.client.ringStatus()).redundancy_ok).toBe(false);
+
+    expect((await c.client.repair()).repaired).toEqual(['unit-node-a']);
+    const status = await c.client.ringStatus();
+    expect(status.redundancy_ok).toBe(true);
+    expect(status.units.find((u) => u.unit === 'unit-node-a')!.keys).toBeGreaterThan(0);
+
+    c.controls.setUnitState('unit-node-b', 'DOWN');
+    const after = await c.client.checksum('BMKG');
+    expect(after.count).toBe(120);
+    expect(after.checksum).toBe(before.checksum);
+    expect(after.partial).toBe(false);
+  });
+
+  it('writes made while a unit is down reach it through repair', async () => {
+    const c = makeCluster();
+    c.controls.setUnitState('unit-node-c', 'DOWN');
+    for (let i = 0; i < 40; i++) await c.client.upsertEvent(ev(`d-${i}`), ctx());
+    c.controls.setUnitState('unit-node-c', 'RECOVERING');
+    expect((await c.client.listEvents({ limit: 100 })).items).toHaveLength(40);
+    await c.client.repair();
+    c.controls.setUnitState('unit-node-a', 'DOWN');
+    c.controls.setUnitState('unit-node-b', 'DOWN');
+    const only = await c.client.listEvents({ limit: 100 });
+    expect(only.partial).toBe(true);
+    expect(only.items.length).toBeGreaterThan(0);
+    const expected = computeChecksum((await c.client.listEvents({ limit: 100 })).items.map((i) => i.source_ref_id));
+    expect(expected).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it('a tombstone survives repair of a unit that missed it', async () => {
+    const c = makeCluster();
+    const e = ev('t-1');
+    await c.client.upsertEvent(e, ctx());
+    c.controls.setUnitState('unit-node-a', 'DOWN');
+    c.controls.setUnitState('unit-node-b', 'DOWN');
+    c.controls.setUnitState('unit-node-a', 'STABLE');
+    c.controls.setUnitState('unit-node-b', 'STABLE');
+    await c.client.tombstoneEvent(e.hazard_id, 2, ctx());
+    c.wipe('unit-node-a');
+    await c.client.repair();
+    expect((await c.client.getEvent(e.hazard_id)).event).toBeNull();
+    expect((await c.client.listEvents({ limit: 10 })).items).toHaveLength(0);
+  });
+});
+
+describe('documents and fences across replicas', () => {
+  it('a delete is not undone by a replica that missed it', async () => {
+    const c = makeCluster();
+    await c.client.putDoc('parked', 'm1', { v: 1 }, ctx());
+    c.controls.setUnitState('unit-node-a', 'DOWN');
+    await c.client.deleteDoc('parked', 'm1', ctx());
+    c.controls.setUnitState('unit-node-a', 'STABLE');
+    expect(await c.client.getDoc('parked', 'm1')).toBeNull();
+    expect((await c.client.listDocs('parked', { limit: 10 })).items).toHaveLength(0);
+  });
+
+  it('a fence raised while a unit is down still rejects stale writes after repair', async () => {
+    const c = makeCluster();
+    c.controls.setUnitState('unit-node-a', 'DOWN');
+    await c.client.fenceBarrier('sat', 5);
+    c.wipe('unit-node-a');
+    c.controls.setUnitState('unit-node-b', 'DOWN');
+    await c.client.repair().catch(() => undefined);
+    c.controls.setUnitState('unit-node-b', 'STABLE');
+    await expect(c.client.putDoc('fire_state', 'x', {}, ctx({ fenceName: 'sat', fence: 4 }))).rejects.toMatchObject({ code: 'FENCED' });
+  });
+
+  it('refuses writes only when every replica is down', async () => {
+    const c = makeCluster();
+    for (const u of c.controls.units()) c.controls.setUnitState(u, 'DOWN');
+    await expect(c.client.upsertEvent(ev('x'), ctx())).rejects.toMatchObject({ code: 'STORAGE_UNAVAILABLE' });
+    expect((await c.client.listEvents({ limit: 10 })).partial).toBe(true);
+  });
+});
+
+describe('persistence', () => {
+  it('replays the log after a restart and comes back RECOVERING, not authoritative', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'unit-'));
+    dirs.push(dir);
+    const first = new UnitEngine({ unit: 'u1', node: 'n1', dataDir: dir });
+    expect(first.state).toBe('JOINING');
+    first.upsert(ev('p-1'), { fence: 1, fenceName: 'x' }, { mode: 'on_create', correlation_id: 'c' });
+    first.putDoc('parked', 'k', { a: 1 }, { fence: 1, fenceName: 'x' });
+    first.raiseFence('sat', 7);
+    const second = new UnitEngine({ unit: 'u1', node: 'n1', dataDir: dir });
+    expect(second.state).toBe('RECOVERING');
+    expect(second.get(ev('p-1').hazard_id)).not.toBeNull();
+    expect(second.getDoc('parked', 'k')?.doc).toEqual({ a: 1 });
+    expect(second.pending()).toHaveLength(1);
+    expect(() => second.upsert(ev('p-2'), { fence: 6, fenceName: 'sat' })).toThrow(/fenced/);
+  });
+});
+
+describe('over real HTTP', () => {
+  it('works through the default fetch transport on real sockets', async () => {
+    const names = ['unit-a', 'unit-b', 'unit-c'];
+    const apps = names.map((n) => buildUnitApp(new UnitEngine({ unit: n, node: n, initialState: 'STABLE' })));
+    const urls = await Promise.all(apps.map(async (a) => { await a.listen({ port: 0, host: '127.0.0.1' }); const addr = a.server.address(); return `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`; }));
+    try {
+      const client = new HttpStorageClient({ units: names.map((n, i) => ({ unit: n, node: n, url: urls[i] })), stateTtlMs: 0 });
+      for (let i = 0; i < 25; i++) await client.upsertEvent(ev(`h-${i}`), ctx());
+      expect((await client.listEvents({ limit: 100 })).items).toHaveLength(25);
+      expect((await client.checksum('BMKG')).count).toBe(25);
+      await apps[0].close();
+      const degraded = await client.listEvents({ limit: 100 });
+      expect(degraded.items).toHaveLength(25);
+      expect(degraded.partial).toBe(false);
+    } finally {
+      await Promise.all(apps.map((a) => a.close().catch(() => undefined)));
+    }
+  });
+});

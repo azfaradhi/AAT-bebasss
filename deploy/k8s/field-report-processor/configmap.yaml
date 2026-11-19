@@ -7,5 +7,5 @@ data:
   FIELD_REPORT_PORT: "8095"
   SWEEP_INTERVAL_MS: "200"
   RECONCILE_INTERVAL_MS: "60000"
-  STORAGE_PEERS: "http://storage-unit:8100"
+  STORAGE_GATEWAY_URL: "http://aggregator:8090"
   LOG_LEVEL: "info"

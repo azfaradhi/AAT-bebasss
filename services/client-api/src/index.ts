@@ -3,6 +3,8 @@ import { config } from './config';
 import { createLogger } from './logger';
 import { HttpAggregatorClient } from './clients/aggregator-client';
 import { PriorityAdmissionController } from './middleware/admission';
+import { storageFromEnvOrNull } from '../../../shared-types/src/ring/factory';
+import { FieldReportStore } from '../../../shared-types/src/field-reports';
 
 async function main(): Promise<void> {
   const logger = createLogger(SERVICE_NAME);
@@ -13,10 +15,12 @@ async function main(): Promise<void> {
     retryAfterSeconds: config.admissionRetryAfterSeconds,
   });
 
+  const storage = await storageFromEnvOrNull();
   const app = buildApp(logger, {
     clientJwtSecret: config.clientJwtSecret,
     jwtClockToleranceSeconds: config.jwtClockToleranceSeconds,
     admissionController,
+    fieldReportStore: storage ? new FieldReportStore(storage) : undefined,
     ops: { aggregatorBaseUrl: config.aggregatorBaseUrl, internalServiceKey: config.internalServiceKey, advisorBaseUrl: config.advisorBaseUrl },
     aggregatorClient: new HttpAggregatorClient(
       config.aggregatorBaseUrl,

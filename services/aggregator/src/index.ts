@@ -8,15 +8,27 @@ import { CircuitBreaker } from './resilience/circuit-breaker';
 import { ConcurrencyLimiter } from './resilience/concurrency-limiter';
 import { BmkgClient } from './sources/bmkg-client';
 import { PvmbgClient } from './sources/pvmbg-client';
-import { PostgresCanonicalStore } from './storage/canonical-store';
+import { PostgresCanonicalStore, type CanonicalStore } from './storage/canonical-store';
+import { StorageCanonicalStore } from './storage/storage-canonical-store';
+import { createStorageFromEnv, startRepairLoop } from '../../../shared-types/src/ring';
+import { registerAudit } from './audit/audit-router';
+import { registerAnalyticsRoutes } from './analytics/analytics-routes';
+import { mountIngest } from './ingest/wiring';
+import { registerStorageGateway } from './storage/gateway-route';
+import type { FastifyInstance } from 'fastify';
 
 async function main(): Promise<void> {
   const logger = createLogger(SERVICE_NAME);
-  const store = new PostgresCanonicalStore(config.databaseUrl);
+  // STORAGE_UNITS / STORAGE_UNITS_DNS selects the replicated ring (M2); otherwise the single PostgreSQL store (M1) is used.
+  const useRing = Boolean(process.env.STORAGE_UNITS || process.env.STORAGE_UNITS_DNS);
+  const storage = useRing ? await createStorageFromEnv() : null;
+  if (!storage && !config.databaseUrl) throw new Error('set STORAGE_UNITS(_DNS) or DATABASE_URL');
+  const store: CanonicalStore = storage ? new StorageCanonicalStore({ storage }) : new PostgresCanonicalStore(config.databaseUrl!);
   await store.init();
+  const stopRepair = storage ? startRepairLoop(storage, config.storageRepairIntervalMs, (err) => logger.error({ err: String(err) }, 'ring repair failed')) : null;
   const publisher = new RabbitMqEventPublisher({ url: config.rabbitmqUrl, logger });
   await publisher.start();
-  const dispatcher = new OutboxDispatcher(store, publisher, logger);
+  const dispatcher = new OutboxDispatcher(storage ?? store, publisher, logger);
   const scheduler = new PollingScheduler({
     logger,
     intervalMs: config.pollIntervalMs,
@@ -37,10 +49,19 @@ async function main(): Promise<void> {
       limiter: new ConcurrencyLimiter(config.pvmbgMaxConcurrentCalls),
     }),
   });
-  const app = buildApp(logger, { store, internalServiceKey: config.internalServiceKey });
+  const extras = storage
+    ? (a: FastifyInstance) => {
+        const wiring = mountIngest(a, { storage, internalServiceKey: config.internalServiceKey });
+        registerAudit(a, { storage, providers: wiring.providers, auditToken: config.auditToken });
+        registerAnalyticsRoutes(a, { storage, internalServiceKey: config.internalServiceKey });
+        registerStorageGateway(a, storage, config.internalServiceKey);
+      }
+    : undefined;
+  const app = buildApp(logger, { store, internalServiceKey: config.internalServiceKey, extras });
 
   const shutdown = async (): Promise<void> => {
     scheduler.stop();
+    stopRepair?.();
     await dispatcher.stop();
     await publisher.close();
     await store.close();

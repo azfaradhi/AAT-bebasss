@@ -1,5 +1,7 @@
 import Fastify from 'fastify';
 import pino from 'pino';
+import { storageFromEnvOrNull } from '../../../shared-types/src/ring/factory';
+import type { StorageClient } from '../../../shared-types/src/m2/types';
 import { loggerOptions, registerHttpMetrics } from '../../../shared-types/src/obs-lite';
 import { FieldReportStore } from '../../../shared-types/src/field-reports';
 import { InMemoryCoordinator } from '../test-support/contract-fakes/fakes/in-memory-coordinator';
@@ -10,8 +12,8 @@ import { runFieldReportProcessor, type ProcessorStats } from './processor';
 async function main(): Promise<void> {
   const config = loadConfig(process.env);
   const logger = pino(loggerOptions('field-report-processor'));
-  // Interim backends until Member 2's real StorageClient/Coordinator are wired; both sit behind the contract interfaces.
-  const storage = new InMemoryStorage();
+  // The ring when STORAGE_UNITS(_DNS) is set, otherwise in-memory; the coordinator is still the single-process one.
+  const storage: StorageClient = (await storageFromEnvOrNull()) ?? new InMemoryStorage();
   const coordinator = new InMemoryCoordinator(storage, config.POD_NAME);
   const stats: ProcessorStats = { processed: 0, cleaned: 0, repaired: 0, sweeps: 0, errors: 0 };
   const store = new FieldReportStore(storage);

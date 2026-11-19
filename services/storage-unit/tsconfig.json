@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "strict": true,
+    "types": ["node"],
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "rootDir": "../..",
+    "outDir": "./dist"
+  },
+  "include": ["src/**/*", "test-support/**/*", "../../shared-types/src/**/*"],
+  "exclude": ["src/**/*.test.ts"]
+}

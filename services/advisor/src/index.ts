@@ -1,4 +1,6 @@
 import pino from 'pino';
+import { storageFromEnvOrNull } from '../../../shared-types/src/ring/factory';
+import type { StorageClient } from '../../../shared-types/src/m2/types';
 import { loggerOptions } from '../../../shared-types/src/obs-lite';
 import { InMemoryStorage } from '../test-support/contract-fakes/fakes/in-memory-storage';
 import { Advisor } from './advisor';
@@ -12,8 +14,8 @@ import { StorageAdvisoryStore, StorageEventSource } from './store';
 async function main(): Promise<void> {
   const config = loadConfig(process.env);
   const logger = pino(loggerOptions('advisor'));
-  // Interim backend until the real StorageClient is wired (it sits behind the contract interface).
-  const storage = new InMemoryStorage();
+  // The ring when STORAGE_UNITS(_DNS) is set, otherwise in-memory.
+  const storage: StorageClient = (await storageFromEnvOrNull()) ?? new InMemoryStorage();
   const store = new StorageAdvisoryStore(storage);
   const llm = config.llmApiKey
     ? new LlmClient({ baseUrl: config.ADVISOR_LLM_BASE_URL, model: config.ADVISOR_LLM_MODEL, apiKey: config.llmApiKey, reasoningEffort: /gpt-oss/.test(config.ADVISOR_LLM_MODEL) ? config.ADVISOR_LLM_REASONING_EFFORT || null : null, timeoutMs: config.ADVISOR_LLM_TIMEOUT_MS })

@@ -9,6 +9,8 @@ export const SERVICE_NAME = 'aggregator';
 export interface AppDeps {
   store: CanonicalStore;
   internalServiceKey: string;
+  // Registers extra routes (audit, analytics, ingest ops) once the storage backend is known.
+  extras?: (app: FastifyInstance) => void;
 }
 
 export function buildApp(logger: FastifyBaseLogger, deps: AppDeps): FastifyInstance {
@@ -33,6 +35,7 @@ export function buildApp(logger: FastifyBaseLogger, deps: AppDeps): FastifyInsta
     timestamp: new Date().toISOString(),
   }));
   registerInternalHazardsRoute(app, deps.store, deps.internalServiceKey);
+  deps.extras?.(app);
 
   return app;
 }

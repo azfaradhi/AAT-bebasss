@@ -12,7 +12,9 @@ const schema = z.object({
   CIRCUIT_BREAKER_FAILURE_THRESHOLD: z.coerce.number().int().positive().default(3),
   CIRCUIT_BREAKER_COOLDOWN_MS: z.coerce.number().int().positive().default(10000),
   PVMBG_MAX_CONCURRENT_CALLS: z.coerce.number().int().positive().default(5),
-  DATABASE_URL: z.string().min(1),
+  DATABASE_URL: z.string().min(1).optional(),
+  AUDIT_TOKEN: z.string().min(1).optional(),
+  STORAGE_REPAIR_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
   RABBITMQ_URL: z.string().min(1),
   INTERNAL_SERVICE_KEY: z.string().min(1),
 });
@@ -35,6 +37,8 @@ export const config = {
   circuitBreakerCooldownMs: parsed.data.CIRCUIT_BREAKER_COOLDOWN_MS,
   pvmbgMaxConcurrentCalls: parsed.data.PVMBG_MAX_CONCURRENT_CALLS,
   databaseUrl: parsed.data.DATABASE_URL,
+  auditToken: parsed.data.AUDIT_TOKEN,
+  storageRepairIntervalMs: parsed.data.STORAGE_REPAIR_INTERVAL_MS,
   rabbitmqUrl: parsed.data.RABBITMQ_URL,
   internalServiceKey: parsed.data.INTERNAL_SERVICE_KEY,
 };

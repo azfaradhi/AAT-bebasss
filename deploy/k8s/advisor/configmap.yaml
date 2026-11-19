@@ -10,3 +10,4 @@ data:
   ADVISOR_LLM_MODEL: "openai/gpt-oss-20b"
   ADVISOR_LLM_TIMEOUT_MS: "5000"
   ADVISOR_LLM_RATE_PER_MIN: "20"
+  STORAGE_GATEWAY_URL: "http://aggregator:8090"

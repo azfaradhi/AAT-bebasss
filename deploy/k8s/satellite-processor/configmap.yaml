@@ -12,6 +12,6 @@ data:
   SAT_FLUSH_INTERVAL_MS: "250"
   SAT_WRITE_CONCURRENCY: "32"
   SAT_IDLE_TIMEOUT_MS: "30000"
-  STORAGE_PEERS: "http://storage-unit:8100"
+  STORAGE_GATEWAY_URL: "http://aggregator:8090"
   LEASE_NAMESPACE: "sistem-informasi-kebencanaan-bnpb"
   LOG_LEVEL: "info"
