@@ -5,6 +5,11 @@ import { createAuthMiddleware } from './middleware/auth';
 import { PriorityAdmissionController, createAdmissionHooks } from './middleware/admission';
 import type { AggregatorClient } from './clients/aggregator-client';
 import { registerHazardsRoute } from './routes/hazards';
+import { registerOpsUnprocessedRoute } from './routes/ops-unprocessed';
+import { registerOpsReplayRoute } from './routes/ops-replay';
+import { registerOpsAdvisoryRoute } from './routes/ops-advisory';
+import { registerFieldReportsRoute } from './routes/field-reports';
+import type { FieldReportMetrics, FieldReportStore } from '../../../shared-types/src/field-reports';
 import { AppError } from './errors';
 import { registerHttpMetrics } from './obs/index';
 
@@ -15,6 +20,9 @@ export interface AppDeps {
   aggregatorClient: AggregatorClient;
   jwtClockToleranceSeconds?: number;
   admissionController?: PriorityAdmissionController;
+  ops?: { aggregatorBaseUrl: string; internalServiceKey: string; advisorBaseUrl?: string };
+  fieldReportStore?: FieldReportStore;
+  fieldReportMetrics?: FieldReportMetrics;
 }
 
 export function buildApp(logger: FastifyBaseLogger | undefined, deps: AppDeps): FastifyInstance {
@@ -59,6 +67,16 @@ export function buildApp(logger: FastifyBaseLogger | undefined, deps: AppDeps): 
       protectedRoutes.addHook('preHandler', admissionHooks.preHandler);
     }
     registerHazardsRoute(protectedRoutes, deps.aggregatorClient);
+    if (deps.ops) {
+      registerOpsUnprocessedRoute(protectedRoutes, deps.ops);
+      registerOpsReplayRoute(protectedRoutes, deps.ops);
+      if (deps.ops.advisorBaseUrl) {
+        registerOpsAdvisoryRoute(protectedRoutes, { advisorBaseUrl: deps.ops.advisorBaseUrl, internalServiceKey: deps.ops.internalServiceKey });
+      }
+    }
+    if (deps.fieldReportStore) {
+      registerFieldReportsRoute(protectedRoutes, { store: deps.fieldReportStore, metrics: deps.fieldReportMetrics });
+    }
   });
 
   return app;

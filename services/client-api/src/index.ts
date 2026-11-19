@@ -17,6 +17,7 @@ async function main(): Promise<void> {
     clientJwtSecret: config.clientJwtSecret,
     jwtClockToleranceSeconds: config.jwtClockToleranceSeconds,
     admissionController,
+    ops: { aggregatorBaseUrl: config.aggregatorBaseUrl, internalServiceKey: config.internalServiceKey, advisorBaseUrl: config.advisorBaseUrl },
     aggregatorClient: new HttpAggregatorClient(
       config.aggregatorBaseUrl,
       config.internalServiceKey,
