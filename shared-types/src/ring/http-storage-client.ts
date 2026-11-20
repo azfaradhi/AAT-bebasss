@@ -37,7 +37,7 @@ const strip = (r: UnitRow): HazardEvent => {
 const newest = <T extends { version: number }>(a: T | undefined, b: T): T => (a && a.version >= b.version ? a : b);
 
 export class HttpStorageClient implements StorageClient {
-  private readonly ring: Ring;
+  private ring: Ring;
   private readonly byName = new Map<string, UnitInfo>();
   private readonly call: UnitFetch;
   private readonly ttl: number;
@@ -54,6 +54,21 @@ export class HttpStorageClient implements StorageClient {
   }
 
   get rf(): number { return Math.min(this.opts.rf ?? 2, this.opts.units.length); }
+
+  get unitNames(): string[] { return this.opts.units.map((u) => u.unit); }
+
+  // Live membership: adds units that are not known yet (it never removes one, a down unit must stay in the ring and be repaired).
+  // A new unit is JOINING, so it takes writes but is not read until repair() has copied what it owns; at RF=2 at least one previous owner of every key remains.
+  addUnits(extra: UnitInfo[]): string[] {
+    const fresh = extra.filter((u) => !this.byName.has(u.unit));
+    if (fresh.length === 0) return [];
+    const units = [...this.opts.units, ...fresh].sort((a, b) => a.unit.localeCompare(b.unit));
+    for (const u of fresh) this.byName.set(u.unit, u);
+    this.opts.units = units;
+    this.ring = new Ring(units.map((u) => u.unit), this.opts.rf ?? 2, this.opts.vnodes ?? 64);
+    this.invalidate();
+    return fresh.map((u) => u.unit);
+  }
 
   /* unit state and plumbing */
   private async states(): Promise<Map<string, UnitState>> {

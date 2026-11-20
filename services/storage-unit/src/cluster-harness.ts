@@ -33,5 +33,12 @@ export function makeCluster(opts: { dataDir?: string } = {}) {
       engines.get(unit)!.state = state;
     },
   };
-  return { client, controls, engines, down, infos, fetchUnit, wipe };
+  // A brand-new empty unit (JOINING); hand the returned info to client.addUnits().
+  const newUnit = (unit: string): UnitInfo => {
+    const e = new UnitEngine({ unit, node: unit.replace('unit-', ''), now: () => clock, initialState: 'JOINING' });
+    engines.set(unit, e);
+    apps.set(unit, buildUnitApp(e));
+    return { unit, node: unit.replace('unit-', ''), url: `http://${unit}` };
+  };
+  return { client, controls, engines, down, infos, fetchUnit, wipe, newUnit };
 }

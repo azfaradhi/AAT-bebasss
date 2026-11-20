@@ -1,10 +1,11 @@
 import { promises as dns } from 'node:dns';
+import { readFileSync } from 'node:fs';
 import { GatewayStorageClient } from './gateway-client';
 import { HttpStorageClient, type UnitInfo } from './http-storage-client';
 import type { StorageClient } from '../m2/types';
 import type { UnitIdentity } from './protocol';
 
-// Env: STORAGE_UNITS="http://host:8100,http://host2:8100" or STORAGE_UNITS_DNS="storage-unit.<ns>.svc.cluster.local" (+ STORAGE_UNIT_PORT).
+// Env: STORAGE_UNITS_FILE=<path to a file with unit URLs, re-read on every discovery; dev/demo stand-in for DNS> or STORAGE_UNITS="http://host:8100,http://host2:8100" or STORAGE_UNITS_DNS="storage-unit.<ns>.svc.cluster.local" (+ STORAGE_UNIT_PORT).
 // Each unit reports its own id and node name, so only addresses are configured.
 async function identify(url: string, timeoutMs: number): Promise<UnitInfo> {
   const res = await fetch(new URL('/u/identity', url), { signal: AbortSignal.timeout(timeoutMs) });
@@ -18,7 +19,8 @@ export async function discoverUnits(env: NodeJS.ProcessEnv = process.env, attemp
   for (let i = 0; ; i++) {
     try {
       let urls: string[];
-      if (env.STORAGE_UNITS) urls = env.STORAGE_UNITS.split(',').map((s) => s.trim()).filter(Boolean);
+      if (env.STORAGE_UNITS_FILE) urls = readFileSync(env.STORAGE_UNITS_FILE, 'utf8').split(/[,\s]+/).filter(Boolean);
+      else if (env.STORAGE_UNITS) urls = env.STORAGE_UNITS.split(',').map((s) => s.trim()).filter(Boolean);
       else if (env.STORAGE_UNITS_DNS) urls = (await dns.resolve4(env.STORAGE_UNITS_DNS)).map((ip) => `http://${ip}:${port}`);
       else throw new Error('set STORAGE_UNITS or STORAGE_UNITS_DNS');
       if (urls.length === 0) throw new Error('no storage unit addresses resolved');
@@ -42,6 +44,19 @@ export function startRepairLoop(client: HttpStorageClient, intervalMs: number, o
   return () => clearInterval(timer);
 }
 
+// Periodically re-discovers units and adds new ones to the live ring (never removes). Call from the same single place as the repair loop;
+// repair() then fills the new unit. Returns a stop function.
+export function startMembershipLoop(client: HttpStorageClient, intervalMs: number, env: NodeJS.ProcessEnv = process.env, onAdded?: (units: string[]) => void, onError?: (err: unknown) => void): () => void {
+  let running = false;
+  const timer = setInterval(() => {
+    if (running) return;
+    running = true;
+    discoverUnits(env, 1).then((units) => { const added = client.addUnits(units); if (added.length) onAdded?.(added); }).catch((e) => onError?.(e)).finally(() => { running = false; });
+  }, intervalMs);
+  timer.unref();
+  return () => clearInterval(timer);
+}
+
 // STORAGE_GATEWAY_URL (+ INTERNAL_SERVICE_KEY) reaches the ring through the Aggregator; STORAGE_UNITS(_DNS) talks to the units directly
 // (Aggregator only, per the store NetworkPolicy). Returns null when neither is set so the caller can fall back to in-memory.
 export async function storageFromEnvOrNull(env: NodeJS.ProcessEnv = process.env): Promise<StorageClient | null> {
@@ -49,5 +64,5 @@ export async function storageFromEnvOrNull(env: NodeJS.ProcessEnv = process.env)
     if (!env.INTERNAL_SERVICE_KEY) throw new Error('INTERNAL_SERVICE_KEY is required with STORAGE_GATEWAY_URL');
     return new GatewayStorageClient({ baseUrl: env.STORAGE_GATEWAY_URL, internalServiceKey: env.INTERNAL_SERVICE_KEY });
   }
-  return env.STORAGE_UNITS || env.STORAGE_UNITS_DNS ? createStorageFromEnv(env) : null;
+  return env.STORAGE_UNITS || env.STORAGE_UNITS_DNS || env.STORAGE_UNITS_FILE ? createStorageFromEnv(env) : null;
 }

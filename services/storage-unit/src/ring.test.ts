@@ -159,3 +159,39 @@ describe('over real HTTP', () => {
     }
   });
 });
+
+describe('a new unit joins the live ring (P1-K5, K6)', () => {
+  it('takes writes while joining, is filled by repair, and the ring then survives losing an original unit', async () => {
+    const { client, controls, engines, newUnit } = makeCluster();
+    const refs = Array.from({ length: 300 }, (_, i) => `k-${i}`);
+    for (const r of refs) await client.upsertEvent(ev(r), ctx());
+    const before = await client.checksum('BMKG');
+
+    const info = newUnit('unit-node-d');
+    expect(client.addUnits([info])).toEqual(['unit-node-d']);
+    expect(client.addUnits([info])).toEqual([]); // idempotent
+
+    // Reads stay complete and writes keep succeeding while the new unit is still JOINING.
+    expect(await client.checksum('BMKG')).toMatchObject({ count: 300, checksum: before.checksum, partial: false });
+    for (const r of Array.from({ length: 100 }, (_, i) => `late-${i}`)) {
+      const w = await client.upsertEvent(ev(r), ctx());
+      expect(w.replicas_acked).toBeGreaterThanOrEqual(1);
+    }
+    expect(engines.get('unit-node-d')!.state).toBe('JOINING');
+
+    expect((await client.repair()).repaired).toEqual(['unit-node-d']);
+    expect(engines.get('unit-node-d')!.state).toBe('STABLE');
+    const total = await client.checksum('BMKG');
+    expect(total).toMatchObject({ count: 400, partial: false });
+
+    // The new unit owns roughly RF/N of the keys, and the placement is the same one the client now uses.
+    const status = await client.ringStatus();
+    const d = status.units.find((u) => u.unit === 'unit-node-d')!;
+    expect(d.keys).toBeGreaterThan(400 * 2 / 4 * 0.6);
+    expect(status.redundancy_ok).toBe(true);
+
+    // K6: lose an original unit after the join and nothing is lost.
+    controls.setUnitState('unit-node-a', 'DOWN');
+    expect(await client.checksum('BMKG')).toMatchObject({ count: 400, checksum: total.checksum, partial: false });
+  });
+});

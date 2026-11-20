@@ -14,6 +14,8 @@ Real `StorageClient` implementations behind the contract in `../m2/types.ts` (th
 | Variable | Read by | Meaning |
 |---|---|---|
 | `STORAGE_UNITS_DNS` | Aggregator | Headless Service name of the storage-unit DaemonSet (one A record per pod). Units are identified by asking each for `/u/identity`. |
+| `STORAGE_UNITS_FILE` | Aggregator (dev/demo) | File with unit URLs, re-read on every discovery; stand-in for DNS so a unit can be added to a running ring locally. |
+| `STORAGE_MEMBERSHIP_INTERVAL_MS` | Aggregator | How often new units are looked for (default 5000). |
 | `STORAGE_UNITS` | Aggregator, demos | Comma separated unit URLs, alternative to the DNS name. |
 | `STORAGE_UNIT_PORT` | factory, storage-unit | Default 8100. |
 | `STORAGE_RF` | factory | Replication factor, default 2. |
@@ -30,5 +32,5 @@ When none of the storage variables is set, processors fall back to the in-memory
 - `partial` is true only when some ring arc has every replica unreadable, so one unit down is never partial at RF=2.
 - Writes go to every replica that is not `DOWN` and succeed with at least one ack (`replicas_acked` is reported). A unit that missed writes catches up through `repair()`.
 - Documents written without `version` get a time-ordered version at the unit so replicas converge; deletes are tombstones so a replica that missed one cannot resurrect it.
-- Adding a unit changes ownership of about 1/N of the keys; restart clients with the new unit list and run `repair()` (it copies what the new unit now owns).
+- Adding a unit is live: the Aggregator re-discovers units every `STORAGE_MEMBERSHIP_INTERVAL_MS` (default 5000) and `addUnits()` puts new ones into the ring (never removes one: a pod that disappears from DNS is down, not gone). The new unit is `JOINING`, takes writes immediately, is not read until the repair loop has copied the keys it now owns, and at RF=2 every key keeps at least one previous owner meanwhile. Units that no longer own a key keep their copy (no compaction or hand-off cleanup).
 - Known limits: the log is append-only without compaction; `aggregate`/`checksum` stream every row of the source from each readable unit; `HazardEvent` listing for the public API scans up to 50 000 events per request (cached 1 s).

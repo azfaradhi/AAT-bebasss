@@ -10,7 +10,7 @@ import { BmkgClient } from './sources/bmkg-client';
 import { PvmbgClient } from './sources/pvmbg-client';
 import { PostgresCanonicalStore, type CanonicalStore } from './storage/canonical-store';
 import { StorageCanonicalStore } from './storage/storage-canonical-store';
-import { createStorageFromEnv, startRepairLoop } from '../../../shared-types/src/ring';
+import { createStorageFromEnv, startMembershipLoop, startRepairLoop } from '../../../shared-types/src/ring';
 import { registerAudit } from './audit/audit-router';
 import { registerAnalyticsRoutes } from './analytics/analytics-routes';
 import { createIngestContext } from './ingest/context';
@@ -24,7 +24,7 @@ import type { FastifyInstance } from 'fastify';
 async function main(): Promise<void> {
   const logger = createLogger(SERVICE_NAME);
   // STORAGE_UNITS / STORAGE_UNITS_DNS selects the replicated ring (M2); otherwise the single PostgreSQL store (M1) is used.
-  const useRing = Boolean(process.env.STORAGE_UNITS || process.env.STORAGE_UNITS_DNS);
+  const useRing = Boolean(process.env.STORAGE_UNITS || process.env.STORAGE_UNITS_DNS || process.env.STORAGE_UNITS_FILE);
   const storage = useRing ? await createStorageFromEnv() : null;
   if (!storage && !config.databaseUrl) throw new Error('set STORAGE_UNITS(_DNS) or DATABASE_URL');
   const podName = process.env.POD_NAME ?? 'aggregator-local';
@@ -36,6 +36,8 @@ async function main(): Promise<void> {
   const stopRepair = storage ? startRepairLoop(storage, config.storageRepairIntervalMs, (err) => logger.error({ err: String(err) }, 'ring repair failed')) : null;
   // One ingest context shared by the pollers (park bad responses/items) and the Audit/replay routes (read what was parked).
   const ingest = storage ? createIngestContext({ storage }) : undefined;
+  // New storage units that appear in DNS join the live ring (the repair loop above then fills them); none is ever removed automatically.
+  const stopMembership = storage ? startMembershipLoop(storage, config.storageMembershipIntervalMs, process.env, (added) => logger.info({ units: added }, 'storage unit(s) joined the ring'), (err) => logger.warn({ err: String(err) }, 'storage membership check failed')) : null;
   const publisher = new RabbitMqEventPublisher({ url: config.rabbitmqUrl, logger });
   await publisher.start();
   const dispatcher = new OutboxDispatcher(storage ?? store, publisher, logger);
@@ -76,6 +78,7 @@ async function main(): Promise<void> {
     scheduler.stop();
     await coordinator?.stop();
     stopRepair?.();
+    stopMembership?.();
     await dispatcher.stop();
     await publisher.close();
     await store.close();

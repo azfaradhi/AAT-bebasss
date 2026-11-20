@@ -1,6 +1,6 @@
 // Dev host: the Aggregator's ring-facing routes (Audit, analytics, ingest ops, storage gateway) without RabbitMQ or the pollers.
 import Fastify from 'fastify';
-import { createStorageFromEnv, startRepairLoop } from '../../../shared-types/src/ring';
+import { createStorageFromEnv, startMembershipLoop, startRepairLoop } from '../../../shared-types/src/ring';
 import { registerAnalyticsRoutes } from '../src/analytics/analytics-routes';
 import { registerAudit } from '../src/audit/audit-router';
 import { mountIngest } from '../src/ingest/wiring';
@@ -10,6 +10,7 @@ async function main(): Promise<void> {
   const key = process.env.INTERNAL_SERVICE_KEY ?? 'ik';
   const storage = await createStorageFromEnv();
   startRepairLoop(storage, Number(process.env.STORAGE_REPAIR_INTERVAL_MS ?? 5000));
+  startMembershipLoop(storage, Number(process.env.STORAGE_MEMBERSHIP_INTERVAL_MS ?? 5000));
   const app = Fastify({ logger: false });
   const wiring = mountIngest(app, { storage, internalServiceKey: key });
   registerAudit(app, { storage, providers: wiring.providers, auditToken: process.env.AUDIT_TOKEN ?? 'audit-secret' });

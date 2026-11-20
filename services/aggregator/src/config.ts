@@ -15,6 +15,7 @@ const schema = z.object({
   DATABASE_URL: z.string().min(1).optional(),
   AUDIT_TOKEN: z.string().min(1).optional(),
   STORAGE_REPAIR_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
+  STORAGE_MEMBERSHIP_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
   RABBITMQ_URL: z.string().min(1),
   INTERNAL_SERVICE_KEY: z.string().min(1),
 });
@@ -39,6 +40,7 @@ export const config = {
   databaseUrl: parsed.data.DATABASE_URL,
   auditToken: parsed.data.AUDIT_TOKEN,
   storageRepairIntervalMs: parsed.data.STORAGE_REPAIR_INTERVAL_MS,
+  storageMembershipIntervalMs: parsed.data.STORAGE_MEMBERSHIP_INTERVAL_MS,
   rabbitmqUrl: parsed.data.RABBITMQ_URL,
   internalServiceKey: parsed.data.INTERNAL_SERVICE_KEY,
 };
