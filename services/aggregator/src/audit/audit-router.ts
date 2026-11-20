@@ -6,6 +6,9 @@ export interface RegisterAuditOptions {
   storage: StorageClient;
   providers?: Partial<AuditProviders>;
   auditToken?: string;
+  // Per-process token bucket on /internal/audit/*; 0 disables. Default is generous so the tester is not throttled.
+  rateLimitPerSec?: number;
+  now?: () => number;
 }
 
 const ERROR_CODES = {
@@ -14,6 +17,7 @@ const ERROR_CODES = {
   FORBIDDEN: 'FORBIDDEN',
   NOT_FOUND: 'NOT_FOUND',
   SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
+  RATE_LIMITED: 'RATE_LIMITED',
 };
 
 function sendError(reply: FastifyReply, status: number, code: string, message: string) {
@@ -25,8 +29,18 @@ function sendError(reply: FastifyReply, status: number, code: string, message: s
   });
 }
 
+// Spec: audit endpoints answer 400/401/403/404/429/503 in the error envelope and never 500 when storage or a provider is down.
+function sendDownstreamError(reply: FastifyReply, err: unknown, fallback: string) {
+  const message = (err as Error)?.message || fallback;
+  return sendError(reply, 503, ERROR_CODES.SERVICE_UNAVAILABLE, message);
+}
+
 export function registerAudit(app: FastifyInstance, options: RegisterAuditOptions): void {
   const { storage, providers = {}, auditToken = process.env.AUDIT_TOKEN || 'changeme-audit-token' } = options;
+  const ratePerSec = options.rateLimitPerSec ?? Number(process.env.AUDIT_RATE_LIMIT_PER_SEC ?? 200);
+  const now = options.now ?? Date.now;
+  let tokens = ratePerSec;
+  let lastRefill = now();
 
   // Bearer token verification hook for /internal/audit/*
   app.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
@@ -46,6 +60,18 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
 
     if (token !== auditToken) {
       return sendError(reply, 403, ERROR_CODES.FORBIDDEN, 'Invalid audit token');
+    }
+
+    // Rate limit only authenticated callers, so unauthenticated floods cannot starve the real auditor.
+    if (ratePerSec > 0) {
+      const t = now();
+      tokens = Math.min(ratePerSec, tokens + ((t - lastRefill) / 1000) * ratePerSec);
+      lastRefill = t;
+      if (tokens < 1) {
+        reply.header('Retry-After', '1');
+        return sendError(reply, 429, ERROR_CODES.RATE_LIMITED, 'Too many audit requests; retry after 1 second');
+      }
+      tokens -= 1;
     }
   });
 
@@ -78,7 +104,7 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
       if (error?.name === 'StorageUnavailableError') {
         return sendError(reply, 503, ERROR_CODES.SERVICE_UNAVAILABLE, error.message || 'Storage unavailable');
       }
-      return sendError(reply, 500, 'INTERNAL_SERVER_ERROR', (err as Error)?.message || 'Internal server error');
+      return sendDownstreamError(reply, err, 'Storage unavailable');
     }
   });
 
@@ -110,7 +136,7 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
       if (error?.name === 'StorageUnavailableError') {
         return sendError(reply, 503, ERROR_CODES.SERVICE_UNAVAILABLE, error.message || 'Storage unavailable');
       }
-      return sendError(reply, 500, 'INTERNAL_SERVER_ERROR', (err as Error)?.message || 'Internal server error');
+      return sendDownstreamError(reply, err, 'Storage unavailable');
     }
   });
 
@@ -140,7 +166,7 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
       if (error?.name === 'StorageUnavailableError') {
         return sendError(reply, 503, ERROR_CODES.SERVICE_UNAVAILABLE, error.message || 'Storage unavailable');
       }
-      return sendError(reply, 500, 'INTERNAL_SERVER_ERROR', (err as Error)?.message || 'Internal server error');
+      return sendDownstreamError(reply, err, 'Storage unavailable');
     }
   });
 
@@ -154,7 +180,7 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
       if (error?.name === 'StorageUnavailableError') {
         return sendError(reply, 503, ERROR_CODES.SERVICE_UNAVAILABLE, error.message || 'Storage unavailable');
       }
-      return sendError(reply, 500, 'INTERNAL_SERVER_ERROR', (err as Error)?.message || 'Internal server error');
+      return sendDownstreamError(reply, err, 'Storage unavailable');
     }
   });
 
@@ -182,7 +208,7 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
       });
       return reply.send(res);
     } catch (err: unknown) {
-      return sendError(reply, 500, 'INTERNAL_SERVER_ERROR', (err as Error)?.message || 'Failed to list unprocessed messages');
+      return sendDownstreamError(reply, err, 'Failed to list unprocessed messages');
     }
   });
 
@@ -211,7 +237,7 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
       const res = await providers.fieldReports({ limit, cursor });
       return reply.send(res);
     } catch (err: unknown) {
-      return sendError(reply, 500, 'INTERNAL_SERVER_ERROR', (err as Error)?.message || 'Failed to list field reports audit');
+      return sendDownstreamError(reply, err, 'Failed to list field reports audit');
     }
   });
 
@@ -239,7 +265,7 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
       const res = await providers.criticalDeliveries({ limit, cursor });
       return reply.send(res);
     } catch (err: unknown) {
-      return sendError(reply, 500, 'INTERNAL_SERVER_ERROR', (err as Error)?.message || 'Failed to list critical deliveries');
+      return sendDownstreamError(reply, err, 'Failed to list critical deliveries');
     }
   });
 }
