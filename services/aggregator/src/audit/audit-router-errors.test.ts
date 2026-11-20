@@ -55,4 +55,16 @@ describe('Audit router error contract', () => {
     expect(res.statusCode).toBe(503);
     expect(res.json().error.code).toBe('SERVICE_UNAVAILABLE');
   });
+
+  it('defaults events to 100 per page and caps limit at 1000 (Lampiran A)', async () => {
+    const seen: number[] = [];
+    const storage = new InMemoryStorage();
+    const real = storage.listEvents.bind(storage);
+    storage.listEvents = async (q) => { seen.push(q.limit); return real(q); };
+    const app = Fastify();
+    registerAudit(app, { storage, auditToken: 't', rateLimitPerSec: 0 });
+    for (const q of ['', '?limit=5000', '?limit=250']) await app.inject({ method: 'GET', url: `/internal/audit/events${q}`, headers: auth });
+    expect(seen).toEqual([100, 1000, 250]);
+    expect((await app.inject({ method: 'GET', url: '/internal/audit/events?limit=0', headers: auth })).statusCode).toBe(400);
+  });
 });

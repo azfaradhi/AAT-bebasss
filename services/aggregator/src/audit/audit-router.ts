@@ -86,10 +86,12 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
   }>, reply: FastifyReply) => {
     try {
       const { source, since, limit: rawLimit, cursor } = request.query;
-      const limit = rawLimit !== undefined ? parseInt(rawLimit, 10) : 100;
-      if (isNaN(limit) || limit < 1) {
+      const parsed = rawLimit !== undefined ? parseInt(rawLimit, 10) : 100;
+      if (isNaN(parsed) || parsed < 1) {
         return sendError(reply, 400, ERROR_CODES.BAD_REQUEST, 'Invalid limit parameter');
       }
+      // Lampiran A: default 100, at most 1000 per page.
+      const limit = Math.min(parsed, 1000);
 
       const res = await storage.listEvents({
         source,
