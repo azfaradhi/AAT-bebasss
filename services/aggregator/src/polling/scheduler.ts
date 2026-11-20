@@ -83,11 +83,16 @@ export class PollingScheduler {
       await this.opts.store.markSourceFresh(source.sourceName);
       this.opts.logger.info({ source: source.sourceName, latency_ms: Date.now() - started }, 'source poll completed');
     } catch (err) {
-      await this.opts.store.markSourceStale(source.sourceName);
+      // Log first: marking the source stale is itself a fenced write, so a deposed leader would otherwise lose the reason silently.
       this.opts.logger.error(
         { source: source.sourceName, latency_ms: Date.now() - started, err: err instanceof Error ? err.message : String(err) },
         'source poll failed',
       );
+      try {
+        await this.opts.store.markSourceStale(source.sourceName);
+      } catch (staleErr) {
+        this.opts.logger.warn({ source: source.sourceName, err: staleErr instanceof Error ? staleErr.message : String(staleErr) }, 'could not mark source stale');
+      }
       throw err;
     }
   }

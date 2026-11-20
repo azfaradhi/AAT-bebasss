@@ -106,4 +106,19 @@ describe('PollingScheduler', () => {
 
     expect(bmkgPoll).toHaveBeenCalledWith('2026-10-06T09:59:00.000Z');
   });
+
+  it('still logs the poll failure when marking the source stale is itself refused (deposed leader)', async () => {
+    const errors: Array<{ err?: string }> = [];
+    const warns: unknown[] = [];
+    const log = { info: vi.fn(), warn: (o: unknown) => warns.push(o), error: (o: { err?: string }) => errors.push(o) };
+    const scheduler = new PollingScheduler({
+      intervalMs: 1000, lookbackMs: 0, logger: log,
+      store: { ...store, markSourceStale: async () => { throw new Error('fenced: token 1 < 2'); } },
+      bmkg: { sourceName: 'BMKG', poll: async () => { throw new Error('upstream exploded'); } },
+      pvmbg: { sourceName: 'PVMBG', poll: async () => [] },
+    });
+    await scheduler.runTick();
+    expect(errors.map((e) => e.err)).toContain('upstream exploded');
+    expect(warns).toHaveLength(1);
+  });
 });
