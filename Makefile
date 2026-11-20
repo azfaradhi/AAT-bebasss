@@ -7,7 +7,7 @@ IMAGE_REGISTRY ?= node-a:5000
 IMAGE_TAG ?= m2
 ENV_FILE ?= .env.local
 
-SERVICES := bmkg-mock pvmbg-mock aggregator auth-service client-api dashboard-updater notifier storage-unit satellite-processor field-report-processor advisor
+SERVICES := bmkg-mock pvmbg-mock aggregator auth-service client-api dashboard-updater notifier storage-unit satellite-processor field-report-processor advisor analytics-dashboard
 
 .PHONY: help dev-up up down build push secrets verify-labels verify-resources verify-netpol verify-manifests obs-vendor
 
@@ -68,6 +68,7 @@ build:
 	docker build -t $(IMAGE_REGISTRY)/bnpb-satellite-processor:$(IMAGE_TAG) -f services/satellite-processor/Dockerfile .
 	docker build -t $(IMAGE_REGISTRY)/bnpb-field-report-processor:$(IMAGE_TAG) -f services/field-report-processor/Dockerfile .
 	docker build -t $(IMAGE_REGISTRY)/bnpb-advisor:$(IMAGE_TAG) -f services/advisor/Dockerfile .
+	docker build -t $(IMAGE_REGISTRY)/bnpb-analytics-dashboard:$(IMAGE_TAG) -f services/analytics-dashboard/Dockerfile .
 
 push:
 	@for svc in $(SERVICES); do \

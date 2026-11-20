@@ -60,9 +60,10 @@ export function registerAnalyticsRoutes(app: FastifyInstance, options: RegisterA
           },
         });
       }
-      return reply.status(500).send({
+      // Spec: never 500 when storage is unreachable; any aggregation failure is reported as 503 in the envelope.
+      return reply.status(503).send({
         error: {
-          code: 'INTERNAL_SERVER_ERROR',
+          code: 'SERVICE_UNAVAILABLE',
           message: (err as Error)?.message || 'Failed to aggregate analytics',
         },
       });

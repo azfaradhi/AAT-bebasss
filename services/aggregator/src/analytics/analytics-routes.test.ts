@@ -58,4 +58,11 @@ describe('Analytics Routes', () => {
     expect(body.as_of).toBeDefined();
     expect(body.partial).toBe(false);
   });
+
+  it('answers 503 in the error envelope, never 500, when aggregation fails', async () => {
+    storage.aggregate = async () => { throw new TypeError('socket hang up'); };
+    const res = await app.inject({ method: 'GET', url: '/internal/analytics/summary' });
+    expect(res.statusCode).toBe(503);
+    expect(res.json().error.code).toBe('SERVICE_UNAVAILABLE');
+  });
 });
