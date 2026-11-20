@@ -13,6 +13,7 @@ import { StorageCanonicalStore } from './storage/storage-canonical-store';
 import { createStorageFromEnv, startRepairLoop } from '../../../shared-types/src/ring';
 import { registerAudit } from './audit/audit-router';
 import { registerAnalyticsRoutes } from './analytics/analytics-routes';
+import { createIngestContext } from './ingest/context';
 import { mountIngest } from './ingest/wiring';
 import { registerStorageGateway } from './storage/gateway-route';
 import { coordinatorFromEnv } from '../../../shared-types/src/coordination/factory';
@@ -33,6 +34,8 @@ async function main(): Promise<void> {
     : new PostgresCanonicalStore(config.databaseUrl!);
   await store.init();
   const stopRepair = storage ? startRepairLoop(storage, config.storageRepairIntervalMs, (err) => logger.error({ err: String(err) }, 'ring repair failed')) : null;
+  // One ingest context shared by the pollers (park bad responses/items) and the Audit/replay routes (read what was parked).
+  const ingest = storage ? createIngestContext({ storage }) : undefined;
   const publisher = new RabbitMqEventPublisher({ url: config.rabbitmqUrl, logger });
   await publisher.start();
   const dispatcher = new OutboxDispatcher(storage ?? store, publisher, logger);
@@ -47,6 +50,7 @@ async function main(): Promise<void> {
       apiKey: config.bmkgApiKey,
       timeoutMs: config.sourceRequestTimeoutMs,
       logger,
+      ingest,
     }),
     pvmbg: new PvmbgClient({
       baseUrl: config.pvmbgBaseUrl,
@@ -55,11 +59,12 @@ async function main(): Promise<void> {
       logger,
       circuitBreaker: new CircuitBreaker(config.circuitBreakerFailureThreshold, config.circuitBreakerCooldownMs),
       limiter: new ConcurrencyLimiter(config.pvmbgMaxConcurrentCalls),
+      ingest,
     }),
   });
   const extras = storage
     ? (a: FastifyInstance) => {
-        const wiring = mountIngest(a, { storage, internalServiceKey: config.internalServiceKey });
+        const wiring = mountIngest(a, { storage, internalServiceKey: config.internalServiceKey, ingest });
         registerAudit(a, { storage, providers: wiring.providers, auditToken: config.auditToken });
         registerAnalyticsRoutes(a, { storage, internalServiceKey: config.internalServiceKey });
         registerStorageGateway(a, storage, config.internalServiceKey);

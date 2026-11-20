@@ -13,6 +13,8 @@ export interface IngestWiringOptions {
   mapperVersion?: MapperVersion;
   fence?: () => number;
   env?: NodeJS.ProcessEnv;
+  // Pass the same context the BMKG/PVMBG clients use so they park into the store the Audit route reads.
+  ingest?: IngestContext;
 }
 
 export interface IngestWiring {
@@ -26,7 +28,7 @@ export interface IngestWiring {
 // Mounts Member 1's internal routes on the aggregator app over whichever StorageClient it runs with.
 export function mountIngest(app: FastifyInstance, opts: IngestWiringOptions): IngestWiring {
   const env = opts.env ?? process.env;
-  const ingest = createIngestContext({ storage: opts.storage, env, fence: opts.fence });
+  const ingest = opts.ingest ?? createIngestContext({ storage: opts.storage, env, fence: opts.fence });
   const writer = storageClientWriter(opts.storage, ingest);
   const mapperVersion = opts.mapperVersion ?? (env.VOLCANIC_MAPPER_VERSION === 'v2' ? 'v2' : 'v1');
   registerReplayRoute(app, { ingest, writer, mapperVersion }, opts.internalServiceKey);
