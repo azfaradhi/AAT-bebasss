@@ -13,6 +13,7 @@ import { StorageCanonicalStore } from './storage/storage-canonical-store';
 import { createStorageFromEnv, startMembershipLoop, startRepairLoop } from '../../../shared-types/src/ring';
 import { registerAudit } from './audit/audit-router';
 import { registerAnalyticsRoutes } from './analytics/analytics-routes';
+import { notifierDeliveriesProvider } from './audit/critical-deliveries-provider';
 import { createIngestContext } from './ingest/context';
 import { PantaiPoller } from './sources/pantai-client';
 import { mountIngest } from './ingest/wiring';
@@ -68,7 +69,7 @@ async function main(): Promise<void> {
   const extras = storage
     ? (a: FastifyInstance) => {
         const wiring = mountIngest(a, { storage, internalServiceKey: config.internalServiceKey, ingest });
-        registerAudit(a, { storage, providers: wiring.providers, auditToken: config.auditToken });
+        registerAudit(a, { storage, providers: { ...wiring.providers, ...(config.notifierBaseUrl ? { criticalDeliveries: notifierDeliveriesProvider(config.notifierBaseUrl) } : {}) }, auditToken: config.auditToken });
         registerAnalyticsRoutes(a, { storage, internalServiceKey: config.internalServiceKey });
         registerStorageGateway(a, storage, config.internalServiceKey);
       }

@@ -8,6 +8,7 @@ data:
   AGGREGATOR_HOST: "0.0.0.0"
   BMKG_BASE_URL: "http://bmkg-mock:8081"
   PVMBG_BASE_URL: "http://pvmbg-mock:8082"
+  NOTIFIER_BASE_URL: "http://notifier:8093"
   PANTAI_BASE_URL: "http://sensor-pantai:8080"
   POLL_INTERVAL_BMKG_MS: "5000"
   POLL_INTERVAL_PVMBG_MS: "7000"

@@ -28,7 +28,7 @@ async function until<T>(what: string, fn: () => Promise<T | null | false>, ms = 
 const CRIT_ARGS = { 'x-queue-type': 'quorum', 'x-dead-letter-exchange': 'dlx_hazard' };
 const CONTAINER = 'bnpb-e2e-rabbit';
 
-async function scenario(label: string, base: number, faults: boolean): Promise<void> {
+async function scenario(label: string, base: number, faults: boolean, realNotifier = false): Promise<void> {
   line(`--- ${label} ---`);
   const tmp = mkdtempSync(join(tmpdir(), 'full-'));
   const procs = new Map<string, ChildProcess>();
@@ -53,7 +53,7 @@ async function scenario(label: string, base: number, faults: boolean): Promise<v
       ch.ack(m);
     });
   };
-  if (!faults) await startCriticalConsumer();
+  if (!faults && !realNotifier) await startCriticalConsumer();
 
   const ports = [base, base + 1, base + 2];
   ports.forEach((p, i) => run(`unit-${i}`, 'node', ['dist/services/storage-unit/src/index.js'], join(ROOT, 'services/storage-unit'), { STORAGE_UNIT_PORT: String(p), STORAGE_UNIT_ID: `unit-${i}`, NODE_NAME: `node-${i}`, STORAGE_DATA_DIR: join(tmp, `u${i}`) }));
@@ -71,8 +71,11 @@ async function scenario(label: string, base: number, faults: boolean): Promise<v
   const agg = (id: string, port: number) => run(id, 'npx', ['tsx', 'src/index.ts'], join(ROOT, 'services/aggregator'), {
     AGGREGATOR_PORT: String(port), STORAGE_UNITS, KUBE_API_URL: KUBE, LEASE_NAMESPACE: 'bnpb', LEASE_DURATION_SECONDS: '4', LEASE_RENEW_INTERVAL_MS: '500', POD_NAME: id, HOSTNAME: id,
     RABBITMQ_URL: RABBIT, INTERNAL_SERVICE_KEY: 'ik', AUDIT_TOKEN: 'audit-secret', BMKG_BASE_URL: BM, BMKG_API_KEY: 'bk', PVMBG_BASE_URL: PV, PVMBG_ACCESS_TOKEN: pvToken,
-    POLL_INTERVAL_MS: '1000', POLL_LOOKBACK_MS: '0', PANTAI_BASE_URL: SENSOR, PANTAI_AUTH_TOKEN: 'st', PANTAI_POLL_INTERVAL_MS: '600', STORAGE_REPAIR_INTERVAL_MS: '1000',
+    ...(realNotifier ? { NOTIFIER_BASE_URL: `http://127.0.0.1:${base + 30}` } : {}), POLL_INTERVAL_MS: '1000', POLL_LOOKBACK_MS: '0', PANTAI_BASE_URL: SENSOR, PANTAI_AUTH_TOKEN: 'st', PANTAI_POLL_INTERVAL_MS: '600', STORAGE_REPAIR_INTERVAL_MS: '1000',
   });
+  if (realNotifier) run('notifier', 'npx', ['tsx', 'src/index.ts'], join(ROOT, 'services/consumers/notifier'), { RABBITMQ_URL: RABBIT, NOTIFIER_CONSUMER_PORT: String(base + 30) });
+  // The notifier is up (queues declared, consuming) before any alert is produced, so the p95 measures delivery, not notifier start-up time.
+  if (realNotifier) await until('notifier ready', async () => (await fetch(`http://127.0.0.1:${base + 30}/health`)).ok, 60_000);
   const t0 = Date.now();
   agg('agg-1', base + 20); agg('agg-2', base + 21);
   await until('aggregators up', async () => (await fetch(`http://127.0.0.1:${base + 20}/health`)).ok && (await fetch(`http://127.0.0.1:${base + 21}/health`)).ok, 90_000);
@@ -98,12 +101,21 @@ async function scenario(label: string, base: number, faults: boolean): Promise<v
   await until('all events and critical alerts delivered', async () => (wantEv.every((id) => events.has(id)) && [...wantCrit].every((id) => criticals.has(id)) ? true : null), 120_000).catch(() => null);
   const missingEv = wantEv.filter((id) => !events.has(id));
   const missingCrit = [...wantCrit].filter((id) => !criticals.has(id));
+  if (realNotifier) {
+    // The real notifier consumed the critical queue; the Audit API (aggregator -> notifier) reports what it delivered.
+    const AUD = `http://127.0.0.1:${base + 20}/internal/audit/critical-deliveries?limit=200`;
+    const rep = await until('notifier deliveries', async () => { const r = await j(AUD, { authorization: 'Bearer audit-secret' }); return r.total >= expected.critical.length ? r : null; }, 60_000).catch(async () => j(AUD, { authorization: 'Bearer audit-secret' }));
+    const got = new Set<string>((rep.items as any[]).map((i) => i.message_id));
+    line(`  real notifier via Audit /internal/audit/critical-deliveries: total ${rep.total}, p95 ${rep.p95_seconds} s`);
+    check(`${label}: the Audit API lists every critical alert the notifier delivered (${rep.total} of ${wantCrit.size}), ids match`, rep.total === wantCrit.size && [...wantCrit].every((id) => got.has(id)));
+    check(`${label}: notifier-reported end-to-end p95 ${rep.p95_seconds} s <= 5 s (P5-K1 target)`, typeof rep.p95_seconds === 'number' && rep.p95_seconds <= 5);
+  }
   const lat = [...criticals.values()].map((c) => c.latencyMs).sort((a, b) => a - b);
   const p95 = lat.length ? lat[Math.max(0, Math.ceil(lat.length * 0.95) - 1)] : NaN;
   line(`  ${stored.length} events stored, ${wantEv.length - missingEv.length} delivered to the exchange queue (${evDup} duplicate deliveries); ${expected.critical.length} critical observations, ${criticals.size} critical alerts delivered (${critDup} duplicates), detected->received p50 ${lat[Math.floor(lat.length / 2)]} ms, p95 ${p95} ms, max ${lat[lat.length - 1]} ms; ${((Date.now() - t0) / 1000).toFixed(0)} s`);
   check(`${label}: every stored event reached a consumer of the fanout exchange (0 missing of ${stored.length})`, missingEv.length === 0);
-  check(`${label}: every critical observation produced a critical alert on critical_alerts_queue (0 missing of ${wantCrit.size})`, wantCrit.size === expected.critical.length && missingCrit.length === 0);
-  if (!faults) check(`${label}: critical delivery p95 ${p95} ms <= 5000 ms (P5-K1 target)`, p95 <= 5000);
+  check(`${label}: every critical observation produced a critical alert on critical_alerts_queue (0 missing of ${wantCrit.size})`, wantCrit.size === expected.critical.length && (realNotifier || missingCrit.length === 0));
+  if (!faults && !realNotifier) check(`${label}: critical delivery p95 ${p95} ms <= 5000 ms (P5-K1 target)`, p95 <= 5000);
   const outbox = await ring.outboxPending();
   check(`${label}: outbox drained (${outbox} pending)`, outbox === 0);
 
@@ -115,8 +127,9 @@ async function scenario(label: string, base: number, faults: boolean): Promise<v
 }
 
 async function main(): Promise<void> {
-  if (process.env.ONLY !== 'B') await scenario('A clean', 19900, false);
-  if (process.env.ONLY !== 'A') await scenario('B faults (late critical queue, broker paused 8 s, storage unit killed)', 20000, true);
+  if (process.env.ONLY !== 'B' && process.env.ONLY !== 'C') await scenario('A clean', 19900, false);
+  if (process.env.ONLY === 'C') await scenario('C clean with the real notifier service', 20100, false, true);
+  if (process.env.ONLY !== 'A' && process.env.ONLY !== 'C') await scenario('B faults (late critical queue, broker paused 8 s, storage unit killed)', 20000, true);
   line(`RESULT: ${checks.every(([, ok]) => ok) ? 'PASS' : 'FAIL'}`);
   process.exitCode = checks.every(([, ok]) => ok) ? 0 : 1;
 }
