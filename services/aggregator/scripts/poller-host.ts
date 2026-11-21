@@ -5,6 +5,7 @@ import { InMemoryCoordinator } from '../src/coordination/in-memory-coordinator';
 import { createIngestContext } from '../src/ingest/context';
 import { createLogger } from '../src/logger';
 import { PollingScheduler } from '../src/polling/scheduler';
+import { PantaiPoller } from '../src/sources/pantai-client';
 import { CircuitBreaker } from '../src/resilience/circuit-breaker';
 import { ConcurrencyLimiter } from '../src/resilience/concurrency-limiter';
 import { BmkgClient } from '../src/sources/bmkg-client';
@@ -27,6 +28,11 @@ async function main(): Promise<void> {
   });
   for (const name of ['bmkg', 'pvmbg']) void coordinator.runAsLeader(name, ({ signal }) => new Promise<void>((resolve) => signal.addEventListener('abort', () => resolve())));
   scheduler.start();
-  process.on('SIGTERM', async () => { scheduler.stop(); await coordinator.stop(); process.exit(0); });
+  // Optional Sensor Pantai poller (PANTAI_BASE_URL + PANTAI_AUTH_TOKEN), same wiring as the Aggregator's index.ts but without the broker.
+  const pantai = process.env.PANTAI_BASE_URL && process.env.PANTAI_AUTH_TOKEN
+    ? new PantaiPoller({ baseUrl: process.env.PANTAI_BASE_URL, authToken: process.env.PANTAI_AUTH_TOKEN, instanceId: podName, pollIntervalMs: Number(process.env.PANTAI_POLL_INTERVAL_MS ?? 2000), timeoutMs, storage, coordinator, parker: ingest.parker })
+    : null;
+  if (pantai) void pantai.start();
+  process.on('SIGTERM', async () => { scheduler.stop(); pantai?.stop(); await coordinator.stop(); process.exit(0); });
 }
 main().catch((e) => { process.stderr.write(`${e}\n`); process.exit(1); });

@@ -14,6 +14,7 @@ import { createStorageFromEnv, startMembershipLoop, startRepairLoop } from '../.
 import { registerAudit } from './audit/audit-router';
 import { registerAnalyticsRoutes } from './analytics/analytics-routes';
 import { createIngestContext } from './ingest/context';
+import { PantaiPoller } from './sources/pantai-client';
 import { mountIngest } from './ingest/wiring';
 import { registerStorageGateway } from './storage/gateway-route';
 import { coordinatorFromEnv } from '../../../shared-types/src/coordination/factory';
@@ -76,6 +77,7 @@ async function main(): Promise<void> {
 
   const shutdown = async (): Promise<void> => {
     scheduler.stop();
+    pantai?.stop();
     await coordinator?.stop();
     stopRepair?.();
     stopMembership?.();
@@ -93,6 +95,15 @@ async function main(): Promise<void> {
   for (const name of ['bmkg', 'pvmbg']) {
     void coordinator?.runAsLeader(name, ({ signal }) => new Promise<void>((resolve) => signal.addEventListener('abort', () => resolve())));
   }
+  // Sensor Pantai (Problem 5): fenced leader poller on the 'pantai' lease; needs the ring (events, outbox, parker) and a coordinator.
+  const pantai = storage && coordinator && ingest && config.pantaiBaseUrl && config.pantaiAuthToken
+    ? new PantaiPoller({
+        baseUrl: config.pantaiBaseUrl, authToken: config.pantaiAuthToken, instanceId: podName,
+        pollIntervalMs: config.pantaiPollIntervalMs, timeoutMs: config.pantaiTimeoutMs, maxStalenessSeconds: config.pantaiMaxStalenessS,
+        storage, coordinator, parker: ingest.parker, criticalPublisher: publisher,
+      })
+    : null;
+  if (pantai) void pantai.start().catch((err) => logger.error({ err: String(err) }, 'sensor-pantai poller stopped'));
   dispatcher.start();
   scheduler.start();
 }
