@@ -42,6 +42,8 @@ export class RabbitMqEventPublisher implements EventPublisher {
   private closing = false;
   private retryTimer: NodeJS.Timeout | null = null;
   private retryDelayMs: number;
+  // Message ids the broker returned as unroutable (mandatory publish); the confirm callback turns them into a failure so the outbox retries.
+  private readonly returned = new Set<string>();
 
   private readonly publishTimeoutMs: number;
   private readonly reconnectMinMs: number;
@@ -103,6 +105,8 @@ export class RabbitMqEventPublisher implements EventPublisher {
       correlationId: alert.correlation_id,
       type: 'CriticalAlertCreated',
       priority: 10,
+      // Unroutable (the critical queue does not exist yet) must not look like success: the broker returns the message and the outbox row stays pending.
+      mandatory: true,
       headers: amqpInject({
         message_id: alert.message_id,
         'x-correlation-id': alert.correlation_id,
@@ -149,7 +153,9 @@ export class RabbitMqEventPublisher implements EventPublisher {
           },
           (err) => {
             clearTimeout(timer);
-            if (err) reject(err instanceof Error ? err : new Error(String(err)));
+            const id = options.messageId;
+            if (id && this.returned.delete(id)) reject(new BrokerUnavailableError(`Broker returned ${routingKey || exchange} as unroutable`));
+            else if (err) reject(err instanceof Error ? err : new Error(String(err)));
             else resolve();
           },
         );
@@ -174,6 +180,7 @@ export class RabbitMqEventPublisher implements EventPublisher {
         }
       });
       const channel = await connection.createConfirmChannel();
+      channel.on('return', (msg: { properties?: { messageId?: string } }) => { const id = msg?.properties?.messageId; if (id) this.returned.add(id); });
       await assertTopology(channel);
       this.connection = connection;
       this.channel = channel;

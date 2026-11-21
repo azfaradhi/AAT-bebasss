@@ -23,6 +23,7 @@ const event: HazardEvent = {
 
 function fakeBroker(confirm: (cb: (err: unknown) => void) => void = (cb) => cb(null)) {
   const channel = {
+    on: vi.fn(),
     assertExchange: vi.fn().mockResolvedValue(undefined),
     assertQueue: vi.fn().mockResolvedValue(undefined),
     bindQueue: vi.fn().mockResolvedValue(undefined),
@@ -132,6 +133,22 @@ describe('RabbitMqEventPublisher', () => {
     const publisher = makePublisher({ publishTimeoutMs: 20 });
     await publisher.start();
     await expect(publisher.publish(event, 'c')).rejects.toBeInstanceOf(BrokerUnavailableError);
+    await publisher.close();
+  });
+
+  it('fails a critical alert the broker returns as unroutable, so the outbox row is retried', async () => {
+    let returnHandler: ((m: { properties: { messageId: string } }) => void) | undefined;
+    const { channel } = fakeBroker();
+    channel.on.mockImplementation((name: string, fn: typeof returnHandler) => { if (name === 'return') returnHandler = fn; });
+    channel.publish.mockImplementation((_e: string, _k: string, _c: Buffer, o: { messageId: string; mandatory?: boolean }, cb: (err: unknown) => void) => {
+      expect(o.mandatory).toBe(true);
+      returnHandler?.({ properties: { messageId: o.messageId } });
+      cb(null);
+      return true;
+    });
+    const publisher = makePublisher();
+    await publisher.start();
+    await expect(publisher.publishCriticalAlert({ message_id: 'm-1', hazard_id: 'h-1', source: 'SENSOR_PANTAI', severity: 'AWAS', area_name: 'x', occurred_at: '2026-11-21T00:00:00.000Z', detected_at: '2026-11-21T00:00:01.000Z', correlation_id: 'c' })).rejects.toBeInstanceOf(BrokerUnavailableError);
     await publisher.close();
   });
 });
