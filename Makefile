@@ -34,7 +34,9 @@ secrets:
 	fi
 	kubectl apply -f deploy/k8s/base/namespace.yaml
 	set -a && . "./$(ENV_FILE)" && set +a && \
+	PVMBG_ACCESS_TOKEN="$${PVMBG_ACCESS_TOKEN:-$$(node -e 'const c=require("crypto");const b=o=>Buffer.from(JSON.stringify(o)).toString("base64url");const h=b({alg:"HS256",typ:"JWT"});const p=b({sub:"aggregator",aud:"pvmbg",exp:Math.floor(Date.now()/1000)+31536000});process.stdout.write(h+"."+p+"."+c.createHmac("sha256",process.env.PVMBG_JWT_SECRET).update(h+"."+p).digest("base64url"))')}" && \
 	kubectl -n $(NAMESPACE) create secret generic bnpb-secrets \
+		--from-literal=PVMBG_ACCESS_TOKEN="$${PVMBG_ACCESS_TOKEN}" \
 		--from-literal=AUDIT_TOKEN="$${AUDIT_TOKEN}" \
 		--from-literal=SAT_AUTH_TOKEN="$${SAT_AUTH_TOKEN}" \
 		--from-literal=BMKG_API_KEY="$${BMKG_API_KEY}" \

@@ -23,6 +23,14 @@ describe('aggregator HTTP skeleton', () => {
     expect(res.json()).toMatchObject({ status: 'ok', service: SERVICE_NAME });
   });
 
+  it('serves the probe and metrics paths the k8s manifests rely on', async () => {
+    expect((await app.inject({ method: 'GET', url: '/healthz' })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/ready' })).statusCode).toBe(200);
+    const metrics = await app.inject({ method: 'GET', url: '/metrics' });
+    expect(metrics.statusCode).toBe(200);
+    expect(metrics.headers['content-type']).toContain('text/plain');
+  });
+
   it('returns the standard error envelope for an unknown route', async () => {
     const res = await app.inject({ method: 'GET', url: '/missing' });
     expect(res.statusCode).toBe(404);

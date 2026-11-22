@@ -3,6 +3,7 @@ import type { ErrorEnvelope, HealthResponse } from '../../../shared-types/src/en
 import type { CanonicalStore } from './storage/canonical-store';
 import { registerInternalHazardsRoute } from './internal-api/hazards-route';
 import { bindCorrelationId } from './internal-api/correlation-id';
+import { registerHttpMetrics } from './resilience/obs';
 
 export const SERVICE_NAME = 'aggregator';
 
@@ -17,6 +18,7 @@ export function buildApp(logger: FastifyBaseLogger, deps: AppDeps): FastifyInsta
   const app = Fastify({ loggerInstance: logger });
 
   app.addHook('onRequest', bindCorrelationId);
+  registerHttpMetrics(app, SERVICE_NAME); // /metrics, /ready, RED histograms, trace propagation
 
   app.setNotFoundHandler((_request, reply) => {
     const body: ErrorEnvelope = { error: { code: 'NOT_FOUND', message: 'Route not found' } };
@@ -29,11 +31,13 @@ export function buildApp(logger: FastifyBaseLogger, deps: AppDeps): FastifyInsta
     return reply.code(500).send(body);
   });
 
-  app.get('/health', async (): Promise<HealthResponse> => ({
+  const health = async (): Promise<HealthResponse> => ({
     status: 'ok',
     service: SERVICE_NAME,
     timestamp: new Date().toISOString(),
-  }));
+  });
+  app.get('/health', health);
+  app.get('/healthz', health); // path probed by deploy/k8s manifests
   registerInternalHazardsRoute(app, deps.store, deps.internalServiceKey);
   deps.extras?.(app);
 
