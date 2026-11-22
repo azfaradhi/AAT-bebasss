@@ -1,0 +1,16 @@
+# Correlation ID trace: GET /api/v1/hazards?limit=5 with x-correlation-id: demo-corr-001 (lapangan token) through client-api -> aggregator
+# Date 2026-11-22T16:15:55Z. Label: PROSES NYATA (k3s, 3 VirtualBox VMs on one laptop). Code: AAT-bebasss @ c3057b5
+# Request result: HTTP 200, 5 items, 184 ms, stale_since null
+
+## client-api pod client-api-7968dff765-mm6z7
+{"level":"info","timestamp":"2026-11-22T16:15:46.797Z","service":"client-api","correlation_id":"demo-corr-001","url":"http://aggregator:8090/internal/hazard-events?limit=5","message":"aggregator request started"}
+{"level":"info","timestamp":"2026-11-22T16:15:46.963Z","service":"client-api","correlation_id":"demo-corr-001","url":"http://aggregator:8090/internal/hazard-events?limit=5","latency_ms":166,"message":"aggregator request completed"}
+{"level":"info","timestamp":"2026-11-22T16:15:46.975Z","reqId":"req-21a","service":"client-api","correlation_id":"demo-corr-001","res":{"statusCode":200},"responseTime":176.7107529999921,"message":"request completed"}
+
+## aggregator pod aggregator-5bf7444c95-wk6sk
+{"level":"info","timestamp":"2026-11-22T16:15:46.971Z","reqId":"req-tt","service":"aggregator","correlation_id":"demo-corr-001","res":{"statusCode":200},"responseTime":138.559683999978,"message":"request completed"}
+
+## storage-unit pods (the ring's HTTP calls do not carry the id)
+pod/storage-unit-l2k9f 0
+pod/storage-unit-nkbr8 0
+pod/storage-unit-xq9qj 0
