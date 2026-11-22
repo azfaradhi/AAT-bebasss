@@ -215,6 +215,12 @@ Seluruh skrip berikut menjalankan **proses sistem operasi nyata** (`storage-unit
 
 ---
 
+## 5c. Drill di Cluster k3s (`scripts/cluster/drills/`)
+
+Satu skrip Node (>= 18, tanpa dependensi) per kriteria spek yang dijalankan **terhadap cluster hidup** lewat `kubectl` dan Service NodePort sementara; tiap skrip menulis berkas bukti (`AAT-docs/m2/evidence/<kriteria>/…`) berisi baris `[PASS]/[FAIL]`. Daftar skrip, prasyarat, dan catatan ada di [`scripts/cluster/drills/README.md`](scripts/cluster/drills/README.md) (`p1-node-loss`, `p2-routing`, `p2-lease-failover`, `p2-clock-skew`, `p3-schema-replay`, `p3-field-reports`, `p4-satellite-leader`, `p5-sensor-outage`, `p5-priority-shed`). Sebaran primary/replica per node: `GET /internal/audit/placement` (token audit).
+
+---
+
 ## 6. Kompatibilitas Mode Docker Compose (Milestone 1)
 
 Sistem tetap mempertahankan `docker-compose.yml` untuk pengujian kompatibilitas Milestone 1 secara lokal:
