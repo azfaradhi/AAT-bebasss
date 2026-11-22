@@ -11,7 +11,7 @@ Semua komponen Milestone 2 ada pada repositori ini dan dapat dijalankan mengikut
 | P3 | Guard dan Parker untuk pesan gagal, kebijakan perubahan skema, replay, jalur laporan lapangan yang durabel, rute khusus Internal Ops | proses nyata; k3s untuk K1--K2, K4--K6 |
 | P4 | Pemroses feed satelit (SSE) dengan pengelompokan waktu deteksi, update/retract, pemulihan crash yang hasil akhirnya identik | proses nyata; k3s untuk K1, K5 |
 | P5 | Validasi observasi berbasis perilaku, circuit breaker dan bulkhead, admisi berprioritas, jalur peringatan kritis, SLO dan error budget | proses nyata; k3s untuk K3, K5 |
-| Bonus | Advisor berbasis LLM di luar jalur peringatan (BON-2); pengendali autoscaling dan HPA (BON-3) | proses nyata; k3s untuk HPA naik |
+| Bonus | Advisor berbasis LLM di luar jalur peringatan (BON-2); pengendali autoscaling dan HPA (BON-3) | proses nyata; k3s untuk HPA naik dan turun |
 
 ## Batasan yang diketahui
 
@@ -20,7 +20,7 @@ Semua komponen Milestone 2 ada pada repositori ini dan dapat dijalankan mengikut
 - P5-K5 lulus pada 40 klien media dan 8 lapangan, dan gagal pada 150 dan 10 klien.
 - P5-K4: bacaan klien tetap cepat saat sensor mati, tetapi pemulihan mandiri breaker belum terbukti di k3s.
 - P4-K4: di k3s pemroses satelit tertinggal jauh dari umpan latihan; perbandingan dengan referensi asisten (K6) belum dilakukan.
-- BON-3: di k3s HPA terbukti menaikkan replika, penurunan kembali belum terbukti.
+- BON-3: HPA terbukti naik dan turun di k3s pada satu percobaan, dengan CPU request 250m dan `satellite-processor` 0 replika.
 
 ## 1. Ikhtisar Arsitektur (Milestone 2: Sistem Terdistribusi Skalabel)
 

@@ -1,0 +1,99 @@
+# BON-3 round 2 on k3s: HPA aggregator-hpa (min 3, max 5, target cpu 70 %) goes UP and DOWN
+# Date 2026-11-22 (times WIB, UTC+7). Label: PROSES NYATA (k3s v1.37.2, 3 VirtualBox VMs on ONE laptop). Code: AAT-bebasss @ fdd0ff6 (aggregator CPU request 250m)
+# Load: 40 concurrent readers on /internal/audit/events?limit=1000 of the aggregator Service for 150 s (1819 requests, 0 failed). satellite-processor at 0 replicas.
+
+## Result
+UP:   3 -> 5 replicas at 23:29:14 (about 50 s after the load started at 23:28:26).
+DOWN: 5 -> 3 replicas after the load stopped at 23:31:01; PHASE end 23:32:53 shows replicas=3 (HPA event 'New size: 3; reason: All metrics below target', about 1 min 50 s after the load stopped).
+
+## First attempt, CPU request 100m (not a pass for DOWN)
+Load 23:17:18-23:19:50: cpu 595 %/70 %, replicas stayed 5. Afterwards (23:25-23:26) idle cpu stayed 64-69 %/70 % with 5 replicas (about 40 m per pod on a 100 m request), so the HPA computed ceil(5 x 66/70) = 5 and never went down.
+Fix: request 100m -> 250m (deploy/k8s/aggregator/deployment.yaml, commit fdd0ff6). Expected idle load about 16 % (40 m on 250m); measured 39-62 % in the first minutes after the restart (new pods warm up), see the watch below.
+A kubectl apply of that manifest reset spec.replicas to 3 (the manifest has replicas: 3), so the 3 seen right after the apply at 23:26 is NOT an HPA scale-down; that attempt is discarded.
+
+## Second attempt: raw HPA watch (every 10 s), request 250m, no manifest applied during the run
+23:27:41 PHASE idle-wait after request 250m (satellite-processor 0), 45 s
+23:27:41 aggregator-hpa   Deployment/aggregator   cpu: 41%/70%   3     5     3     102m
+23:27:51 aggregator-hpa   Deployment/aggregator   cpu: 62%/70%   3     5     3     102m
+23:28:02 aggregator-hpa   Deployment/aggregator   cpu: 52%/70%   3     5     3     102m
+23:28:12 aggregator-hpa   Deployment/aggregator   cpu: 52%/70%   3     5     3     102m
+23:28:22 aggregator-hpa   Deployment/aggregator   cpu: 46%/70%   3     5     3     103m
+23:28:26 IDLE top:
+NAME                         CPU(cores)   MEMORY(bytes)   
+aggregator-74bd6d98c-2nfpk   119m         35Mi            
+aggregator-74bd6d98c-fxgdm   116m         36Mi            
+aggregator-74bd6d98c-g72qq   63m          33Mi            
+23:28:26 PHASE load start (40 concurrent audit reads, 150 s)
+load done: ok=1819 bad=0
+ Deployment/aggregator   cpu: 39%/70%   3     5     3     103m
+23:28:43 aggregator-hpa   Deployment/aggregator   cpu: 40%/70%   3     5     3     103m
+23:28:53 aggregator-hpa   Deployment/aggregator   cpu: 40%/70%   3     5     3     103m
+23:29:04 aggregator-hpa   Deployment/aggregator   cpu: 275%/70%   3     5     3     103m
+23:29:14 aggregator-hpa   Deployment/aggregator   cpu: 315%/70%   3     5     5     103m
+23:29:25 aggregator-hpa   Deployment/aggregator   cpu: 315%/70%   3     5     5     104m
+23:29:35 aggregator-hpa   Deployment/aggregator   cpu: 303%/70%   3     5     5     104m
+23:29:46 aggregator-hpa   Deployment/aggregator   cpu: 165%/70%   3     5     5     104m
+23:29:56 aggregator-hpa   Deployment/aggregator   cpu: 165%/70%   3     5     5     104m
+23:30:07 aggregator-hpa   Deployment/aggregator   cpu: 95%/70%   3     5     5     104m
+23:30:18 aggregator-hpa   Deployment/aggregator   cpu: 82%/70%   3     5     5     104m
+23:30:29 aggregator-hpa   Deployment/aggregator   cpu: 76%/70%   3     5     5     105m
+23:30:39 aggregator-hpa   Deployment/aggregator   cpu: 76%/70%   3     5     5     105m
+23:30:50 aggregator-hpa   Deployment/aggregator   cpu: 83%/70%   3     5     5     105m
+23:31:01 PHASE load stopped
+23:31:01 aggregator-hpa   Deployment/aggregator   cpu: 81%/70%   3     5     5     105m
+23:31:11 aggregator-hpa   Deployment/aggregator   cpu: 81%/70%   3     5     5     105m
+23:31:22 aggregator-hpa   Deployment/aggregator   cpu: 85%/70%   3     5     5     106m
+23:31:32 aggregator-hpa   Deployment/aggregator   cpu: 60%/70%   3     5     5     106m
+23:31:42 aggregator-hpa   Deployment/aggregator   cpu: 60%/70%   3     5     5     106m
+23:31:52 aggregator-hpa   Deployment/aggregator   cpu: 33%/70%   3     5     5     106m
+23:32:02 aggregator-hpa   Deployment/aggregator   cpu: 30%/70%   3     5     5     106m
+23:32:12 aggregator-hpa   Deployment/aggregator   cpu: 30%/70%   3     5     5     106m
+23:32:23 aggregator-hpa   Deployment/aggregator   cpu: 31%/70%   3     5     5     107m
+23:32:33 aggregator-hpa   Deployment/aggregator   cpu: 32%/70%   3     5     5     107m
+23:32:43 aggregator-hpa   Deployment/aggregator   cpu: 32%/70%   3     5     5     107m
+23:32:53 PHASE end (replicas=3)
+
+## kubectl describe hpa aggregator-hpa (at the end)
+Name:                                                  aggregator-hpa
+Namespace:                                             sistem-informasi-kebencanaan-bnpb
+Labels:                                                <none>
+Annotations:                                           <none>
+CreationTimestamp:                                     Sun, 22 Nov 2026 21:45:19 +0700
+Reference:                                             Deployment/aggregator
+Metrics:                                               ( current / target )
+  resource cpu on pods  (as a percentage of request):  35% (89m) / 70%
+Min replicas:                                          3
+Max replicas:                                          5
+Behavior:
+  Scale Up:
+    Stabilization Window: 0 seconds
+    Select Policy: Max
+    Policies:
+      - Type: Pods     Value: 4    Period: 15 seconds
+      - Type: Percent  Value: 100  Period: 15 seconds
+  Scale Down:
+    Stabilization Window: 60 seconds
+    Select Policy: Max
+    Policies:
+      - Type: Percent  Value: 100  Period: 15 seconds
+Deployment pods:       3 current / 3 desired
+Conditions:
+  Type            Status  Reason               Message
+  ----            ------  ------               -------
+  AbleToScale     True    ScaleDownStabilized  recent recommendations were higher than current one, applying the highest recent recommendation
+  ScalingActive   True    ValidMetricFound     the HPA was able to successfully calculate a replica count from cpu resource utilization (percentage of request)
+  ScalingLimited  False   DesiredWithinRange   the desired count is within the acceptable range
+  ScaledToZero    False   NotScaledToZero      the HPA controller did not scale the workload to zero
+Events:
+  Type     Reason                        Age                   From                       Message
+  ----     ------                        ----                  ----                       -------
+  Warning  FailedGetResourceMetric       44m (x2 over 67m)     horizontal-pod-autoscaler  failed to get cpu utilization: unable to get metrics for resource cpu: no metrics returned from resource metri
+  Warning  FailedComputeMetricsReplicas  44m (x2 over 67m)     horizontal-pod-autoscaler  invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get c
+  Normal   SuccessfulRescale             22m (x2 over 71m)     horizontal-pod-autoscaler  New size: 4; reason: All metrics below target
+  Warning  FailedGetResourceMetric       6m10s (x5 over 107m)  horizontal-pod-autoscaler  failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)
+  Warning  FailedComputeMetricsReplicas  6m10s (x5 over 107m)  horizontal-pod-autoscaler  invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get c
+  Normal   SuccessfulRescale             3m55s (x6 over 107m)  horizontal-pod-autoscaler  New size: 5; reason: cpu resource utilization (percentage of request) above target
+  Normal   SuccessfulRescale             24s (x2 over 51m)     horizontal-pod-autoscaler  New size: 3; reason: All metrics below target
+
+## Limits
+One run up and down on the 250m request; the first (100m) run did not scale down, see above. Load is synthetic audit reads, not the M2 k6 test. Observability was running during the run (extra CPU on the VMs).
