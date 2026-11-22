@@ -180,7 +180,7 @@ async function main(): Promise<void> {
 
     const lbPort = 19420;
     const LB = `http://127.0.0.1:${lbPort}`;
-    runProc('npx', ['tsx', 'scripts/demo/p2-lb.ts'], ROOT, {
+    runProc('npx', ['--prefix', 'services/aggregator', 'tsx', 'scripts/demo/p2-lb.ts'], ROOT, {
       LB_PORT: String(lbPort),
       LB_WORKERS: '4',
       LB_HEALTH_INTERVAL_MS: '100',
