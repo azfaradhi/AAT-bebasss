@@ -22,10 +22,26 @@ import { registerStorageGateway } from './storage/gateway-route';
 import { coordinatorFromEnv } from '../../../shared-types/src/coordination/factory';
 import { InMemoryCoordinator } from './coordination/in-memory-coordinator';
 import { METRICS, setGauge } from './resilience/obs';
-import { LEADER_NAMES, type Coordinator, type StorageClient } from '../../../shared-types/src/m2/types';
+import { LEADER_NAMES, type Coordinator, type Parker, type StorageClient } from '../../../shared-types/src/m2/types';
 import type { FastifyInstance } from 'fastify';
 
-async function syncAggregatorMetrics(storage: StorageClient | null, coordinator: Coordinator | null): Promise<void> {
+// bnpb_parked_messages{status,reason_code}: what is parked right now (dashboard P3). Labels that dropped to zero are written as 0 so the series does not freeze at its last value.
+const parkedSeen = new Set<string>();
+async function syncParkedGauge(parker: Parker): Promise<void> {
+  const counts = new Map<string, number>();
+  let cursor: string | undefined;
+  for (let page = 0; page < 20; page++) {
+    const r = await parker.listUnprocessed({ limit: 1000, cursor });
+    for (const m of r.items) { const k = `${m.status}|${m.reason_code}`; counts.set(k, (counts.get(k) ?? 0) + 1); }
+    cursor = r.next_cursor ?? undefined;
+    if (!cursor) break;
+  }
+  for (const k of parkedSeen) if (!counts.has(k)) counts.set(k, 0);
+  for (const [k, n] of counts) { parkedSeen.add(k); const [status, reason_code] = k.split('|'); setGauge(METRICS.parked, { status, reason_code }, n); }
+}
+
+async function syncAggregatorMetrics(storage: StorageClient | null, coordinator: Coordinator | null, parker?: Parker): Promise<void> {
+  if (parker) await syncParkedGauge(parker).catch(() => undefined);
   if (coordinator) {
     for (const name of Object.values(LEADER_NAMES)) {
       setGauge(METRICS.leader, { name }, coordinator.isLeader(name) ? 1 : 0);
@@ -103,7 +119,7 @@ async function main(): Promise<void> {
     store,
     internalServiceKey: config.internalServiceKey,
     readinessCheck: () => !draining,
-    onMetricsScrape: () => syncAggregatorMetrics(storage, coordinator),
+    onMetricsScrape: () => syncAggregatorMetrics(storage, coordinator, ingest?.parker),
     extras,
   });
 

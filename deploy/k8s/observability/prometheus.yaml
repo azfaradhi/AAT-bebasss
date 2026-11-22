@@ -79,7 +79,7 @@ data:
           - record: sli:client_api_availability:ratio_rate5m
             expr: |
               1 - (
-                sum(rate(bnpb_http_server_request_duration_seconds_count{service="client-api",status_class="5xx"}[5m]))
+                (sum(rate(bnpb_http_server_request_duration_seconds_count{service="client-api",status_class="5xx"}[5m])) or vector(0))
                 /
                 clamp_min(sum(rate(bnpb_http_server_request_duration_seconds_count{service="client-api"}[5m])), 1e-9)
               )
