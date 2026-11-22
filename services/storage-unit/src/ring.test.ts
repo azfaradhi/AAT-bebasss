@@ -160,6 +160,32 @@ describe('over real HTTP', () => {
   });
 });
 
+describe('a restarted unit comes back on a new address (found on k3s: a replaced pod gets a new IP)', () => {
+  it('re-learns the URL of a known unit instead of leaving it DOWN forever', async () => {
+    const names = ['unit-a', 'unit-b', 'unit-c'];
+    const engines = names.map((n) => new UnitEngine({ unit: n, node: n, initialState: 'STABLE' }));
+    const apps = engines.map((e) => buildUnitApp(e));
+    const listen = async (a: (typeof apps)[number]) => { await a.listen({ port: 0, host: '127.0.0.1' }); const addr = a.server.address(); return `http://127.0.0.1:${typeof addr === 'object' && addr ? addr.port : 0}`; };
+    const urls = await Promise.all(apps.map(listen));
+    let replacement: (typeof apps)[number] | undefined;
+    try {
+      const client = new HttpStorageClient({ units: names.map((n, i) => ({ unit: n, node: n, url: urls[i] })), stateTtlMs: 0 });
+      for (let i = 0; i < 20; i++) await client.upsertEvent(ev(`r-${i}`), ctx());
+      await apps[0].close(); // the pod dies
+      expect((await client.ringStatus()).units.find((u) => u.unit === 'unit-a')!.state).toBe('DOWN');
+
+      replacement = buildUnitApp(engines[0]); // the DaemonSet pod comes back (same hostPath data) on another IP:port
+      const newUrl = await listen(replacement);
+      expect(client.addUnits([{ unit: 'unit-a', node: 'unit-a', url: newUrl }])).toEqual([]); // not a new unit...
+      const a = (await client.ringStatus()).units.find((u) => u.unit === 'unit-a')!;
+      expect(a.state).toBe('STABLE'); // ...but its address was refreshed
+      expect((await client.checksum('BMKG')).count).toBe(20);
+    } finally {
+      await Promise.all([...apps, replacement].map((a) => a?.close().catch(() => undefined)));
+    }
+  });
+});
+
 describe('a new unit joins the live ring (P1-K5, K6)', () => {
   it('takes writes while joining, is filled by repair, and the ring then survives losing an original unit', async () => {
     const { client, controls, engines, newUnit } = makeCluster();

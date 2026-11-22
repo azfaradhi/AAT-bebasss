@@ -24,7 +24,7 @@ export async function discoverUnits(env: NodeJS.ProcessEnv = process.env, attemp
       else if (env.STORAGE_UNITS_DNS) urls = (await dns.resolve4(env.STORAGE_UNITS_DNS)).map((ip) => `http://${ip}:${port}`);
       else throw new Error('set STORAGE_UNITS or STORAGE_UNITS_DNS');
       if (urls.length === 0) throw new Error('no storage unit addresses resolved');
-      const units = await Promise.all(urls.map((u) => identify(u, 2000)));
+      const units = await Promise.all(urls.map((u) => identify(u, Number(env.STORAGE_TIMEOUT_MS ?? 2000))));
       return units.sort((a, b) => a.unit.localeCompare(b.unit));
     } catch (err) {
       if (i + 1 >= attempts) throw err;
@@ -34,7 +34,7 @@ export async function discoverUnits(env: NodeJS.ProcessEnv = process.env, attemp
 }
 
 export async function createStorageFromEnv(env: NodeJS.ProcessEnv = process.env): Promise<HttpStorageClient> {
-  return new HttpStorageClient({ units: await discoverUnits(env), rf: Number(env.STORAGE_RF ?? 2), stateTtlMs: Number(env.STORAGE_STATE_TTL_MS ?? 1000) });
+  return new HttpStorageClient({ units: await discoverUnits(env), rf: Number(env.STORAGE_RF ?? 2), stateTtlMs: Number(env.STORAGE_STATE_TTL_MS ?? 1000), timeoutMs: Number(env.STORAGE_TIMEOUT_MS ?? 2000) });
 }
 
 // Runs anti-entropy on an interval; call from exactly one place per process.

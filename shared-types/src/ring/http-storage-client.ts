@@ -60,6 +60,13 @@ export class HttpStorageClient implements StorageClient {
   // Live membership: adds units that are not known yet (it never removes one, a down unit must stay in the ring and be repaired).
   // A new unit is JOINING, so it takes writes but is not read until repair() has copied what it owns; at RF=2 at least one previous owner of every key remains.
   addUnits(extra: UnitInfo[]): string[] {
+    // A known unit may come back on a new address (a replaced pod gets a new IP): refresh its URL, otherwise it stays DOWN forever.
+    let moved = false;
+    for (const u of extra) {
+      const known = this.byName.get(u.unit);
+      if (known && known.url !== u.url) { known.url = u.url; moved = true; }
+    }
+    if (moved) this.invalidate();
     const fresh = extra.filter((u) => !this.byName.has(u.unit));
     if (fresh.length === 0) return [];
     const units = [...this.opts.units, ...fresh].sort((a, b) => a.unit.localeCompare(b.unit));
