@@ -11,6 +11,7 @@ import { PvmbgClient } from './sources/pvmbg-client';
 import { PostgresCanonicalStore, type CanonicalStore } from './storage/canonical-store';
 import { StorageCanonicalStore } from './storage/storage-canonical-store';
 import { createStorageFromEnv, startMembershipLoop, startRepairLoop } from '../../../shared-types/src/ring';
+import { registerPlacementRoute } from './audit/placement-route';
 import { registerAudit } from './audit/audit-router';
 import { registerAnalyticsRoutes } from './analytics/analytics-routes';
 import { notifierDeliveriesProvider } from './audit/critical-deliveries-provider';
@@ -94,6 +95,7 @@ async function main(): Promise<void> {
         const wiring = mountIngest(a, { storage, internalServiceKey: config.internalServiceKey, ingest });
         registerAudit(a, { storage, providers: { ...wiring.providers, ...(config.notifierBaseUrl ? { criticalDeliveries: notifierDeliveriesProvider(config.notifierBaseUrl) } : {}) }, auditToken: config.auditToken });
         registerAnalyticsRoutes(a, { storage, internalServiceKey: config.internalServiceKey });
+        registerPlacementRoute(a, storage);
         registerStorageGateway(a, storage, config.internalServiceKey);
       }
     : undefined;

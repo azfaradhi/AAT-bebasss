@@ -14,6 +14,7 @@ import { BmkgClient } from '../src/sources/bmkg-client';
 import { PvmbgClient } from '../src/sources/pvmbg-client';
 import { StorageCanonicalStore } from '../src/storage/storage-canonical-store';
 import { registerAnalyticsRoutes } from '../src/analytics/analytics-routes';
+import { registerPlacementRoute } from '../src/audit/placement-route';
 import { registerAudit } from '../src/audit/audit-router';
 import { mountIngest } from '../src/ingest/wiring';
 import { registerStorageGateway } from '../src/storage/gateway-route';
@@ -58,6 +59,7 @@ async function main(): Promise<void> {
       const wiring = mountIngest(a, { storage, internalServiceKey: key, ingest });
       registerAudit(a, { storage, providers: wiring.providers, auditToken: process.env.AUDIT_TOKEN ?? 'audit-secret' });
       registerAnalyticsRoutes(a, { storage, internalServiceKey: key });
+      registerPlacementRoute(a, storage);
       registerStorageGateway(a, storage, key);
       a.post<{ Body?: { draining?: boolean } }>('/internal/admin/drain', async (req) => {
         draining = req.body?.draining ?? true;

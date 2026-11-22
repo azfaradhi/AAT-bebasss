@@ -344,6 +344,32 @@ export class HttpStorageClient implements StorageClient {
     };
   }
 
+  // Where the ring puts every live event: per unit how many keys have it as primary (first replica, carries the write load) and how many as replica.
+  // Reported for P1-K1 (distribution of primary and replica per node); `keys_held` is what the unit really stores right now.
+  async placement(): Promise<{ total_events: number; rf: number; units: Array<{ unit: string; node: string; state: UnitState; primary_keys: number; replica_keys: number; keys_held: number; shard_share: number }>; replicas_on_distinct_nodes: boolean; partial: boolean; unavailable_units: string[]; as_of: string }> {
+    const st = await this.states();
+    const rows = await this.scan(st);
+    const primary = new Map<string, number>(), replica = new Map<string, number>();
+    let distinct = true;
+    for (const r of rows) {
+      const set = this.ring.replicas(r.hazard_id);
+      set.forEach((u, i) => { const m = i === 0 ? primary : replica; m.set(u, (m.get(u) ?? 0) + 1); });
+      if (new Set(set.map((u) => this.byName.get(u)?.node ?? u)).size < set.length) distinct = false;
+    }
+    const stats = await Promise.all(this.opts.units.map(async (u) => { const x = await this.send(u.unit, 'GET', '/u/stats'); return x && x.status === 200 ? (x.body as UnitStats).keys : 0; }));
+    const total = rows.length;
+    return {
+      total_events: total, rf: this.rf,
+      units: this.opts.units.map((u, i) => ({
+        unit: u.unit, node: u.node, state: st.get(u.unit)!, primary_keys: primary.get(u.unit) ?? 0, replica_keys: replica.get(u.unit) ?? 0, keys_held: stats[i],
+        shard_share: total ? Number((((primary.get(u.unit) ?? 0) + (replica.get(u.unit) ?? 0)) / total).toFixed(4)) : 0,
+      })),
+      replicas_on_distinct_nodes: distinct,
+      ...this.partialInfo(st),
+      as_of: isoMs(this.now()),
+    };
+  }
+
   // Anti-entropy: copies the keys a RECOVERING or JOINING unit owns from healthy peers, then marks it STABLE.
   async repair(): Promise<{ repaired: string[] }> {
     this.invalidate();
