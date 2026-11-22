@@ -66,11 +66,12 @@ spec:
             httpGet: { path: /ready, port: http }
             periodSeconds: 3
             timeoutSeconds: 5
+          # A unit replaying a large log blocks /healthz for a while (31-42 MB seen on k3s); 6 failures (30 s) put it in a restart loop, so allow 5 minutes.
           livenessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 5
             timeoutSeconds: 5
-            failureThreshold: 6
+            failureThreshold: 60
           resources:
             requests: { memory: "512Mi", cpu: "100m" }
             limits:   { memory: "1Gi", cpu: "500m" }
