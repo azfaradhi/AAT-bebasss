@@ -5,7 +5,7 @@
 set -euo pipefail
 
 SERVER_IP="${SERVER_IP:?Must set SERVER_IP (node-a IP)}"
-NODE_IP="${NODE_IP:?Must set NODE_IP (this node's IP)}"
+NODE_IP="${NODE_IP:?Must set NODE_IP (this node IP)}"
 NODE_NAME="${NODE_NAME:?Must set NODE_NAME (node-b or node-c)}"
 K3S_TOKEN="${K3S_TOKEN:?Must set K3S_TOKEN from /var/lib/rancher/k3s/server/node-token on node-a}"
 STORE_DIR="${STORE_DIR:-/var/lib/bnpb/store}"

@@ -4,21 +4,23 @@
 
 Platform Koordinasi Kebencanaan BNPB mengagregasi empat sumber bahaya (**BMKG** `SEISMIC`, **PVMBG** `VOLCANIC`, **Citra Satelit** `WILDFIRE`, dan **Sensor Pantai** `COASTAL`) ke dalam format kanonik `HazardEvent`, menyimpannya pada penyimpanan terdistribusi berbasis kuorum (**Problem 1**), mengoordinasikan pemrosesan satelit menggunakan pemilihan pemimpin & *fencing token* (**Problem 2**), memproses laporan lapangan secara idempoten dengan karantina pesan rusak (**Problem 3**), menjalankan agregasi analitik terisolasi (**Problem 4**), serta menjamin ketahanan menyeluruh dan jalur cepat peringatan kritis di bawah gangguan berlapis (**Problem 5**).
 
-Seluruh sistem berjalan di atas klaster **Kubernetes 3-node (`k3s` / `k3d`)** yang dikelola secara deklaratif menggunakan **Kustomize** (`deploy/k8s/`) pada namespace `bnpb-system` dan `observability`.
+Seluruh sistem berjalan di atas klaster **Kubernetes 3-node (`k3s`; `k3d` hanya untuk pengembangan)** yang dikelola secara deklaratif menggunakan **Kustomize** (`deploy/k8s/`) pada namespace `sistem-informasi-kebencanaan-bnpb` dan `observability`.
 
 ---
 
 ## 2. Deklarasi Topologi Klaster (`TOPO-1`)
 
-| Node | Peran Kubernetes | Host Fisik (Mode Demo 3-Laptop) | IP LAN | Spesifikasi VM | Beban Kerja Utama |
-|---|---|---|---|---|---|
-| `node-a` | `control-plane, etcd, worker` | Laptop Anggota 3 (Host-A) | `192.168.10.11` | 4 vCPU, 6 GiB RAM (`linux/amd64`) | `storage-unit` (1 pod), `rabbitmq-0`, `aggregator`, `bmkg-mock`, `pvmbg-mock`, `sensor-pantai`, `observability` |
-| `node-b` | `worker` | Laptop Anggota 2 (Host-B) | `192.168.10.12` | 4 vCPU, 4 GiB RAM (`linux/amd64`) | `storage-unit` (1 pod), `rabbitmq-1`, `aggregator`, `client-api`, `satellite-processor`, `notifier`, `analytics-dashboard` |
-| `node-c` | `worker` | Laptop Anggota 1 (Host-C) | `192.168.10.13` | 4 vCPU, 4 GiB RAM (`linux/amd64`) | `storage-unit` (1 pod), `rabbitmq-2`, `auth-service`, `client-api`, `satellite-processor`, `field-report-processor`, `dashboard-updater`, `notifier` |
+| Node | Peran Kubernetes | Host fisik | OS / arsitektur | vCPU / RAM |
+|---|---|---|---|---|
+| `node-a` | control-plane + worker | VM VirtualBox di laptop Windows 11 (12 thread, 32 GB), jaringan NAT + host-only `192.168.56.101` | Ubuntu 24.04.5, kernel 6.8.0-139, amd64, k3s v1.37.2+k3s1 | 4 vCPU / 8,4 GiB |
+| `node-b` | worker | VM VirtualBox di laptop yang sama, `192.168.56.102` | Ubuntu 24.04.5, kernel 6.8.0-139, amd64 | 3 vCPU / 6,3 GiB |
+| `node-c` | worker | VM VirtualBox di laptop yang sama, `192.168.56.103` | Ubuntu 24.04.5, kernel 6.8.0-139, amd64 | 3 vCPU / 6,3 GiB |
+
+> Ketiga node adalah **VM di satu laptop**, bukan tiga host fisik (tidak mengejar bonus host fisik). Tiap VM punya kernel sendiri; k3s asli (bukan kind/k3d/minikube). Nilai diukur lewat `nproc`/`free -m` pada 2026-11-22. flannel dipaksa memakai NIC host-only (`flannel-iface: enp0s8` di `/etc/rancher/k3s/config.yaml`).
 
 - **Arsitektur Image Asisten (`PLAT-4`):** `sustuna/satelit-feed@sha256:9fb2fe52...` dan `sustuna/sensor-pantai@sha256:51fbd90d...` dipin dengan digest SHA-256 pada arsitektur `linux/amd64`.
-- **Plafon Resource (`PLAT-5`):** Total limit seluruh pod aplikasi di namespace `bnpb-system` adalah **7,45 vCPU** dan **7,31 GiB RAM** (memenuhi batas Lampiran B $\le 8\text{ vCPU}$ dan $\le 8\text{ GiB RAM}$).
-- **Isolasi Jaringan (`PLAT-8`):** `NetworkPolicy` `store-ingress` membatasi akses TCP `8085` ke `storage-unit` hanya untuk layanan penyimpan/pemroses sah; `client-api` ditolak di tingkat jaringan jika mencoba mengakses `storage-unit` secara langsung.
+- **Sumber daya (`PLAT-6`):** memori request/limit mengikuti Lampiran B; jumlah pada overlay `demo` (21 pod): request 1,5 vCPU / 5,5 GiB, limit 11,25 vCPU / 11 GiB (`AAT-docs/m2/evidence/PLATFORM/2026-11-21_manifest-static-verify-and-totals.txt`). Spesifikasi tidak menyebut batas total.
+- **Isolasi Jaringan (`PLAT-8`):** `NetworkPolicy` `store-ingress` membatasi akses TCP `8100` ke `storage-unit` hanya untuk layanan penyimpan/pemroses sah; `client-api` ditolak di tingkat jaringan jika mencoba mengakses `storage-unit` secara langsung.
 
 ---
 
@@ -31,7 +33,7 @@ Seluruh sistem berjalan di atas klaster **Kubernetes 3-node (`k3s` / `k3d`)** ya
    ```bash
    make dev-up
    ```
-3. Siapkan file environment dan Kubernetes Secret di namespace `bnpb-system`:
+3. Siapkan file environment dan Kubernetes Secret di namespace `sistem-informasi-kebencanaan-bnpb`:
    ```bash
    cp .env.local.example .env.local
    make secrets
@@ -43,26 +45,27 @@ Seluruh sistem berjalan di atas klaster **Kubernetes 3-node (`k3s` / `k3d`)** ya
 
 ### Opsi B — Klaster Demo 3-VM Lintas Host (`k3s`)
 
-1. Pada **Host-A (`192.168.10.11`)**, jalankan skrip bootstrap server + registry lokal:
+1. Pada **node-a (`<ip-node-a>`)**, jalankan skrip bootstrap server + registry lokal:
    ```bash
-   NODE_IP=192.168.10.11 bash scripts/cluster/k3s-server.sh
+   NODE_IP=<ip-node-a> bash scripts/cluster/k3s-server.sh
    ```
-2. Pada **Host-B (`192.168.10.12`)** dan **Host-C (`192.168.10.13`)**, gabungkan worker ke server:
+2. Pada **node-b** dan **node-c**, gabungkan worker ke server:
    ```bash
-   SERVER_IP=192.168.10.11 K3S_TOKEN=<token-dari-host-a> NODE_IP=192.168.10.12 bash scripts/cluster/k3s-agent.sh
+   SERVER_IP=<ip-node-a> K3S_TOKEN=<token-dari-host-a> NODE_IP=<ip-node-b> bash scripts/cluster/k3s-agent.sh
    ```
 3. Deploy overlay `demo` beserta stack observabilitas:
    ```bash
-   REGISTRY=192.168.10.11:5000 make secrets build push up-demo
+   IMAGE_REGISTRY=<ip-node-a>:5000 make build push   # bangun di arsitektur node
+   make up OVERLAY=demo                                # membuat Secret lalu apply
    ```
 
 ### Verifikasi Kepatuhan Klaster (`TA-1..8`, `PLAT-5`, `PLAT-8`)
 
 ```bash
-make verify
+make verify-labels verify-resources verify-netpol
 # Menjalankan:
-# - bash scripts/verify/verify-labels.sh     (label app.kubernetes.io/{name,component,part-of})
-# - bash scripts/verify/verify-resources.sh  (requests/limits tiap kontainer & plafon <= 8 vCPU / 8 GiB)
+# - bash scripts/verify/verify-labels.sh     (label `role` valid pada setiap pod)
+# - bash scripts/verify/verify-resources.sh  (requests/limits tiap kontainer vs Lampiran B)
 # - bash scripts/verify/verify-netpol.sh     (isolasi NetworkPolicy store-ingress & rabbitmq-ingress)
 ```
 
