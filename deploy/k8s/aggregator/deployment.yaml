@@ -50,15 +50,17 @@ spec:
             httpGet: { path: /ready, port: http }
             initialDelaySeconds: 2
             periodSeconds: 3
+            timeoutSeconds: 5
             failureThreshold: 2
           livenessProbe:
             httpGet: { path: /healthz, port: http }
             initialDelaySeconds: 5
             periodSeconds: 5
-            failureThreshold: 3
+            timeoutSeconds: 5
+            failureThreshold: 6
           lifecycle:
             preStop:
               exec: { command: ["/bin/sh", "-c", "sleep ${PRESTOP_DRAIN_SECONDS:-5}"] }
           resources:
             requests: { memory: "256Mi", cpu: "100m" }
-            limits:   { memory: "512Mi", cpu: "500m" }
+            limits:   { memory: "512Mi", cpu: "1000m" } # 500m throttled the event loop on k3s (probe + storage timeouts); Lampiran B constrains memory only

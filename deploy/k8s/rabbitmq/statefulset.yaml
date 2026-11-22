@@ -68,21 +68,20 @@ spec:
             - name: data
               mountPath: /var/lib/rabbitmq
           startupProbe:
-            exec:
-              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            tcpSocket: { port: amqp }
             periodSeconds: 10
-            timeoutSeconds: 15
-            failureThreshold: 30
+            timeoutSeconds: 5
+            failureThreshold: 60
+          # TCP probes: the rabbitmq-diagnostics CLI boots an Erlang VM per call and took ~30 s on
+          # CPU-contended VMs (2026-11-22), causing restart loops. all three probes are TCP checks on the AMQP port.
           readinessProbe:
-            exec:
-              command: ["rabbitmq-diagnostics", "-q", "check_running"]
+            tcpSocket: { port: amqp }
             periodSeconds: 10
-            timeoutSeconds: 15
+            timeoutSeconds: 5
           livenessProbe:
-            exec:
-              command: ["rabbitmq-diagnostics", "-q", "ping"]
+            tcpSocket: { port: amqp }
             periodSeconds: 20
-            timeoutSeconds: 15
+            timeoutSeconds: 5
             failureThreshold: 6
           resources:
             requests: { memory: "512Mi", cpu: "100m" }

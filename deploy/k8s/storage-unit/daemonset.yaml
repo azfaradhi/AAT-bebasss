@@ -24,6 +24,19 @@ spec:
       nodeSelector:
         bnpb/storage: "true"
       terminationGracePeriodSeconds: 30
+      initContainers:
+        # The hostPath dir is created by the node (root, 0755) but the app runs as uid 1000: without this the
+        # unit cannot write its log (EACCES), never persists, and a replaced pod cannot even receive repair (HTTP 500 on /u/apply).
+        - name: fix-store-permissions
+          image: node-a:5000/bnpb-storage-unit:m2
+          command: ["sh", "-c", "chown -R 1000:1000 /var/lib/bnpb/store"]
+          securityContext: { runAsUser: 0 }
+          volumeMounts:
+            - name: store-data
+              mountPath: /var/lib/bnpb/store
+          resources:
+            requests: { memory: "512Mi", cpu: "100m" }
+            limits:   { memory: "1Gi", cpu: "500m" }
       containers:
         - name: storage-unit
           image: node-a:5000/bnpb-storage-unit:m2
@@ -42,14 +55,22 @@ spec:
           volumeMounts:
             - name: store-data
               mountPath: /var/lib/bnpb/store
+          # The unit replays its append-only log before it listens (9-11 MB after an hour of load on k3s), which took longer
+          # than the old 20 s liveness budget and put every unit in a restart loop. startupProbe gives it up to 5 min.
+          startupProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 60
           readinessProbe:
             httpGet: { path: /ready, port: http }
-            initialDelaySeconds: 2
             periodSeconds: 3
+            timeoutSeconds: 5
           livenessProbe:
             httpGet: { path: /healthz, port: http }
-            initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 6
           resources:
             requests: { memory: "512Mi", cpu: "100m" }
             limits:   { memory: "1Gi", cpu: "500m" }

@@ -25,10 +25,11 @@ data:
   BULKHEAD_MAX_CONCURRENT: "4"
   BULKHEAD_MAX_QUEUE: "8"
   MAX_CONCURRENT_REQUESTS: "5"
-  OUTBOX_DISPATCH_INTERVAL_MS: "500"
+  OUTBOX_DISPATCH_INTERVAL_MS: "1000"
   STORAGE_UNITS_DNS: "storage-unit.sistem-informasi-kebencanaan-bnpb.svc.cluster.local"
   STORAGE_UNIT_PORT: "8100"
   STORAGE_REPAIR_INTERVAL_MS: "5000"
+  STORAGE_TIMEOUT_MS: "6000"   # per storage-unit call; 2000 ms timed out repair/membership on CPU-starved k3s VMs
   STORAGE_RF: "2"
   STORAGE_WRITE_QUORUM: "2"
   STORAGE_READ_QUORUM: "1"
