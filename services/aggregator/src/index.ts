@@ -42,7 +42,7 @@ async function main(): Promise<void> {
   const stopMembership = storage ? startMembershipLoop(storage, config.storageMembershipIntervalMs, process.env, (added) => logger.info({ units: added }, 'storage unit(s) joined the ring'), (err) => logger.warn({ err: String(err) }, 'storage membership check failed')) : null;
   const publisher = new RabbitMqEventPublisher({ url: config.rabbitmqUrl, logger });
   await publisher.start();
-  const dispatcher = new OutboxDispatcher(storage ?? store, publisher, logger);
+  const dispatcher = new OutboxDispatcher(storage ?? store, publisher, logger, config.outboxDispatchIntervalMs);
   const scheduler = new PollingScheduler({
     logger,
     isLeader: coordinator ? (source) => coordinator.isLeader(source.toLowerCase()) : undefined,

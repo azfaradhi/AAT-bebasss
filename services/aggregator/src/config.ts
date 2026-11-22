@@ -20,6 +20,7 @@ const schema = z.object({
   PANTAI_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(2000),
   PANTAI_TIMEOUT_MS: z.coerce.number().int().positive().default(2500),
   PANTAI_MAX_STALENESS_S: z.coerce.number().int().positive().default(3600),
+  OUTBOX_DISPATCH_INTERVAL_MS: z.coerce.number().int().positive().default(500),
   STORAGE_REPAIR_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
   STORAGE_MEMBERSHIP_INTERVAL_MS: z.coerce.number().int().positive().default(5000),
   RABBITMQ_URL: z.string().min(1),
@@ -33,6 +34,7 @@ if (!parsed.success) {
 
 export const config = {
   port: parsed.data.AGGREGATOR_PORT,
+  outboxDispatchIntervalMs: parsed.data.OUTBOX_DISPATCH_INTERVAL_MS,
   pollIntervalMs: parsed.data.POLL_INTERVAL_MS,
   pollLookbackMs: parsed.data.POLL_LOOKBACK_MS,
   bmkgBaseUrl: parsed.data.BMKG_BASE_URL,

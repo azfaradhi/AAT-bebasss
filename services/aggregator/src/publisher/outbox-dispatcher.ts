@@ -5,6 +5,7 @@ import type { CriticalAlertMessage, OutboxItem, StorageClient } from '../../../.
 import type { EventPublisher } from './event-publisher';
 import { METRICS, setGauge } from '../resilience/obs';
 
+const IDLE_GAUGE_EVERY = 10;
 const DISPATCH_INTERVAL_MS = 500;
 const PUBLICATION_LEASE_MS = 10000;
 const MAX_PUBLICATIONS_PER_TICK = 100;
@@ -18,6 +19,7 @@ function isM2StorageClient(store: OutboxBackingStore): store is StorageClient {
 export class OutboxDispatcher {
   private timer: NodeJS.Timeout | null = null;
   private active: Promise<void> | null = null;
+  private emptyTicks = 0;
 
   constructor(
     private readonly store: OutboxBackingStore,
@@ -84,10 +86,15 @@ export class OutboxDispatcher {
   private async drainM2Storage(storage: StorageClient): Promise<void> {
     const claimed = await storage.claimOutbox(MAX_PUBLICATIONS_PER_TICK, this.leaseMs);
     if (claimed.length === 0) {
-      const pendingCount = await storage.outboxPending().catch(() => 0);
-      setGauge(METRICS.outboxPending, {}, pendingCount);
+      // Idle ticks fan out to every storage unit, so refresh the gauge only every IDLE_GAUGE_EVERY empty ticks
+      // (measured on k3s: 5 idle replicas kept ~0.8 core each busy with these calls).
+      if (this.emptyTicks++ % IDLE_GAUGE_EVERY === 0) {
+        const pendingCount = await storage.outboxPending().catch(() => 0);
+        setGauge(METRICS.outboxPending, {}, pendingCount);
+      }
       return;
     }
+    this.emptyTicks = 0;
 
     // Prioritize critical alerts ahead of normal hazard events (P5-K1)
     const sorted: OutboxItem[] = [...claimed].sort((a, b) => {
