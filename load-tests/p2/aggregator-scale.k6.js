@@ -32,6 +32,8 @@ const errors = new Rate('p2_error_rate');             // non-200 and not a contr
 const controlled = new Counter('p2_controlled_429');  // 429 + Retry-After
 const non2xx = new Counter('p2_non_2xx');             // anything that is neither 200 nor controlled 429
 // Status breakdown (k6 summaries do not list status codes); 0 = network error/timeout.
+// Responses per Aggregator version (header x-aggregator-version, set via AGGREGATOR_VERSION): K8 shows the v1 -> v2 transition.
+const versionCount = { v1: new Counter('p2_version_v1'), v2: new Counter('p2_version_v2') };
 const byStatus = Object.fromEntries([0, 200, 401, 429, 500, 502, 503, 504].map((c) => [c, new Counter(`p2_status_${c}`)]));
 
 // 429 must not be counted as http_req_failed by k6 itself; we classify it ourselves.
@@ -90,6 +92,8 @@ export default function () {
     headers: { authorization: `Bearer ${token()}` },
   });
   (byStatus[res.status] || byStatus[500]).add(1);
+  const ver = res.headers['X-Aggregator-Version'] || res.headers['x-aggregator-version'];
+  if (versionCount[ver]) versionCount[ver].add(1);
   if (res.status === 429 && res.headers['Retry-After'] !== undefined) {
     controlled.add(1);
     errors.add(false);

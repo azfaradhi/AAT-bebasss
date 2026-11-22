@@ -72,8 +72,9 @@ case "${MODE}" in
     export STRICT=1
     ( sleep $(( TOTAL / 2 ))
       echo "[$(date +%T)] rollout started" | tee -a "${OUT}"
+      # A rolling update that changes the reported version (x-aggregator-version header): the k6 script counts v1 and v2 responses.
       if [ -n "${NEW_IMAGE:-}" ]; then kubectl -n "${NS}" set image deploy/aggregator aggregator="${NEW_IMAGE}"
-      else kubectl -n "${NS}" rollout restart deploy/aggregator; fi
+      else kubectl -n "${NS}" set env deploy/aggregator AGGREGATOR_VERSION=v2; fi
       kubectl -n "${NS}" rollout status deploy/aggregator --timeout=300s | tee -a "${OUT}" ) &
     run_k6 "${OUT%.txt}.summary.json"; wait
     ;;
