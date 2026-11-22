@@ -87,7 +87,7 @@ node scripts/verify/verify-manifests.mjs deploy/k8s/overlays/demo
 | Koordinasi & Satelit (P2) | `LEADER_LEASE_TTL_MS`, `LEADER_RENEW_INTERVAL_MS`, `SAT_FEED_URL`, `SAT_AUTH_TOKEN`, `SAT_POLL_INTERVAL_MS` | `satellite-processor` |
 | Laporan Lapangan (P3) | `FIELD_REPORTS_QUEUE`, `DLX_EXCHANGE`, `PARKED_MAX_RETRIES`, `JWT_CLOCK_TOLERANCE_S=60` | `auth-service`, `client-api`, `field-report-processor` |
 | Analitik (P4) | `ANALYTICS_INTERVAL_MS`, `ANALYTICS_WINDOW_SECONDS`, `ANALYTICS_CONCURRENCY_LIMIT` | `analytics-dashboard` |
-| Sensor Pantai & Ketahanan (P5) | `PANTAI_URL`, `PANTAI_PROFILE`, `PANTAI_TIMEOUT_MS=2500`, `CB_FAILURE_THRESHOLD=4`, `CB_OPEN_MS=8000`, `BULKHEAD_MAX_CONCURRENT=4`, `ADMISSION_MAX_INFLIGHT=60`, `ADMISSION_MEDIA_SHED_RATIO=0.60`, `ADMISSION_INTERNAL_SHED_RATIO=0.85` | `sensor-pantai`, `aggregator`, `client-api`, `notifier` |
+| Sensor Pantai & Ketahanan (P5) | `PANTAI_URL`, `PANTAI_PROFILE`, `PANTAI_TIMEOUT_MS=2500`, `CB_FAILURE_THRESHOLD=4`, `CB_OPEN_MS=8000`, `BULKHEAD_MAX_CONCURRENT=4`, `ADMISSION_MAX_INFLIGHT=24, `ADMISSION_LAPANGAN_RESERVED=8`, `ADMISSION_MEDIA_MAX_INFLIGHT=8`, `CLIENT_CACHE_TTL_MS=1000`, `CLIENT_STALE_MAX_AGE_MS=600000`, `ADMISSION_MEDIA_SHED_RATIO=0.60`, `ADMISSION_INTERNAL_SHED_RATIO=0.85` | `sensor-pantai`, `aggregator`, `client-api`, `notifier` |
 | Broker & Auth | `RABBITMQ_URL`, `CLIENT_JWT_SECRET`, `INTERNAL_SERVICE_KEY`, `BMKG_API_KEY`, `PVMBG_JWT_SECRET`, `PVMBG_ACCESS_TOKEN` | Seluruh layanan terkait |
 | Ingest guard / parking | `MAX_MESSAGE_BYTES` (262144), `MAX_JSON_DEPTH` (32), `PARK_MAX_ATTEMPTS` (8) | aggregator (`src/ingest/`) |
 | Mapper PVMBG | `VOLCANIC_MAPPER_VERSION` (`v1` default, `v2` after a schema change) | aggregator (`src/mapping/`) |

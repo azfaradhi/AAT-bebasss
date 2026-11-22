@@ -36,4 +36,48 @@ describe('HttpAggregatorClient', () => {
     expect(url.searchParams.get('since')).toBe('2026-10-06T00:00:00.000Z');
     expect(url.searchParams.get('limit')).toBe('50');
   });
+  describe('micro-cache and stale fallback', () => {
+    const body = { data: [{ hazard_id: 'h1' }], meta: { stale_since: null } };
+    const make = (t: { v: number }, ttl = 1000, max = 600_000) =>
+      new HttpAggregatorClient('http://aggregator.test', 'k', logger, 500, { ttlMs: ttl, staleMaxAgeMs: max, now: () => t.v });
+
+    it('does not call the aggregator again within the TTL', async () => {
+      const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify(body)));
+      vi.stubGlobal('fetch', fetchMock);
+      const t = { v: 1_000_000 };
+      const client = make(t);
+      await client.getHazards({ limit: 5 });
+      t.v += 500;
+      await client.getHazards({ limit: 5 });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('serves the previous response with meta.stale_since when the aggregator fails', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify(body))).mockRejectedValue(new Error('timeout'));
+      vi.stubGlobal('fetch', fetchMock);
+      const t = { v: 1_000_000 };
+      const client = make(t);
+      await client.getHazards({ limit: 5 });
+      t.v += 5_000;
+      const res = await client.getHazards({ limit: 5 });
+      expect(res.data).toEqual(body.data);
+      expect(res.meta.stale_since).toBe(new Date(1_000_000).toISOString());
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('answers 503 UPSTREAM_UNAVAILABLE when there is no earlier response', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('timeout')));
+      await expect(make({ v: 1 }).getHazards()).rejects.toMatchObject({ statusCode: 503, code: 'UPSTREAM_UNAVAILABLE' });
+    });
+
+    it('does not serve an entry older than the maximum age', async () => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(new Response(JSON.stringify(body))).mockRejectedValue(new Error('timeout'));
+      vi.stubGlobal('fetch', fetchMock);
+      const t = { v: 1_000_000 };
+      const client = make(t, 1000, 10_000);
+      await client.getHazards();
+      t.v += 20_000;
+      await expect(client.getHazards()).rejects.toMatchObject({ statusCode: 503 });
+    });
+  });
 });

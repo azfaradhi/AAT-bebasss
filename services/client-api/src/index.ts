@@ -27,6 +27,7 @@ async function main(): Promise<void> {
       config.internalServiceKey,
       logger,
       config.aggregatorRequestTimeoutMs,
+      { ttlMs: config.clientCacheTtlMs, staleMaxAgeMs: config.clientStaleMaxAgeMs },
     ),
   });
 
