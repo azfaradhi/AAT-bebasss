@@ -60,6 +60,28 @@ describe('loss, repair and the next loss (P1-K4, K5, K6)', () => {
     expect(after.partial).toBe(false);
   });
 
+  it('does not declare a repaired unit STABLE while a peer was unreachable (found on k3s: silent loss after the next loss)', async () => {
+    const c = makeCluster();
+    for (let i = 0; i < 150; i++) await c.client.upsertEvent(ev(`g-${i}`), ctx());
+    const before = await c.client.checksum('BMKG');
+
+    c.wipe('unit-node-a'); // unit-node-a comes back empty
+    c.controls.setUnitState('unit-node-b', 'DOWN'); // ...while a peer is momentarily unreachable (a timeout on a loaded node)
+
+    // Rows replicated on {a, b} exist only on b right now: copying from the remaining source alone is incomplete.
+    expect((await c.client.repair()).repaired).toEqual([]);
+    expect((await c.client.ringStatus()).redundancy_ok).toBe(false);
+
+    c.controls.setUnitState('unit-node-b', 'STABLE'); // the peer is back with its data
+    expect((await c.client.repair()).repaired).toEqual(['unit-node-a']);
+    expect((await c.client.ringStatus()).redundancy_ok).toBe(true);
+
+    c.wipe('unit-node-b'); // the next loss
+    const after = await c.client.checksum('BMKG');
+    expect(after.count).toBe(150);
+    expect(after.checksum).toBe(before.checksum);
+  });
+
   it('writes made while a unit is down reach it through repair', async () => {
     const c = makeCluster();
     c.controls.setUnitState('unit-node-c', 'DOWN');

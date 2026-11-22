@@ -378,9 +378,14 @@ export class HttpStorageClient implements StorageClient {
     if (targets.length === 0) return { repaired: [] };
     let sources = this.readableUnits(st);
     if (sources.length === 0) sources = targets; // cold start: nobody is authoritative, so merge everyone
+    // A peer that is unreachable right now may hold the only copy of rows the target owns. Copy what we can, but do not
+    // declare the target STABLE (found on k3s: a timeout during repair promoted an incomplete unit, and the next loss destroyed the only copy).
+    const peersDown = this.opts.units.map((u) => u.unit).filter((u) => !targets.includes(u) && st.get(u) === 'DOWN');
     this.repairing = true;
     try {
-      const dumps = (await Promise.all(sources.map((u) => this.send(u, 'GET', '/u/dump')))).filter((r) => r && r.status === 200).map((r) => r!.body as UnitDump);
+      const dumpResults = await Promise.all(sources.map((u) => this.send(u, 'GET', '/u/dump')));
+      const complete = peersDown.length === 0 && dumpResults.every((r) => r && r.status === 200);
+      const dumps = dumpResults.filter((r) => r && r.status === 200).map((r) => r!.body as UnitDump);
       const rows = new Map<string, UnitRow>();
       const docs = new Map<string, UnitDump['docs'][number]>();
       const fences: Record<string, number> = {};
@@ -397,7 +402,7 @@ export class HttpStorageClient implements StorageClient {
           fences,
         };
         const applied = await this.send(target, 'POST', '/u/apply', mine);
-        if (applied && applied.status === 200 && (await this.send(target, 'POST', '/u/state', { state: 'STABLE' }))?.status === 200) repaired.push(target);
+        if (applied && applied.status === 200 && complete && (await this.send(target, 'POST', '/u/state', { state: 'STABLE' }))?.status === 200) repaired.push(target);
       }
       return { repaired };
     } finally {
