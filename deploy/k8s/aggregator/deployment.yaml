@@ -70,5 +70,5 @@ spec:
             preStop:
               exec: { command: ["/bin/sh", "-c", "sleep ${PRESTOP_DRAIN_SECONDS:-5}"] }
           resources:
-            requests: { memory: "256Mi", cpu: "100m" }
+            requests: { memory: "256Mi", cpu: "250m" }
             limits:   { memory: "512Mi", cpu: "1000m" } # 500m throttled the event loop on k3s (probe + storage timeouts); Lampiran B constrains memory only
