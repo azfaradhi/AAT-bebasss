@@ -5,7 +5,7 @@ metadata:
   namespace: sistem-informasi-kebencanaan-bnpb
   labels: { app: satellite-processor, role: broker }
 spec:
-  replicas: 1 # interim in-memory Coordinator: two pods would open two feed connections (429); set 2 once the real Coordinator is wired
+  replicas: 2 # Lease coordinator wired: exactly one holder reads the feed (a second connection would get 429)
   strategy:
     type: RollingUpdate
     rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }

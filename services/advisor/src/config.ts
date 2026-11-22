@@ -21,7 +21,7 @@ const schema = z.object({
   ADVISOR_QUEUE_MAX: z.coerce.number().int().positive().default(100),
   ADVISOR_BREAKER_FAILURES: z.coerce.number().int().positive().default(5),
   ADVISOR_BREAKER_COOLDOWN_MS: z.coerce.number().int().positive().default(60_000),
-  INTERNAL_SERVICE_KEY: z.string().default('dev-internal-key'),
+  INTERNAL_SERVICE_KEY: z.string().min(1),
   POD_NAME: z.string().default('advisor-local'),
 });
 

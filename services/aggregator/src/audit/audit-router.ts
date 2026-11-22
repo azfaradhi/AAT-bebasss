@@ -37,7 +37,10 @@ function sendDownstreamError(reply: FastifyReply, err: unknown, fallback: string
 }
 
 export function registerAudit(app: FastifyInstance, options: RegisterAuditOptions): void {
-  const { storage, providers = {}, auditToken = process.env.AUDIT_TOKEN || 'changeme-audit-token' } = options;
+  const { storage, providers = {} } = options;
+  // No built-in default token: the Audit API must never open with a guessable credential.
+  const auditToken = options.auditToken ?? process.env.AUDIT_TOKEN;
+  if (!auditToken) throw new Error('AUDIT_TOKEN is required to register the Audit API');
   const ratePerSec = options.rateLimitPerSec ?? Number(process.env.AUDIT_RATE_LIMIT_PER_SEC ?? 200);
   const now = options.now ?? Date.now;
   let tokens = ratePerSec;

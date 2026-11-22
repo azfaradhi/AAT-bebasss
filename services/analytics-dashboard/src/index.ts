@@ -4,7 +4,7 @@ async function main(): Promise<void> {
   const port = Number(process.env.ANALYTICS_DASHBOARD_PORT ?? 8110);
   const app = buildDashboard({
     aggregatorBaseUrl: process.env.AGGREGATOR_BASE_URL ?? 'http://aggregator:8090',
-    internalKey: process.env.INTERNAL_SERVICE_KEY ?? 'changeme-internal-key',
+    internalKey: process.env.INTERNAL_SERVICE_KEY ?? (() => { throw new Error('INTERNAL_SERVICE_KEY is required'); })(),
   });
   const stop = async (): Promise<void> => { await app.close(); process.exit(0); };
   process.on('SIGTERM', stop);

@@ -12,7 +12,7 @@ export interface RegisterAnalyticsOptions {
 export function registerAnalyticsRoutes(app: FastifyInstance, options: RegisterAnalyticsOptions): void {
   const {
     storage,
-    internalServiceKey = process.env.INTERNAL_SERVICE_KEY || 'changeme-internal-key',
+    internalServiceKey = process.env.INTERNAL_SERVICE_KEY,
     cacheTtlMs = Number(process.env.ANALYTICS_CACHE_TTL_MS ?? 0),
   } = options;
   const summaryCache = new Map<string, { at: number; body: unknown }>();
