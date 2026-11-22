@@ -380,8 +380,10 @@ export class HttpStorageClient implements StorageClient {
     const st = await this.states();
     const targets = this.opts.units.map((u) => u.unit).filter((u) => st.get(u) === 'RECOVERING' || st.get(u) === 'JOINING');
     if (targets.length === 0) return { repaired: [] };
-    let sources = this.readableUnits(st);
-    if (sources.length === 0) sources = targets; // cold start: nobody is authoritative, so merge everyone
+    // Every unit that answers is a source, including the other RECOVERING/JOINING ones: a peer that restarted keeps the rows it replayed from its own log, and rows replicated
+    // only on {target, that peer} would otherwise never reach the target (found on k3s round 2: a unit repaired from the single STABLE unit was promoted with about a third of its
+    // keys, and wiping its restarted peer next lost ~45 % of the events). Merging is newest-wins, so an old copy cannot override a newer one.
+    const sources = this.opts.units.map((u) => u.unit).filter((u) => st.get(u) !== 'DOWN');
     // A peer that is unreachable right now may hold the only copy of rows the target owns. Copy what we can, but do not
     // declare the target STABLE (found on k3s: a timeout during repair promoted an incomplete unit, and the next loss destroyed the only copy).
     const peersDown = this.opts.units.map((u) => u.unit).filter((u) => !targets.includes(u) && st.get(u) === 'DOWN');

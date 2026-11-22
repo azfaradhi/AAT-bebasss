@@ -82,6 +82,24 @@ describe('loss, repair and the next loss (P1-K4, K5, K6)', () => {
     expect(after.checksum).toBe(before.checksum);
   });
 
+  it('uses a RECOVERING unit as a copy source: a wiped unit repaired together with a restarted peer must not lose the rows they share (found on k3s round 2)', async () => {
+    const c = makeCluster();
+    for (let i = 0; i < 200; i++) await c.client.upsertEvent(ev(`r-${i}`), ctx());
+    const before = await c.client.checksum('BMKG');
+
+    c.wipe('unit-node-a'); // empty disk (JOINING)
+    c.controls.setUnitState('unit-node-b', 'RECOVERING'); // a peer that restarted and replayed its own log: its data is intact but it is not STABLE yet
+
+    // Only unit-node-c is STABLE. Rows replicated on {a, b} exist only on b, so b must be read as a source too.
+    expect((await c.client.repair()).repaired.sort()).toEqual(['unit-node-a', 'unit-node-b']);
+    expect((await c.client.ringStatus()).redundancy_ok).toBe(true);
+
+    c.wipe('unit-node-b'); // the next loss
+    const after = await c.client.checksum('BMKG');
+    expect(after.count).toBe(200);
+    expect(after.checksum).toBe(before.checksum);
+  });
+
   it('writes made while a unit is down reach it through repair', async () => {
     const c = makeCluster();
     c.controls.setUnitState('unit-node-c', 'DOWN');
