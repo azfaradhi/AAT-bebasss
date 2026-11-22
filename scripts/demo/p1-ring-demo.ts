@@ -63,6 +63,44 @@ async function main(): Promise<void> {
   const base0 = await client.checksum('BMKG');
   line(`checksum before: count=${base0.count} sha256=${base0.checksum.slice(0, 16)}… partial=${base0.partial}`);
 
+  // Start a real aggregator HTTP host and run a continuous concurrent reader loop across the entire kill -> wipe -> empty restart -> repair -> 2nd unit kill lifecycle (P1-K4: 0 x HTTP 500, 0 hangs)
+  const aggPort = base + 20;
+  const AGG = `http://127.0.0.1:${aggPort}`;
+  const aggProc = spawn('npx', ['tsx', 'scripts/ring-host.ts'], {
+    cwd: join(__dirname, '../../services/aggregator'),
+    env: { ...process.env, STORAGE_UNITS: urls.join(','), AGGREGATOR_PORT: String(aggPort), INTERNAL_SERVICE_KEY: 'ik', AUDIT_TOKEN: 'audit-secret', STORAGE_STATE_TTL_MS: '50', LIST_CACHE_MS: '0' },
+    stdio: 'ignore',
+    detached: true,
+  });
+  procs.set('agg', aggProc);
+  for (let i = 0; i < 60; i++) {
+    if (await fetch(`${AGG}/ready`).then((r) => r.ok).catch(() => false)) break;
+    await sleep(100);
+  }
+
+  let stopHammer = false;
+  let hammerReqs = 0;
+  let hammer500s = 0;
+  let hammerHangs = 0;
+  let hammerPartialSeen = 0;
+  const hammerLoop = (async () => {
+    while (!stopHammer) {
+      hammerReqs++;
+      try {
+        const r1 = await fetch(`${AGG}/internal/audit/events?limit=20`, { headers: { authorization: 'Bearer audit-secret' }, signal: AbortSignal.timeout(2500) });
+        if (r1.status >= 500) hammer500s++;
+        const b1 = (await r1.json()) as any;
+        if (b1?.partial) hammerPartialSeen++;
+
+        const r2 = await fetch(`${AGG}/internal/hazard-events?limit=20`, { headers: { 'x-internal-key': 'ik' }, signal: AbortSignal.timeout(2500) });
+        if (r2.status >= 500) hammer500s++;
+      } catch {
+        hammerHangs++;
+      }
+      await sleep(25);
+    }
+  })();
+
   await kill('unit-b');
   start('unit-b', base + 1, true);
   await sleep(500);
@@ -78,7 +116,14 @@ async function main(): Promise<void> {
   const second = await client.checksum('BMKG');
   const page = await client.listEvents({ limit: 50 });
   line(`unit-c then killed: count=${second.count} same_checksum=${second.checksum === base0.checksum} partial=${second.partial}; list(50)=${page.items.length}`);
-  const ok = mid.checksum === base0.checksum && second.checksum === base0.checksum && !second.partial && after.redundancy_ok && second.count === N;
+
+  // Also test 2-units-down partial window during continuous traffic, then stop hammer loop
+  await kill('unit-b');
+  await sleep(350);
+  stopHammer = true;
+  await hammerLoop;
+  line(`continuous HTTP queries during kill/wipe/recovery/degraded window: total=${hammerReqs}, http_500=${hammer500s}, hangs=${hammerHangs}, partial_flagged_responses=${hammerPartialSeen}`);
+  const ok = mid.checksum === base0.checksum && second.checksum === base0.checksum && !second.partial && after.redundancy_ok && second.count === N && hammer500s === 0 && hammerHangs === 0 && hammerPartialSeen > 0;
   line(ok ? 'RESULT: PASS (no event lost; survives a second loss after repair)' : 'RESULT: FAIL');
   process.exitCode = ok ? 0 : 1;
 }

@@ -20,8 +20,30 @@ import { mountIngest } from './ingest/wiring';
 import { registerStorageGateway } from './storage/gateway-route';
 import { coordinatorFromEnv } from '../../../shared-types/src/coordination/factory';
 import { InMemoryCoordinator } from './coordination/in-memory-coordinator';
-import type { Coordinator } from '../../../shared-types/src/m2/types';
+import { METRICS, setGauge } from './resilience/obs';
+import { LEADER_NAMES, type Coordinator, type StorageClient } from '../../../shared-types/src/m2/types';
 import type { FastifyInstance } from 'fastify';
+
+async function syncAggregatorMetrics(storage: StorageClient | null, coordinator: Coordinator | null): Promise<void> {
+  if (coordinator) {
+    for (const name of Object.values(LEADER_NAMES)) {
+      setGauge(METRICS.leader, { name }, coordinator.isLeader(name) ? 1 : 0);
+    }
+  }
+  if (storage) {
+    try {
+      const rs = await storage.ringStatus();
+      setGauge(METRICS.ringEpoch, {}, rs.epoch);
+      for (const u of rs.units) {
+        setGauge(METRICS.unitUp, { unit: u.unit, node: u.node }, u.state === 'STABLE' ? 1 : 0);
+        setGauge(METRICS.unitKeys, { unit: u.unit, node: u.node }, u.keys);
+        setGauge(METRICS.unitWrites, { unit: u.unit, node: u.node }, u.writes_total);
+      }
+    } catch {
+      // Non-fatal during scrape
+    }
+  }
+}
 
 async function main(): Promise<void> {
   const logger = createLogger(SERVICE_NAME);
@@ -66,6 +88,7 @@ async function main(): Promise<void> {
       ingest,
     }),
   });
+  let draining = false;
   const extras = storage
     ? (a: FastifyInstance) => {
         const wiring = mountIngest(a, { storage, internalServiceKey: config.internalServiceKey, ingest });
@@ -74,9 +97,21 @@ async function main(): Promise<void> {
         registerStorageGateway(a, storage, config.internalServiceKey);
       }
     : undefined;
-  const app = buildApp(logger, { store, internalServiceKey: config.internalServiceKey, extras });
+  const app = buildApp(logger, {
+    store,
+    internalServiceKey: config.internalServiceKey,
+    readinessCheck: () => !draining,
+    onMetricsScrape: () => syncAggregatorMetrics(storage, coordinator),
+    extras,
+  });
 
   const shutdown = async (): Promise<void> => {
+    if (draining) return;
+    draining = true;
+    const drainSec = Number(process.env.PRESTOP_DRAIN_SECONDS ?? 0);
+    if (drainSec > 0) {
+      await new Promise((r) => setTimeout(r, drainSec * 1000));
+    }
     scheduler.stop();
     pantai?.stop();
     await coordinator?.stop();

@@ -105,8 +105,10 @@ node scripts/verify/verify-manifests.mjs deploy/k8s/overlays/demo
 # Kontrak & Fakes M2
 cd shared-types && npm test
 
-# Layanan Inti & Ketahanan (Auth, Client-API, Aggregator, Notifier, Dashboard-Updater, Obs-Kit)
+# Layanan Inti & Ketahanan (Storage-Unit, Analytics-Dashboard, Auth, Client-API, Aggregator, Notifier, Dashboard-Updater, Obs-Kit)
 cd tools/obs-kit && npm test
+cd services/storage-unit && npm run build && npm test
+cd services/analytics-dashboard && npm test
 cd services/auth-service && npm test
 cd services/client-api && npm test
 cd services/aggregator && npm test
@@ -189,6 +191,27 @@ Kedua mock menyediakan `GET /admin/request-log?since=<ISO>` (log request dengan 
 | `scripts/demo/p4-k4-burst.sh` | Burst ~108 000 frame: lag, waktu catch-up, p95 event-to-store, memori, tanpa kehilangan data; `WRITE_LATENCY_MS` memodelkan latensi tulis ring |
 
 Statistik proses: `GET :8094/internal/satellite/stats` (watermark, kebakaran terbuka, penghitung keterlambatan) dan `/metrics` (`bnpb_sat_offset_lag`, `bnpb_sat_late_*`, `bnpb_sat_event_to_store_seconds`).
+
+---
+
+## 5b. Skenario Demo, Pengujian Beban (`k6`), dan Verifikasi Problem 1, Problem 2, Audit API, & Bonus 3
+
+Seluruh skrip berikut menjalankan **proses sistem operasi nyata** (`storage-unit`, `aggregator`, `analytics-dashboard`, `client-api`, `bmkg-mock`, `pvmbg-mock`, `p2-lb`, dan `k6`) melalui HTTP dan mencetak hasil verifikasi `[PASS]/[FAIL]`. Bukti eksekusi tersimpan di `AAT-docs/m2/evidence/{P1,P2,INTEGRATION,BONUS}/`.
+
+| Skrip | Kriteria | Membuktikan |
+|---|---|---|
+| `npx --prefix services/aggregator tsx scripts/demo/p1-k1-catalogue-loader.ts [--file <path>]` | `P1-K1`, `P1-K2` | Memuat 3.600 gempa katalog historis Indonesia (`scripts/demo/fixtures/katalog-gempa-historis.csv` atau berkas CSV/JSON asisten via `--file`), melaporkan ketimpangan geografis alami, matriks sebaran shard (*primary* vs *replica*) per node (`node-a..c`), memverifikasi 100% `primary.node != replica.node`, checksum SHA-256 Audit API, serta beban tulis saat lonjakan 1.500 gempa di satu wilayah |
+| `npx --prefix services/aggregator tsx scripts/demo/p1-surge-e2e.ts` | `P1-K2` | Pengukuran beban tulis tiap unit penyimpanan saat pemuatan dataset 8 wilayah vs lonjakan 3.000 gempa di satu wilayah ("Palu") |
+| `npx --prefix services/aggregator tsx scripts/demo/p1-k3-x09-e2e.ts` | `P1-K3`, `X-09` | Penelusuran berhalaman Audit API atas 1.200 event lintas 4 sumber = urutan acuan `(ingested_at, hazard_id)`; `GET /hazard-events?limit=50` lewat `client-api` = 50 terbaru lintas seluruh jenis bahaya; toleransi *clock skew* JWT $\pm 60\text{ s}$ pada pergeseran jam $+45\text{ s}$ dan $-30\text{ s}$ |
+| `npx --prefix services/aggregator tsx scripts/demo/p1-ring-demo.ts` | `P1-K4`, `P1-K6` | Mematikan 1 proses `storage-unit` (`SIGKILL`) dan menghapus seluruh direktori disknya: checksum SHA-256 Audit API sebelum dan sesudah identik (0 event hilang), `repair()` memulihkan redundansi (`redundancy_ok=true`), dan sistem tahan kehilangan node berikutnya |
+| `npx --prefix services/aggregator tsx scripts/demo/p1-join-e2e.ts` | `P1-K5`, `P1-K6` | Menambahkan node/unit penyimpanan ke-4 secara hidup saat baca/tulis berjalan: 0 baca/tulis gagal, menjadi `STABLE` dalam $\approx 1\text{ s}$ dan ikut menanggung 26,7% salinan serta beban tulis |
+| `npx --prefix services/aggregator tsx scripts/demo/p1-analytics-e2e.ts` | `P1-K7` | Dasbor analitik browser (`services/analytics-dashboard`, grafik SVG per kategori bahaya $\times$ waktu, distribusi `severity`, tabel `area_name`) = hitungan langsung Audit API; spanduk *"Data belum lengkap"* muncul otomatis ketika `partial=true` |
+| `npx --prefix services/aggregator tsx scripts/demo/p2-poller-e2e.ts` | `P2-K2..K5` | Dua poller berbagi Kubernetes `Lease` (`bmkg`, `pvmbg`): log mock hanya mencatat 1 `caller_instance` aktif; *failover* $\le 4{,}1\text{ s}$ ($\le 60\text{ s}$) saat leader di-`SIGKILL`; tahan pergeseran jam $+45\text{ s}/-30\text{ s}$ dan pembekuan proses (`SIGSTOP`/`SIGCONT`) |
+| `npx --prefix services/aggregator tsx scripts/demo/p2-clock-freeze-e2e.ts` | `P2-K4`, `P2-K5` | Uji khusus pergeseran jam dinding $+45\text{ s} / -30\text{ s}$ dan pembekuan pemimpin (*zombie leader*) pada koordinator Lease |
+| `npx --prefix services/aggregator tsx scripts/demo/p2-failover-e2e.ts` | `P2-K3` | *Failover* pemimpin pemroses satelit dalam $\approx 4\text{ s}$ tanpa celah offset dan tanpa event ganda |
+| `npx --prefix services/aggregator tsx scripts/demo/p1-p2-cross-x10-x11-x12-e2e.ts` | `X-10..X-12`, `P2-K5` | `ingested_at` imutabel & monotonik ketat lintas pergantian pemimpin dengan lompatan jam mundur ($+45\text{ s} \to -30\text{ s}$, `X-10`); pengamatan langsung penolakan tulis pemimpin zombi **HTTP 409 `FENCED`** (`FencedError`) dari `storage-unit` + metrik `bnpb_fencing_rejections_total` (`P2-K5`); konsistensi dasbor analitik di bawah beban tulis 4 sumber (`X-11`); jawaban identik Audit API dari ketiga replika Aggregator (`X-12`) |
+| `ulimit -n 10240 && P2_K6_DURATION_S=120 npx --prefix services/aggregator tsx scripts/demo/p2-k1-k6-k7-k8-e2e.ts` | `P2-K1`, `P2-K6`, `P2-K7`, `P2-K8` | $\ge 3$ replika Aggregator lintas node di belakang Load Balancer `p2-lb.ts` yang mengisolasi replika tak sehat (`P2-K1`); benchmark `k6` throughput 3 replika $\ge 2{,}0\times$ 1 replika (`P2-K7`); uji beban `k6` (`load-tests/p2/p2-sustained-scale.k6.js`) **10.000 VU selama 120 detik** dengan skala hidup **$3 \to 5 \to 2$** dan *error rate* $< 1\%$ (`P2-K6`); *rolling update* langsung $v1 \to v2$ dengan **0 permintaan gagal** (`P2-K8`) |
+| `npx --prefix services/aggregator tsx scripts/demo/bon3-autoscaling-e2e.ts` | `BON-3` (`MB2-C1`) | Kapasitas menyesuaikan diri (*autoscaling* proporsional HPA v2 `HpaController`): replika Aggregator bertambah otomatis $3 \to 5$ saat beban naik melampaui target utilisasi 70% dan berkurang otomatis $5 \to 3$ setelah beban turun melewati jendela stabilisasi, dengan 0 permintaan gagal |
 
 ---
 

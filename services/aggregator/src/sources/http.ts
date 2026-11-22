@@ -21,9 +21,11 @@ export async function fetchData<T>(
   logger.info({ source, url: url.toString() }, 'upstream request started');
   try {
     const correlationId = currentCorrelationId();
+    const instanceId = process.env.POD_NAME ?? process.env.HOSTNAME ?? 'aggregator-local';
     const response = await fetch(url, {
       headers: {
         ...headers,
+        'x-aggregator-instance': instanceId,
         ...(correlationId ? { 'x-correlation-id': correlationId } : {}),
       },
       signal: AbortSignal.timeout(timeoutMs),

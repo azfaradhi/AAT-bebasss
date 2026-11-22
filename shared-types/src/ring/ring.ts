@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto';
 
-// Consistent-hash ring with virtual nodes; replicas are the next `rf` distinct units clockwise.
+// Consistent-hash ring with virtual nodes; replicas are the next `rf` distinct units clockwise (preferring distinct physical/VM nodes first).
 export class Ring {
   private points: Array<{ pos: number; unit: string }> = [];
+  private readonly nodeOf: (unit: string) => string;
 
-  constructor(readonly units: string[], readonly rf: number, vnodes = 64) {
+  constructor(readonly units: string[], readonly rf: number, vnodes = 64, nodeOf?: (unit: string) => string) {
+    this.nodeOf = nodeOf ?? ((u) => u);
     for (const unit of units) for (let i = 0; i < vnodes; i++) this.points.push({ pos: hash32(`${unit}#${i}`), unit });
     this.points.sort((a, b) => a.pos - b.pos);
   }
@@ -34,7 +36,18 @@ export class Ring {
 
   private walk(start: number): string[] {
     const out: string[] = [];
+    const seenNodes = new Set<string>();
     const want = Math.min(this.rf, this.units.length);
+    // First pass: place replicas on distinct nodes (P1-K4: every unit's replica must reside on a different node from its primary)
+    for (let i = 0; out.length < want && i < this.points.length; i++) {
+      const unit = this.points[(start + i) % this.points.length].unit;
+      const node = this.nodeOf(unit);
+      if (!out.includes(unit) && !seenNodes.has(node)) {
+        out.push(unit);
+        seenNodes.add(node);
+      }
+    }
+    // Fallback when total distinct nodes < rf
     for (let i = 0; out.length < want && i < this.points.length; i++) {
       const unit = this.points[(start + i) % this.points.length].unit;
       if (!out.includes(unit)) out.push(unit);

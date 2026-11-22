@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { FencedError, StorageUnavailableError, type StorageClient } from '../../../../shared-types/src/m2/types';
 import { GATEWAY_OPS, type GatewayOp } from '../../../../shared-types/src/ring/gateway-client';
+import { incCounter, METRICS } from '../resilience/obs';
 
 // POST /internal/storage/:op runs one StorageClient call for components that may not reach the storage units directly.
 export function registerStorageGateway(app: FastifyInstance, storage: StorageClient, internalServiceKey: string): void {
@@ -15,7 +16,10 @@ export function registerStorageGateway(app: FastifyInstance, storage: StorageCli
       const result = await (storage[op] as (...a: unknown[]) => Promise<unknown>).apply(storage, args);
       return { result: result ?? null };
     } catch (err) {
-      if (err instanceof FencedError) return reply.code(409).send({ code: 'FENCED', fence_name: err.fenceName, got: err.got, current: err.current });
+      if (err instanceof FencedError) {
+        incCounter(METRICS.fencingRejections, { name: err.fenceName });
+        return reply.code(409).send({ code: 'FENCED', fence_name: err.fenceName, got: err.got, current: err.current });
+      }
       if (err instanceof StorageUnavailableError) return reply.code(503).send({ code: 'STORAGE_UNAVAILABLE', unavailable_units: err.unavailable_units });
       request.log.error({ err }, 'storage gateway call failed');
       return reply.code(500).send({ error: { code: 'INTERNAL_ERROR', message: 'Storage operation failed' } });
