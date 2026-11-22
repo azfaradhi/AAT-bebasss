@@ -1,0 +1,17 @@
+# P3-K1/K2/K4/K5: PVMBG mock mode "rename" -> park -> adjust mapper -> replay
+# date: 2026-11-22T15:33:49.084Z  label: PROSES NYATA di cluster k3s (bukan simulasi)
+# nodes: node-a v1.37.2+k3s1 node-b v1.37.2+k3s1 node-c v1.37.2+k3s1
+# code: AAT-bebasss @ 45b265c; drill: scripts/cluster/drills/cluster-p3-schema-replay.mjs
+[15:34:00] baseline: PVMBG events=179, parked PVMBG=0, BMKG events=179
+[15:34:00] schema change: 200
+[15:37:01] parked after the change: 0; reasons: 
+[15:37:01] [FAIL] K1/K2: incompatible records are parked with a reason, source and status (not stored, not guessed)
+[15:37:01] [PASS] K2: records parked as non-retryable are kept apart from retryable ones (field `retryable` present) (non-retryable 0, retryable 0)
+[15:37:16] [PASS] K3: other sources keep flowing during the incident (BMKG count did not drop)
+[15:37:18] [PASS] K5: only Internal Ops can inspect (media 403, lapangan 403, internal 200)
+[15:37:18] adjusting the system: VOLCANIC_MAPPER_VERSION=v2 (rolling restart of the aggregator)
+[15:38:26] replay: HTTP 503 {"error":{"code":"AGGREGATOR_UNAVAILABLE","message":"Replay could not reach the aggregator"}}
+[15:38:32] [FAIL] K4: replay recovered the parked records (parked 0 -> 0; the rest cannot be mapped by any mapper version)
+[15:38:32] [PASS] K4: no duplicate HazardEvent after the replay (206 events)
+[15:39:04] [FAIL] K4: a second replay changes nothing ({"error":{"code":"AGGREGATOR_UNAVAILABLE","message":"Replay could not reach the aggregator"}})
+[15:39:04] RESULT: FAIL  -> <repo>\AAT-docs\m2\evidence\P3\K4\2026-11-22_1533_cluster-p3-schema-replay.txt

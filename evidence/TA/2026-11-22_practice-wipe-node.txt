@@ -1,0 +1,55 @@
+﻿# Tester Agent practice scenario: wipe-node. Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on one laptop).
+# Command: kubectl exec -n tester-agent daemonset/tester-agent -- /app run practice wipe-node
+# Method: mock data sources scaled to 0 first so Audit checksums are stable; baseline -> scenario -> poll Audit until recovered -> compare.
+
+[13:59:13] BASELINE
+[13:59:30]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[13:59:30]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:59:30]   ring: node-a:STABLE/3517 node-b:STABLE/4598 node-c:STABLE/4392 redundancy_ok=True repairing=False
+[13:59:47] RUN
+[13:59:48]   Latihan "wipe-node": 1 langkah
+[13:59:48]     - t+5s wipe_and_shutdown role=store nodes=any
+[13:59:48]   Permintaan b6791206d82a dikirim. Lihat hasil dengan: kubectl logs -n tester-agent -l app=tester-agent
+[14:00:29] t+41s ring: node-a:STABLE/3638 node-b:STABLE/4770 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:01:14] t+85s ring: node-a:STABLE/3638 node-b:STABLE/4773 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:01:56] t+128s ring: node-a:STABLE/3638 node-b:STABLE/4776 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:02:36] t+168s ring: node-a:STABLE/3639 node-b:STABLE/4779 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:03:17] t+209s ring: node-a:STABLE/3640 node-b:STABLE/4781 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:03:58] t+250s ring: node-a:STABLE/3642 node-b:STABLE/4783 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:04:38] t+290s ring: node-a:STABLE/3645 node-b:STABLE/4785 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:05:19] t+331s ring: node-a:STABLE/3647 node-b:STABLE/4787 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:06:11] t+383s ring: node-a:STABLE/3649 node-b:STABLE/4790 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:07:02] t+434s ring: node-a:STABLE/0 node-b:STABLE/4794 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:07:43] FINAL
+[14:07:43]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[14:07:43]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:07:43]   ring: node-a:STABLE/3652 node-b:STABLE/4794 node-c:DOWN/0 redundancy_ok=False repairing=False
+[14:07:43] RESULT recovered=False checksums_equal_to_baseline=True audit_errors_during_run=0
+[14:08:00] OBSERVED: wipe_and_shutdown powered node-c (VirtualBox VM node-3) OFF; the platform kept answering with identical checksums from the other replicas. Starting the VM again by hand (VBoxManage startvm node-3 --type headless) to measure repair.
+[14:25:53] OBSERVED: node-c VM stuck in early boot after wipe_and_shutdown + manual start; hard reset (VBoxManage controlvm node-3 reset) brought it back (ping ok after ~2 min). Now measuring repair of the wiped store.
+[14:26:24] after reboot t+32s ring: node-a:STABLE/3670 node-b:STABLE/4816 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:27:05] after reboot t+73s ring: node-a:STABLE/3672 node-b:STABLE/4818 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:27:47] after reboot t+114s ring: node-a:STABLE/3674 node-b:STABLE/4819 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:28:28] after reboot t+156s ring: node-a:STABLE/3677 node-b:STABLE/4822 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:29:10] after reboot t+197s ring: node-a:STABLE/3677 node-b:STABLE/4825 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:29:50] after reboot t+238s ring: node-a:STABLE/3680 node-b:STABLE/4827 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:30:32] after reboot t+280s ring: node-a:STABLE/3680 node-b:STABLE/4830 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:31:13] after reboot t+320s ring: node-a:STABLE/3682 node-b:STABLE/4832 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:32:02] after reboot t+369s ring: node-a:STABLE/3684 node-b:STABLE/4835 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:32:51] after reboot t+418s ring: node-a:STABLE/3685 node-b:STABLE/4838 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:33:32] after reboot t+460s ring: node-a:STABLE/3686 node-b:STABLE/4839 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:34:12] after reboot t+500s ring: node-a:STABLE/3689 node-b:STABLE/4840 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:34:52] after reboot t+540s ring: node-a:STABLE/3690 node-b:STABLE/4844 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:35:36] after reboot t+584s ring: node-a:STABLE/3692 node-b:STABLE/4845 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:36:19] after reboot t+626s ring: node-a:STABLE/3694 node-b:STABLE/4847 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:37:01] after reboot t+669s ring: node-a:STABLE/3697 node-b:STABLE/4847 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:37:43] after reboot t+711s ring: node-a:STABLE/3700 node-b:STABLE/4850 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:38:28] after reboot t+755s ring: node-a:STABLE/3702 node-b:STABLE/4851 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:39:18] after reboot t+805s ring: node-a:STABLE/3704 node-b:STABLE/4855 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:40:07] after reboot t+854s ring: node-a:STABLE/3704 node-b:STABLE/4859 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:40:53] after reboot t+900s ring: node-a:STABLE/3708 node-b:STABLE/4861 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:41:34] after reboot t+942s ring: node-a:STABLE/3709 node-b:STABLE/4863 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:42:17] after reboot t+984s ring: node-a:STABLE/3711 node-b:STABLE/4867 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:42:59] after reboot t+1026s ring: node-a:STABLE/3713 node-b:STABLE/4870 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[14:43:40] RESULT2 recovered_after_reboot=False seconds=1067 BMKG=count=83 checksum=d6416a62c0680251 PVMBG=count=48 checksum=8f33a60998055726
+[15:22:51] node-c back, 18s node-a:STABLE/5510 node-b:STABLE/7226 node-c:STABLE/6896 redundancy_ok=True repairing=False | BMKG count=343 checksum=d715ced58b765e97 | PVMBG count=309 checksum=a40faece6aa41a5d

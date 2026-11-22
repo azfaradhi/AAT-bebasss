@@ -1,0 +1,13 @@
+# cmd: scripts/demo/p3-k1-schema-policy.sh   (pvmbg-mock via tsx, delays 0, live interval 200 ms)
+# date: 2026-11-13 14:41  node v20.20.2  branch ms2-prob3-prob4 (working tree, T02 uncommitted)
+change kind                                   | source                  | declared                 | observed                 | verdict
+baseline (no change)                          | mock mode baseline      | AUTO                     | AUTO                     | PASS
+additive optional field / null / int to float | mock mode additive      | AUTO                     | AUTO                     | PASS
+rename (volcano_id)                           | mock mode rename        | PARK SCHEMA_INCOMPATIBLE | PARK SCHEMA_INCOMPATIBLE | PASS
+type change (eruption_count_24h)              | mock mode type_change   | PARK SCHEMA_INCOMPATIBLE | PARK SCHEMA_INCOMPATIBLE | PASS
+required field dropped (ash_column_height_m)  | mock mode drop_required | PARK SCHEMA_INCOMPATIBLE | PARK SCHEMA_INCOMPATIBLE | PASS
+additive enum value                           | synthetic record        | PARK UNKNOWN_ENUM_VALUE  | PARK UNKNOWN_ENUM_VALUE  | PASS
+unknown alert_level (narrowing)               | synthetic record        | PARK UNKNOWN_ENUM_VALUE  | PARK UNKNOWN_ENUM_VALUE  | PASS
+unit change (m to km)                         | synthetic record        | AUTO (not detectable)    | AUTO                     | PASS
+
+PASS: system behavior matches the declaration

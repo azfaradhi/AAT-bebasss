@@ -1,0 +1,11 @@
+units: unit-a@node-a, unit-b@node-b, unit-c@node-c
+loaded 3000 events in 1507 ms
+  unit-a (node-a): 2000 keys (33.3%)
+  unit-b (node-b): 2081 keys (34.7%)
+  unit-c (node-c): 1919 keys (32.0%)
+checksum before: count=3000 sha256=273a5cd775384e67… partial=false
+unit-b killed (SIGKILL) and its disk wiped, restarted empty: count=3000 same_checksum=true partial=false
+  redundancy_ok during recovery: false
+repair: ["unit-b"]; redundancy_ok=true; unit-b keys=2081
+unit-c then killed: count=3000 same_checksum=true partial=false; list(50)=50
+RESULT: PASS (no event lost; survives a second loss after repair)

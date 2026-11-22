@@ -1,0 +1,82 @@
+﻿# Round 2 / Step 0: sync, token, rebuild, respread
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Done: both repos pulled; SAT token installed (.env.local + Secret, feed HTTP 200 group=bebasss); 11 images rebuilt from integration HEAD 45b265c and pushed to node-a:5000 (advisor not in overlay, not rebuilt); old cached images removed on the 3 nodes; manifests applied; node-a rebooted gracefully (VM CPU starvation: soft-lockup 754-850 s seen on node-b/c consoles; observability stack OOM-killing tempo on node-c, now scaled to 0 again).
+# Note: the storage-unit pods came up on the NEW image by themselves after the node reboot (cache removed), so they were not restarted one by one.
+
+[21:46:04] $ kubectl get pods -A -o wide
+    NAMESPACE                           NAME                                      READY   STATUS             RESTARTS         AGE     IP               NODE     NOMINATED NODE   READINESS GATES
+    kube-system                         coredns-577d995dff-g87kn                  1/1     Running            8 (3m34s ago)    10h     10.42.0.129      node-a   <none>           <none>
+    kube-system                         helm-install-gateway-api-crd-ff2sb        0/1     Completed          0                10h     <none>           node-a   <none>           <none>
+    kube-system                         local-path-provisioner-56c6584955-75z48   1/1     Running            6 (3m34s ago)    10h     10.42.0.137      node-a   <none>           <none>
+    kube-system                         metrics-server-778c4649b4-v7tjb           1/1     Running            12 (3m34s ago)   10h     10.42.0.135      node-a   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   aggregator-548598ccd-2zgw7                1/1     Running            0                30s     10.42.0.140      node-a   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   aggregator-548598ccd-4xvvw                1/1     Running            0                30s     10.42.2.112      node-c   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   aggregator-548598ccd-c8g5f                1/1     Running            0                69s     10.42.0.139      node-a   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   aggregator-548598ccd-kzf9l                1/1     Running            0                69s     10.42.2.109      node-c   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   aggregator-548598ccd-xxgsx                1/1     Running            0                69s     10.42.1.74       node-b   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   analytics-dashboard-747fd59bc8-xjnmv      1/1     Running            4 (3m34s ago)    72m     10.42.0.138      node-a   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   auth-service-79f59bdf69-gjnzt             1/1     Running            8 (48m ago)      72m     10.42.2.107      node-c   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   auth-service-79f59bdf69-xv7jw             1/1     Running            5 (3m34s ago)    71m     10.42.0.130      node-a   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   bmkg-mock-6457584598-b9j4b                1/1     Running            0                46s     10.42.2.110      node-c   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   client-api-6cb9cbf9d9-jhjdp               1/1     Running            3 (3m34s ago)    70m     10.42.0.133      node-a   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   client-api-6cb9cbf9d9-wrvb8               1/1     Running            6 (48m ago)      72m     10.42.2.108      node-c   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   dashboard-updater-549f7f9675-98fdd        1/1     Running            1 (54m ago)      72m     10.42.1.69       node-b   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   field-report-processor-7fc5f9659b-m5782   1/1     Running            3 (3m34s ago)    72m     10.42.0.136      node-a   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   notifier-b8774b695-rzz86                  1/1     Running            1 (49m ago)      72m     10.42.1.68       node-b   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   pvmbg-mock-8fd944949-74lf9                1/1     Running            0                46s     10.42.2.111      node-c   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   rabbitmq-0                                1/1     Running            3 (3m34s ago)    175m    10.42.0.132      node-a   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   rabbitmq-1                                1/1     Running            1 (108m ago)     5h17m   10.42.2.96       node-c   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   rabbitmq-2                                0/1     CrashLoopBackOff   15 (2m32s ago)   9h      10.42.1.61       node-b   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   satellite-processor-696f69bfdb-b2f2w      1/1     Running            4 (3m34s ago)    70m     10.42.0.131      node-a   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   satellite-processor-696f69bfdb-ffj6g      1/1     Running            2 (54m ago)      72m     10.42.1.72       node-b   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   sensor-pantai-78f588f5b9-qmdgn            1/1     Running            3 (48m ago)      10h     10.42.1.66       node-b   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   storage-unit-59sck                        1/1     Running            8 (63m ago)      4h      10.42.1.67       node-b   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   storage-unit-nvl9j                        1/1     Running            9 (44m ago)      4h32m   10.42.2.102      node-c   <none>           <none>
+    sistem-informasi-kebencanaan-bnpb   storage-unit-v5pcw                        0/1     Running            13 (3m34s ago)   4h      10.42.0.134      node-a   <none>           <none>
+    tester-agent                        tester-agent-tdj7n                        1/1     Running            5 (108m ago)     9h      192.168.56.103   node-c   <none>           <none>
+    tester-agent                        tester-agent-tmlq5                        1/1     Running            4 (3m34s ago)    9h      192.168.56.101   node-a   <none>           <none>
+    tester-agent                        tester-agent-z6zsb                        1/1     Running            1 (109m ago)     9h      192.168.56.102   node-b   <none>           <none>
+[21:46:12] storage unit storage-unit-59sck /metrics (port 8100): 200 # TYPE bnpb_http_server_request_duration_seconds histogram | bnpb_http_server_request_duration_seconds_bucket{service="storage-unit",route="/metrics",method="GET",status_class="2xx",le="0.005"} 38 | b
+[21:46:12] satellite-processor logs (tail 20), 401 lines: 0
+[21:46:12] $ kubectl -n sistem-informasi-kebencanaan-bnpb logs deploy/satellite-processor --tail=20
+    {"level":"info","ts":"2026-11-22T14:45:15.604Z","service":"satellite-processor","instance":"satellite-processor-696f69bfdb-ffj6g","node":"node-b","committed":1421,"fence":8794,"msg":"satellite leader term started"}
+    {"level":"warn","ts":"2026-11-22T14:45:18.095Z","service":"satellite-processor","instance":"satellite-processor-696f69bfdb-ffj6g","node":"node-b","err":"storage unavailable: node-a,node-c","permanent":false,"msg":"satellite stream ended abnormally"}
+    {"level":"warn","ts":"2026-11-22T14:45:18.824Z","service":"satellite-processor","instance":"satellite-processor-696f69bfdb-ffj6g","node":"node-b","err":"storage unavailable: node-a,node-c","permanent":false,"msg":"satellite stream ended abnormally"}
+[21:46:28] ring: node-a:DOWN/0 node-b:RECOVERING/28495 node-c:RECOVERING/27968 redundancy_ok=False repairing=False
+[21:46:28] $ kubectl -n sistem-informasi-kebencanaan-bnpb get pods -l app=aggregator -o wide
+    NAME                         READY   STATUS    RESTARTS   AGE   IP            NODE     NOMINATED NODE   READINESS GATES
+    aggregator-548598ccd-2zgw7   1/1     Running   0          53s   10.42.0.140   node-a   <none>           <none>
+    aggregator-548598ccd-4xvvw   1/1     Running   0          53s   10.42.2.112   node-c   <none>           <none>
+    aggregator-548598ccd-c8g5f   1/1     Running   0          92s   10.42.0.139   node-a   <none>           <none>
+    aggregator-548598ccd-kzf9l   1/1     Running   0          92s   10.42.2.109   node-c   <none>           <none>
+    aggregator-548598ccd-xxgsx   1/1     Running   0          92s   10.42.1.74    node-b   <none>           <none>
+[21:47:31] RECOVERY: the storage unit on node-a (v5pcw) crash-looped 14 times replaying its 42 MB log (node-b/c units were RECOVERING and, with the new repair() fix, are NOT promoted while a peer is DOWN). Action: removed /var/lib/bnpb/store/node-a.log on node-a and deleted the pod so it restarts empty (JOINING); rows stay on node-b/node-c (RF=2). Expected: repair refills node-a, then all 3 become STABLE.
+[21:47:32] node-a store files left: 0
+[21:48:05] t+32s ring: node-a:JOINING/22245 node-b:RECOVERING/28495 node-c:RECOVERING/0 redundancy_ok=False repairing=True
+[21:48:25] t+53s ring: node-a:JOINING/22245 node-b:RECOVERING/28495 node-c:RECOVERING/27977 redundancy_ok=False repairing=False
+[21:48:42] t+70s ring: node-a:JOINING/22245 node-b:RECOVERING/28495 node-c:RECOVERING/27977 redundancy_ok=False repairing=False
+[21:49:00] t+88s ring: node-a:JOINING/22245 node-b:RECOVERING/28495 node-c:RECOVERING/27977 redundancy_ok=False repairing=False
+[21:49:17] t+105s ring: node-a:STABLE/22286 node-b:STABLE/28562 node-c:STABLE/28030 redundancy_ok=True repairing=False
+[21:49:46] aggregator replicas per node: 
+[21:49:46] $ kubectl -n sistem-informasi-kebencanaan-bnpb get pods -l app=aggregator -o wide
+    NAME                         READY   STATUS    RESTARTS   AGE     IP            NODE     NOMINATED NODE   READINESS GATES
+    aggregator-548598ccd-2zgw7   1/1     Running   0          4m11s   10.42.0.140   node-a   <none>           <none>
+    aggregator-548598ccd-4xvvw   1/1     Running   0          4m11s   10.42.2.112   node-c   <none>           <none>
+    aggregator-548598ccd-c8g5f   1/1     Running   0          4m50s   10.42.0.139   node-a   <none>           <none>
+    aggregator-548598ccd-kzf9l   1/1     Running   0          4m50s   10.42.2.109   node-c   <none>           <none>
+    aggregator-548598ccd-xxgsx   1/1     Running   0          4m50s   10.42.1.74    node-b   <none>           <none>
+[21:49:50] FINAL ring: node-a:STABLE/23739 node-b:STABLE/30361 node-c:STABLE/29825 redundancy_ok=True repairing=False
+[21:49:51] satellite 401 lines in last 200: 0
+[21:49:51] $ kubectl -n sistem-informasi-kebencanaan-bnpb logs deploy/satellite-processor --tail=6
+    {"level":"info","ts":"2026-11-22T14:45:15.604Z","service":"satellite-processor","instance":"satellite-processor-696f69bfdb-ffj6g","node":"node-b","committed":1421,"fence":8794,"msg":"satellite leader term started"}
+    {"level":"warn","ts":"2026-11-22T14:45:18.095Z","service":"satellite-processor","instance":"satellite-processor-696f69bfdb-ffj6g","node":"node-b","err":"storage unavailable: node-a,node-c","permanent":false,"msg":"satellite stream ended abnormally"}
+    {"level":"warn","ts":"2026-11-22T14:45:18.824Z","service":"satellite-processor","instance":"satellite-processor-696f69bfdb-ffj6g","node":"node-b","err":"storage unavailable: node-a,node-c","permanent":false,"msg":"satellite stream ended abnormally"}
+    {"level":"warn","ts":"2026-11-22T14:47:41.492Z","service":"satellite-processor","instance":"satellite-processor-696f69bfdb-ffj6g","node":"node-b","err":"storage unavailable: node-a,node-c","permanent":false,"msg":"satellite stream ended abnormally"}
+    {"level":"warn","ts":"2026-11-22T14:49:24.998Z","service":"satellite-processor","instance":"satellite-processor-696f69bfdb-ffj6g","node":"node-b","err":"storage unavailable: node-b,node-c","permanent":false,"msg":"satellite stream ended abnormally"}
+    {"level":"warn","ts":"2026-11-22T14:49:26.750Z","service":"satellite-processor","instance":"satellite-processor-696f69bfdb-ffj6g","node":"node-b","err":"feed returned HTTP 429","permanent":false,"msg":"satellite stream ended abnormally"}
+[21:49:51] $ kubectl -n sistem-informasi-kebencanaan-bnpb get hpa
+    NAME             REFERENCE               TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+    aggregator-hpa   Deployment/aggregator   cpu: 354%/70%   3         5         5          4m32s
+[21:49:51] RESULT: step 0 done. Aggregator on 3 nodes, 3 units STABLE (redundancy_ok), feed token valid (HTTP 200); storage /metrics answers 200 on the new image; observability stack is scaled to 0 (needed only for Step 6).
+[21:49:58] aggregator replicas per node (recomputed; the earlier line was empty because of a jsonpath quoting error): node-a=2 node-c=2 node-b=1
+[21:49:58] satellite feed: the leader streams; the second replica gets 'feed returned HTTP 429' (one connection per group), no 401 lines. Earlier 'storage unavailable' warnings came from the ring recovering.

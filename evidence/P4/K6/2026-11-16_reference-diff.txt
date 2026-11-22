@@ -1,0 +1,10 @@
+# cmd: scripts/demo/p4-k6-reference-diff.sh  (streaming pipeline FireSink vs scripts/verify/p4-reference-batch.ts, an independent brute-force batch computation; 9 000 frames = 3 chained days of the captured slice)
+# reference = our own (assumption Q10: the assistants' result is not used); every number below comes from the report-lateness-*.json files
+
+allowed lateness 360 min: fires pipeline/reference 153/153, singles 849/849, beyond-bound detections 0, differences 0, unexplained 0
+allowed lateness 180 min: fires pipeline/reference 153/153, singles 837/849, beyond-bound detections 120, differences 447, unexplained 0
+      36 x lateness bound (detections beyond the allowed lateness are counted, not merged); the smallest key was beyond the bound, so the id derives from another key
+     411 x lateness bound (detections beyond the allowed lateness are counted, not merged)
+allowed lateness 60 min: fires pipeline/reference 153/153, singles 789/849, beyond-bound detections 435, differences 849, unexplained 0
+     771 x lateness bound (detections beyond the allowed lateness are counted, not merged)
+      78 x lateness bound (detections beyond the allowed lateness are counted, not merged); the smallest key was beyond the bound, so the id derives from another key

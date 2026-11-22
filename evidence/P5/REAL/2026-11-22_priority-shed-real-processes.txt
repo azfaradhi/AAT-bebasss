@@ -1,0 +1,8 @@
+media: 200=1196 429=26445 (with Retry-After: 26445) other=none p95=135 ms
+lapangan: 200=738 429=0 (with Retry-After: 0) other=none p95=302 ms
+load: 120 media + 8 lapangan concurrent clients for 15 s; admission max_inflight=16, lapangan_reserved=6, media_max=8
+  [PASS] P5-K5: lapangan is served (100.0 % answered 200, target >= 95 %)
+  [PASS] P5-K5: media is rejected in a controlled way (26445 x 429 with Retry-After on 26445, no 5xx/timeouts)
+  [PASS] P5-K5: lapangan p95 stays low under overload (302 ms < 1000 ms)
+metrics: # TYPE bnpb_shed_total counter | bnpb_shed_total{identity_class="media"} 26445
+RESULT: PASS

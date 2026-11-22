@@ -1,0 +1,13 @@
+# cmd: scripts/demo/p3-k6-field-reports-kill.sh  (in-process fault injection: fresh receiver per request via the real client-api route, crash between the two writes, processor paused then killed mid-processing; InMemoryStorage; NOT pod kills on a cluster)
+# date: 2026-11-16 15:51 node v20.20.2 branch ms2-prob3-prob4 (T10 working tree, uncommitted)
+requests sent / unique Idempotency-Keys                        | 500 / 392                    | PASS
+receiver crashed before 202 (client retried)                   | 22                           | PASS
+accepted_total == unique keys                                  | 392 == 392                   | PASS
+processed_total == accepted_total (while paused: 0)            | 392 == 392                   | PASS
+duplicates_dropped_total == repeats + crash retries            | 130 == 108 + 22              | PASS
+processor killed mid-processing                                | 9 times                      | PASS
+every 202 report is stored; nothing stored that was not 202d   | lost 0, extra 0, ids 392     | PASS
+leftover pending markers                                       | 0                            | PASS
+202 latency p95 while the processor was paused                 | 2.54 ms                      | PASS
+
+PASS: no 202 report lost, none processed twice, duplicates counted exactly

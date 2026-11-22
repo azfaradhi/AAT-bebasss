@@ -1,0 +1,61 @@
+# Evidence: stable state of the demo overlay on k3s, after fixes 13-20 (HANDOFF section 6). Date: 2026-11-22 12:24:57
+# Label: PROSES NYATA (k3s). Nodes are 3 VirtualBox VMs on ONE laptop (not separate physical hosts). Not covered: Tester Agent, drills, load tests, real sensor image.
+
+$ kubectl get nodes -o wide
+NAME     STATUS   ROLES           AGE   VERSION        INTERNAL-IP      EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION              CONTAINER-RUNTIME
+node-a   Ready    control-plane   98m   v1.37.2+k3s1   192.168.56.101   <none>        Ubuntu 24.04.5 LTS   6.8.0-139-generic (amd64)   containerd://2.3.7-k3s1
+node-b   Ready    <none>          96m   v1.37.2+k3s1   192.168.56.102   <none>        Ubuntu 24.04.5 LTS   6.8.0-139-generic (amd64)   containerd://2.3.7-k3s1
+node-c   Ready    <none>          95m   v1.37.2+k3s1   192.168.56.103   <none>        Ubuntu 24.04.5 LTS   6.8.0-139-generic (amd64)   containerd://2.3.7-k3s1
+
+$ kubectl -n sistem-informasi-kebencanaan-bnpb get pods -L role -o wide
+NAME                                     READY   STATUS    RESTARTS        AGE     IP           NODE     NOMINATED NODE   READINESS GATES   ROLE
+aggregator-7898dbbb55-7sxkx              1/1     Running   1 (3m16s ago)   3m51s   10.42.1.34   node-b   <none>           <none>            aggregator
+aggregator-7898dbbb55-9srkm              1/1     Running   0               4m27s   10.42.2.35   node-c   <none>           <none>            aggregator
+aggregator-7898dbbb55-lbs2r              1/1     Running   3 (82s ago)     2m53s   10.42.2.36   node-c   <none>           <none>            aggregator
+aggregator-7898dbbb55-wkcgq              1/1     Running   0               5m22s   10.42.0.38   node-a   <none>           <none>            aggregator
+aggregator-7898dbbb55-xtkdn              1/1     Running   2 (105s ago)    4m50s   10.42.1.33   node-b   <none>           <none>            aggregator
+analytics-dashboard-6d547d8456-z288f     1/1     Running   2 (26m ago)     56m     10.42.1.31   node-b   <none>           <none>            other
+auth-service-75db8d4d49-frgdt            1/1     Running   1 (29m ago)     56m     10.42.0.25   node-a   <none>           <none>            api
+auth-service-75db8d4d49-mh8gv            1/1     Running   2 (25m ago)     56m     10.42.1.28   node-b   <none>           <none>            api
+bmkg-mock-545f9675b4-vbgjz               1/1     Running   1 (25m ago)     56m     10.42.2.29   node-c   <none>           <none>            mock
+client-api-79464c4b4b-t4bm5              1/1     Running   1 (25m ago)     56m     10.42.2.27   node-c   <none>           <none>            api
+client-api-79464c4b4b-wjhvw              1/1     Running   1 (29m ago)     56m     10.42.0.26   node-a   <none>           <none>            api
+dashboard-updater-58778b9fc9-d855h       1/1     Running   1 (25m ago)     56m     10.42.2.24   node-c   <none>           <none>            consumer
+field-report-processor-ddbfdd977-7tvzf   1/1     Running   2 (25m ago)     56m     10.42.1.26   node-b   <none>           <none>            consumer
+notifier-7796487985-gln8k                1/1     Running   1 (25m ago)     56m     10.42.2.23   node-c   <none>           <none>            consumer
+pvmbg-mock-5d7d56446d-cljjk              1/1     Running   1 (29m ago)     56m     10.42.0.33   node-a   <none>           <none>            mock
+rabbitmq-0                               1/1     Running   0               16m     10.42.0.37   node-a   <none>           <none>            broker
+rabbitmq-1                               1/1     Running   0               14m     10.42.2.34   node-c   <none>           <none>            broker
+rabbitmq-2                               1/1     Running   0               11m     10.42.1.32   node-b   <none>           <none>            broker
+satellite-processor-54656b4675-nvnwg     1/1     Running   1 (29m ago)     56m     10.42.0.27   node-a   <none>           <none>            broker
+sensor-pantai-78f588f5b9-qmdgn           1/1     Running   1 (26m ago)     56m     10.42.1.29   node-b   <none>           <none>            sensor
+storage-unit-7fsfx                       1/1     Running   2 (25m ago)     56m     10.42.1.30   node-b   <none>           <none>            store
+storage-unit-8ldqw                       1/1     Running   1 (29m ago)     56m     10.42.0.29   node-a   <none>           <none>            store
+storage-unit-p7kpm                       1/1     Running   1 (25m ago)     56m     10.42.2.26   node-c   <none>           <none>            store
+
+$ kubectl -n sistem-informasi-kebencanaan-bnpb get hpa
+NAME             REFERENCE               TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+aggregator-hpa   Deployment/aggregator   cpu: 364%/70%   3         5         5          56m
+
+$ kubectl top nodes
+NAME     CPU(cores)   CPU(%)   MEMORY(bytes)   MEMORY(%)   
+node-a   1276m        31%      1843Mi          21%         
+node-b   850m         28%      1240Mi          19%         
+node-c   1030m        34%      1224Mi          19%         
+
+$ rabbitmqctl cluster_status (running nodes)
+Running Nodes
+
+rabbit@rabbitmq-0.rabbitmq-headless.sistem-informasi-kebencanaan-bnpb.svc.cluster.local
+rabbit@rabbitmq-1.rabbitmq-headless.sistem-informasi-kebencanaan-bnpb.svc.cluster.local
+rabbit@rabbitmq-2.rabbitmq-headless.sistem-informasi-kebencanaan-bnpb.svc.cluster.local
+
+$ make verify-resources verify-netpol
+[verify-resources] OK: all live containers match Lampiran B.
+bash scripts/verify/verify-netpol.sh
+[verify-netpol] Running live NetworkPolicy test in namespace 'sistem-informasi-kebencanaan-bnpb'...
+[verify-netpol] 1/2 Positive test: role=aggregator -> http://10.42.0.39:8100/ (MUST succeed, retried up to 60s)...
+[verify-netpol] PASS: role=aggregator allowed.
+[verify-netpol] 2/2 Negative test: role=api -> http://10.42.0.39:8100/ (MUST fail every time)...
+[verify-netpol] PASS: role=api blocked.
+[PASS] PLAT-8 store isolation enforced by NetworkPolicy.

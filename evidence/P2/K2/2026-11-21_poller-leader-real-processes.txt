@@ -1,0 +1,24 @@
+# P2-K2..K5 BMKG/PVMBG poller drills on real processes (2026-11-21)
+# command: npx tsx scripts/demo/p2-poller-e2e.ts  (AAT-bebasss @ integration)
+# processes per scenario: 3 storage-unit, fake apiserver (Lease), bmkg-mock, pvmbg-mock, 2 poller-host (services/aggregator/scripts/poller-host.ts: ring store + Lease per source + defensive ingest, no RabbitMQ)
+# 'who called upstream' = caller_instance in the BMKG mock's /admin/request-log (x-aggregator-instance header); the mock keeps producing events, so equality is checked after convergence
+# clock shift = skew-preload.cjs on Date only; freeze = SIGSTOP/SIGCONT. After thaw the old instance may start one stale poll; what matters is that it completes none (writes are fenced)
+two pollers, 11 s window (interval 2000 ms): BMKG leader=poller-2, PVMBG leader=poller-2; /seismic-events calls=5 from poller-2
+  [PASS] K2: only the BMKG lease holder called the BMKG mock (one caller_instance in its request log)
+  [PASS] K2: upstream load is one poller's worth (5 calls in 11 s at 2000 ms, not double)
+  BMKG events in the mock: 26; stored in the ring: 26
+  [PASS] K2: every BMKG event from the mock is stored exactly once (ring == mock, no duplicates)
+  poller-2 killed; poller-1 took the BMKG lease after 4149 ms (leaseTransitions 2)
+  [PASS] K3: another instance continues within 60 s (took over in 4149 ms)
+  [PASS] K3: after takeover only the new leader calls upstream
+  after takeover: mock 27, ring 27
+  [PASS] K3: no gap and no duplicates (ring converges to exactly the mock events)
+  [PASS] K4: wall clocks +45 s / -30 s then swapped: one BMKG leader throughout (poller-1) and one upstream caller (poller-1)
+  [PASS] K4: no spurious takeover (leaseTransitions bmkg 1->1, pvmbg 1->1)
+  poller-2 frozen (SIGSTOP) -> poller-1 became BMKG leader; after SIGCONT the old instance: upstream calls=0, polls completed=0, polls failed=1 (e.g. The operation was aborted due to timeout)
+  old instance log after thaw: BMKG:polling tick skipped because the previous tick for this source is still running×1, PVMBG:polling tick skipped because the previous tick for this source is still running×1, BMKG:upstream request completed×2, BMKG:source poll failed×1, PVMBG:upstream request completed×1, PVMBG:source poll failed×1, BMKG:could not mark source stale×1, BMKG:polling tick completed×1, PVMBG:could not mark source stale×1, PVMBG:polling tick completed×1
+  [PASS] K5: after thaw the old instance completed no BMKG poll (its writes were refused or it did not poll)
+  [PASS] K5: it did not take the lease back
+  after the freeze drill: mock 27, ring 27
+  [PASS] K5: ring converges to exactly the mock events (no loss, no duplicates)
+RESULT: PASS

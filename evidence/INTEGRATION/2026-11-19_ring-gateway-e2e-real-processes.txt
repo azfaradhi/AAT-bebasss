@@ -1,0 +1,15 @@
+ring up: unit-a@node-a, unit-b@node-b, unit-c@node-c
+  [PASS] POST /field-reports answers 202 (written to the ring before the reply)
+  [PASS] the same Idempotency-Key is not stored twice
+  [PASS] field-report-processor (another process) processed it from the shared ring
+  satellite events in ring so far: 51 (first sighting 8)
+  [PASS] satellite-processor wrote HazardEvents that another client reads from the ring
+  [PASS] Audit API /internal/audit/checksum agrees with the ring (count and sha256)
+  [PASS] Audit API /internal/audit/events lists the satellite events
+  [PASS] Audit API /internal/audit/location names two distinct nodes (primary + replica)
+  [PASS] one storage unit killed: satellite events still complete (same count, partial=false)
+  [PASS] one storage unit killed: field report still visible
+  [PASS] one storage unit killed: new reports are still accepted (202)
+  [PASS] wiped unit rejoined through repair (unit-b) and redundancy is restored
+  [PASS] final ring is complete and not partial
+RESULT: PASS

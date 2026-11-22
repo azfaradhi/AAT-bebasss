@@ -1,0 +1,11 @@
+﻿# X-09 on k3s: JWT validation while a node clock is shifted +45 s then -30 s under a small steady load (no false 401)
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Load: k6 (load-tests/p2/aggregator-scale.k6.js) 2 VU, think 1 s, 100 s, through client-api; each VU renews its token before expiry. Clock shifted on the worker node that hosts a client-api pod; NTP restored after.
+
+[19:01:46] client-api placement: client-api-79464c4b4b-w6d9k@node-b client-api-79464c4b4b-wjhvw@node-a
+[19:01:46] shifting the clock of node-b (102)
+[19:02:08] t+12 s clock +45 s -> node UTC 12:02:53
+[19:02:52] t+52 s clock -30 s -> node UTC 12:03:06
+[19:03:51] t+90 s NTP restored -> node UTC 12:03:51
+[19:03:51] k6 summary: p2_error_rate..................: 92.18% 59 out of 64 || p2_status_200..................: 5      0.046413/s || p2_status_503..................: 59     0.54767/s || http_req_duration..............: avg=2.05s    p(50)=2.21s    p(95)=2.62s p(99)=2.76s max=2.77s || http_reqs......................: 70     0.649778/s
+[19:04:34] RESULT: ZERO HTTP 401 during +45 s and -30 s clock shifts of node-b with a steady load (status counts: 200 x5, 503 x59, no 401). The JWT path therefore produced no false authentication failures. The 59 x 503 are a separate problem (the read path timing out on the loaded cluster, 92% errors), so this run says nothing about the data path, only that no token was wrongly rejected. Ring at the end: node-a:STABLE/36069 node-b:STABLE/18358 node-c:STABLE/18058 redundancy_ok=True repairing=False

@@ -1,0 +1,29 @@
+# Re-run of Member 1's evidence on the tree that merges origin/ms2 (Member 3's platform push) into ms2-prob3-prob4
+# date: 2026-11-18 13:07 node v20.20.2; merge result is in the working tree of AAT-bebasss (not yet committed: the merge commit was blocked by the permission check and awaits the human)
+
+## unit tests per service (vitest) and tsc
+aggregator 139 pass (1 test fails in 5 of 6 runs: src/resilience/m2-resilience.test.ts, Member 3's breaker-jitter test, see audit G2)
+client-api 45 pass | auth-service 22 pass | satellite-processor 44 pass | field-report-processor 3 pass | advisor 18 pass | pvmbg-mock 24 pass | bmkg-mock 10 pass; tsc clean in every service
+
+## demo and verification scripts (time | script | result)
+9s | demo/p3-k1-schema-policy | PASS: system behavior matches the declaration
+1s | demo/p3-k3-fuzz | PASS: every hostile input was parked or absorbed, healthy messages still stored
+1s | demo/p3-k4-replay | PASS: all recoverable messages recovered, no duplicates, replay is idempotent
+1s | demo/p3-k5-ops-only | PASS: media 403, lapangan 403, internal 200; audit token lists retrying and parked
+1s | demo/p3-k6-field-reports-kill | PASS: no 202 report lost, none processed twice, duplicates counted exactly
+1s | demo/p4-k1-multi-satellite | PASS (k1)
+1s | demo/p4-k3-update-retract | PASS (k3)
+1s | demo/p4-k2-late-data | PASS: lateness handled on both sides of the bound
+4s | demo/p4-k8-reconnect | PASS: contiguous offsets, no duplicates across forced reconnects
+3s | demo/p4-k5-crash | PASS: result after repeated kills equals the fault-free run
+2s | demo/p4-k6-reference-diff | PASS
+55s | demo/p4-k4-burst | PASS
+8s | demo/bon2-advisor | PASS: the advisor adds advisory records and changes nothing on the alert path
+1s | verify/p3-owned-manifests | PASS  bmkg-mock: pod label role=mock
+
+## scripts/verify/p3-owned-metrics.sh
+PASS: contract metric names and log fields present
+18 individual checks PASS
+
+## contract package
+cd AAT-docs/contracts && npm test: 47 of 47 pass; shared-types/src/m2/types.ts identical to contracts/src/types.ts; ids.ts differs only by the ./types.js import

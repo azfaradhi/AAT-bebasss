@@ -1,0 +1,13 @@
+# P5-K1 with the REAL notifier service (2026-11-21): aggregator ×2 (real index.ts) + RabbitMQ 3.13 (docker) + notifier (services/consumers/notifier) + sensor fixture + ring
+# command: ONLY=C npx tsx scripts/demo/int-full-e2e.ts  (AAT-bebasss @ integration); notifier started and ready BEFORE the aggregators
+# the figures come from the Audit API /internal/audit/critical-deliveries (aggregator -> notifier's delivery store); sensor is OUR fixture, not the assistants' image
+# observation from the first run, where the notifier was started at the same time as the aggregators (not saved): all 10 alerts were still delivered but p95 was 10.475 s, because alerts detected before the notifier declared critical_alerts_queue were retried by the outbox until it existed
+--- C clean with the real notifier service ---
+  real notifier via Audit /internal/audit/critical-deliveries: total 10, p95 0.031 s
+  [PASS] C clean with the real notifier service: the Audit API lists every critical alert the notifier delivered (10 of 10), ids match
+  [PASS] C clean with the real notifier service: notifier-reported end-to-end p95 0.031 s <= 5 s (P5-K1 target)
+  326 events stored, 326 delivered to the exchange queue (45 duplicate deliveries); 10 critical observations, 0 critical alerts delivered (0 duplicates), detected->received p50 undefined ms, p95 NaN ms, max undefined ms; 131 s
+  [PASS] C clean with the real notifier service: every stored event reached a consumer of the fanout exchange (0 missing of 326)
+  [PASS] C clean with the real notifier service: every critical observation produced a critical alert on critical_alerts_queue (0 missing of 10)
+  [PASS] C clean with the real notifier service: outbox drained (0 pending)
+RESULT: PASS

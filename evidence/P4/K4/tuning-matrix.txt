@@ -1,0 +1,11 @@
+# tuning matrix: 36 000-frame burst (REPEAT_CYCLES=12) at 3000 frames/s, batch 500, checkpoint every 500; WRITE_LATENCY_MS models one replicated ring write; WRITE_CONCURRENCY = writes in flight per phase
+# date: 2026-11-16, in-process, InMemoryStorage + sleep per write. 'identical=False' on the 5 ms/1 case is the 300 s test deadline expiring before the run finished (catch_up 286.8 s), not a wrong result.
+latency 0ms conc 1: fps=2640 lag_peak=480 catch_up=0.0s p95=0.23s rss=122MB identical=True
+latency 0ms conc 16: fps=2678 lag_peak=460 catch_up=0.0s p95=0.21s rss=132MB identical=True
+latency 0ms conc 64: fps=2716 lag_peak=450 catch_up=0.0s p95=0.20s rss=134MB identical=True
+latency 2ms conc 1: fps=231 lag_peak=33000 catch_up=142.5s p95=7.39s rss=113MB identical=True
+latency 2ms conc 16: fps=2570 lag_peak=3150 catch_up=0.7s p95=0.51s rss=123MB identical=True
+latency 2ms conc 64: fps=2713 lag_peak=880 catch_up=0.0s p95=0.29s rss=137MB identical=True
+latency 5ms conc 1: fps=100 lag_peak=34000 catch_up=286.8s p95=17.62s rss=110MB identical=False
+latency 5ms conc 16: fps=1324 lag_peak=18500 catch_up=14.0s p95=1.15s rss=121MB identical=True
+latency 5ms conc 64: fps=2724 lag_peak=1350 catch_up=0.1s p95=0.42s rss=122MB identical=True

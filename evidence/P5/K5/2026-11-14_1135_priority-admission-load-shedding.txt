@@ -1,0 +1,10 @@
+
+ RUN  v3.2.7 C:/File/ITB/Semester-7/aat/AAT-bebasss/services/client-api
+
+ ✓ tests/rbac-admission.test.ts (2 tests) 270ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  11:36:03
+   Duration  1.30s (transform 122ms, setup 0ms, collect 437ms, tests 270ms, environment 0ms, prepare 220ms)
+

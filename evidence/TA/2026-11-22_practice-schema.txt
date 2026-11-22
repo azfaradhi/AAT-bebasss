@@ -1,0 +1,19 @@
+﻿# Tester Agent practice scenario: schema. Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on one laptop).
+# Command: kubectl exec -n tester-agent daemonset/tester-agent -- /app run practice schema
+# Method: mock data sources scaled to 0 first so Audit checksums are stable; baseline -> scenario -> poll Audit until recovered -> compare.
+
+[13:57:22] BASELINE
+[13:57:38]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[13:57:38]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:57:38]   ring: node-a:STABLE/3044 node-b:STABLE/3972 node-c:STABLE/3807 redundancy_ok=True repairing=False
+[13:57:55] RUN
+[13:57:56]   Latihan "schema": 1 langkah
+[13:57:56]     - t+5s call_mock_admin role= nodes=
+[13:57:56]   Permintaan 7c3b07dec6b3 dikirim. Lihat hasil dengan: kubectl logs -n tester-agent -l app=tester-agent
+[13:58:23] t+26s ring: node-a:STABLE/3208 node-b:STABLE/4200 node-c:STABLE/4009 redundancy_ok=True repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:58:50] t+54s ring: node-a:STABLE/3328 node-b:STABLE/4363 node-c:STABLE/4154 redundancy_ok=True repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:59:07] FINAL
+[13:59:07]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[13:59:07]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:59:07]   ring: node-a:STABLE/3403 node-b:STABLE/4454 node-c:STABLE/4246 redundancy_ok=True repairing=False
+[13:59:07] RESULT recovered=True checksums_equal_to_baseline=True audit_errors_during_run=0

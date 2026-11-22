@@ -1,0 +1,21 @@
+﻿# P1-K5 round 2 on k3s (images rebuilt AFTER fix 349d02d): unit on node-c leaves (label removed), data wiped, rejoins empty, continuous reader through the aggregator Service
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# No VM is powered off (Tester wipe-node NOT used). Mocks at 0 so checksums can be compared. Reader: 1 GET /internal/hazard-events?limit=5 every 0.5 s through the Service while K5 and K6 run.
+
+[21:55:22] BASELINE ring: node-a:STABLE/33964 node-b:STABLE/43469 node-c:STABLE/42372 redundancy_ok=True repairing=False
+[21:55:22] BASELINE BMKG count=1038 checksum=668da34966df7469 partial=False unavailable= | PVMBG count=1009 checksum=2f25d6964a570c8b partial=False unavailable=
+[21:55:23] label bnpb/storage removed from node-c
+[21:55:26] node-c unit pod gone, hostPath wiped
+[21:55:53] WHILE UNIT ABSENT: ring node-a:STABLE/34196 node-b:STABLE/43757 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=1038 checksum=668da34966df7469 partial=False unavailable= | PVMBG count=1009 checksum=2f25d6964a570c8b partial=False unavailable=
+[21:55:54] label restored (unit starts empty)
+[21:56:05] t+11s ring: node-a:STABLE/34264 node-b:STABLE/43814 node-c:JOINING/0 redundancy_ok=False repairing=True
+[21:56:28] t+35s ring: node-a:STABLE/34266 node-b:DOWN/0 node-c:JOINING/16583 redundancy_ok=False repairing=True
+[21:56:51] t+58s ring: node-a:STABLE/34294 node-b:DOWN/0 node-c:JOINING/16613 redundancy_ok=False repairing=True
+[21:57:16] t+83s ring: node-a:DOWN/0 node-b:RECOVERING/43876 node-c:JOINING/16648 redundancy_ok=False repairing=False
+[21:57:31] t+98s ring: node-a:DOWN/0 node-b:STABLE/43910 node-c:STABLE/16704 redundancy_ok=False repairing=False
+[21:57:38] t+105s ring: node-a:RECOVERING/34378 node-b:STABLE/44225 node-c:STABLE/17004 redundancy_ok=False repairing=False
+[21:58:05] t+131s ring: node-a:RECOVERING/34513 node-b:STABLE/44255 node-c:STABLE/17105 redundancy_ok=False repairing=True
+[21:58:19] t+146s ring: node-a:RECOVERING/34540 node-b:DOWN/0 node-c:STABLE/17136 redundancy_ok=False repairing=False
+[21:58:37] t+163s ring: node-a:STABLE/34679 node-b:STABLE/44465 node-c:STABLE/17331 redundancy_ok=True repairing=False
+[21:58:46] RESULT K5: all STABLE + redundancy_ok = True after 173 s; counts+checksums equal baseline = True. AFTER BMKG count=1038 checksum=668da34966df7469 partial=False unavailable= | PVMBG count=1009 checksum=2f25d6964a570c8b partial=False unavailable=
+[21:59:28] READER (240 s across K5 and K6): {"requests":46,"codes":{"200":23,"503":1,"ERR":22},"max_ms":8099} 

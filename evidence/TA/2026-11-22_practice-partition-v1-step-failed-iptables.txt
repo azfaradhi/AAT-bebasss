@@ -1,0 +1,19 @@
+﻿# Tester Agent practice scenario: partition. Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on one laptop).
+# Command: kubectl exec -n tester-agent daemonset/tester-agent -- /app run practice partition
+# Method: mock data sources scaled to 0 first so Audit checksums are stable; baseline -> scenario -> poll Audit until recovered -> compare.
+
+[13:53:06] BASELINE
+[13:53:28]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[13:53:28]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:53:29]   ring: node-a:STABLE/2113 node-b:STABLE/2786 node-c:STABLE/2638 redundancy_ok=True repairing=False
+[13:53:49] RUN
+[13:53:52]   Latihan "partition": 1 langkah
+[13:53:52]     - t+5s block_internode role= nodes=all
+[13:53:52]   Permintaan 644ada1bcfc2 dikirim. Lihat hasil dengan: kubectl logs -n tester-agent -l app=tester-agent
+[13:54:22] t+30s ring: node-a:STABLE/2336 node-b:STABLE/3041 node-c:STABLE/2906 redundancy_ok=True repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:54:50] t+59s ring: node-a:STABLE/2455 node-b:STABLE/3188 node-c:STABLE/3040 redundancy_ok=True repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:55:10] FINAL
+[13:55:10]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[13:55:10]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:55:10]   ring: node-a:STABLE/2535 node-b:STABLE/3303 node-c:STABLE/3141 redundancy_ok=True repairing=False
+[13:55:10] RESULT recovered=True checksums_equal_to_baseline=True audit_errors_during_run=0

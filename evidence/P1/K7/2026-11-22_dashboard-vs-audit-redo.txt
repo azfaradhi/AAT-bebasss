@@ -1,0 +1,28 @@
+﻿# P1-K7 on k3s (redo): analytics-dashboard /api/summary vs Audit counts; then 2 of 3 storage units killed
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Mocks are at 0 replicas so totals are stable. The page text for the partial case is in services/analytics-dashboard/src/page.ts ('Data belum lengkap: unit penyimpanan tidak terjangkau (...)').
+
+[17:40:36] ring before: node-a:STABLE/25339 node-b:STABLE/4546 node-c:STABLE/4773 redundancy_ok=True repairing=False
+[17:40:41] BASELINE dashboard: {"http":200,"total":829,"partial":false,"unavailable_units":[]}
+[17:41:02] BASELINE Audit:     sum=829 (BMKG=410 PVMBG=419 SATELIT=0 SENSOR_PANTAI=0)
+[17:41:02] killing 2 of 3 storage units (no wipe): storage-unit-hzz9x, storage-unit-zqcd7
+[17:41:21] t+8s dashboard: {"http":503,"error":"aggregator unreachable: The operation was aborted due to timeout"}
+[17:41:34] t+13s dashboard: {"http":503,"error":"aggregator unreachable: The operation was aborted due to timeout"}
+[17:41:52] t+18s dashboard: {"http":503,"error":"aggregator unreachable: The operation was aborted due to timeout"}
+[17:42:04] t+23s dashboard: {"http":200,"total":829,"partial":false,"unavailable_units":[]}
+[17:42:16] t+28s dashboard: {"http":200,"total":829,"partial":false,"unavailable_units":[]}
+[17:42:37] 2 units down, Audit: sum=829 (BMKG=410 PVMBG=419 SATELIT=0 SENSOR_PANTAI=0)
+[17:42:52] 2 units down, ring: node-a:STABLE/25597 node-b:STABLE/4895 node-c:STABLE/5094 redundancy_ok=True repairing=False
+[17:43:19] units back: redundancy_ok=True
+[17:43:27] AFTER dashboard: {"http":200,"total":829,"partial":false,"unavailable_units":[]}
+[17:43:46] AFTER Audit:     sum=829 (BMKG=410 PVMBG=419 SATELIT=0 SENSOR_PANTAI=0)
+[17:43:58] --- part 2: keep 2 units DOWN by removing the bnpb/storage label from node-a and node-b (data stays on their disks), then restore ---
+[17:44:00] labels removed from node-a and node-b; only the unit on node-c remains
+[17:44:28] 2 units absent, dashboard: {"http":503,"error":"aggregator unreachable: The operation was aborted due to timeout"}
+[17:44:41] 2 units absent, dashboard: {"http":503,"error":"aggregator unreachable: The operation was aborted due to timeout"}
+[17:44:54] 2 units absent, dashboard: {"http":503,"error":"aggregator unreachable: The operation was aborted due to timeout"}
+[17:45:04] 2 units absent, dashboard: {"http":200,"total":41,"partial":true,"unavailable_units":["node-a","node-b"]}
+[17:45:14] 2 units absent, Audit BMKG: 200 {"source":"BMKG","algorithm":"sha256","count":20,"checksum":"f7255b2e9c266720b27554877d5365241dd70be8edac66247d0a63cc241dbcf7","as_of":"2026-11-22T10:45:12.896Z","partial":true,"unavailable_units":["node-a","node-b"]}
+[17:45:20] 2 units absent, ring: 200 {"epoch":1,"rf":2,"units":[{"unit":"node-a","node":"node-a","state":"DOWN","keys":0,"writes_total":0},{"unit":"node-b","node":"node-b","state":"DOWN","keys":0,"writes_total":0},{"unit":"node-c","node":"node-c","state":"STABLE","keys":5391,"writes_total":6298}],"redundancy_ok":false,"repairing":false,"as_of":"2026-11-22T10:45:19.157Z"}
+[17:45:21] labels restored on node-a and node-b
+[17:46:32] after restore: redundancy_ok=True; dashboard: {"http":200,"total":829,"partial":false,"unavailable_units":[]}

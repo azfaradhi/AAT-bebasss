@@ -1,0 +1,16 @@
+﻿# P1-K5/K6 on k3s: a storage unit leaves (node label removed), its data is wiped, it rejoins empty and is repaired, while a reader hits the aggregator continuously
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# NOTE: there is no 4th node, so 'a new unit joins' is exercised as an EMPTY unit (JOINING) re-entering the ring; the ring never removes a unit by design. Writers = the pollers (BMKG/PVMBG mocks are on). Reader = 1 request / 0.5 s to GET /internal/hazard-events through the aggregator Service.
+
+[17:12:40] BASELINE ring: node-a:STABLE/21449 node-b:STABLE/27331 node-c:STABLE/30394 redundancy_ok=True repairing=False
+[17:12:40] BASELINE BMKG count=680 checksum=48a3c5947053e711 partial=False unavailable= | PVMBG count=696 checksum=0587d0844c295a65 partial=False unavailable=
+[17:12:41] label bnpb/storage removed from node-c (unit pod terminates)
+[17:13:12] node-c hostPath wiped; files left: 0
+[17:13:38] WHILE UNIT IS GONE ring: node-a:STABLE/21469 node-b:STABLE/27353 node-c:DOWN/0 redundancy_ok=False repairing=False | BMKG count=670 checksum=490aaa551f6fceb9 partial=partial=False
+[17:13:38] label restored: empty unit starts (JOINING expected)
+[17:14:14] t+36s ring: node-a:STABLE/21478 node-b:DOWN/0 node-c:JOINING/5 redundancy_ok=False repairing=False
+[17:14:44] t+66s ring: node-a:STABLE/21522 node-b:STABLE/27415 node-c:STABLE/89 redundancy_ok=True repairing=False
+[17:14:44] RESULT: node-c back to STABLE with redundancy_ok=True = True, 66 s after the label was restored
+[17:15:04] AFTER BMKG count=683 checksum=1f43e1088d6d1ab1 partial=False unavailable= | PVMBG count=705 checksum=bfc289e4b2ebbe4a partial=False unavailable=
+[17:16:49] READER (1 req/0.5 s for 270 s across the whole drill): {"requests":147,"codes":{"200":137,"ERR":10},"max_ms":8096}
+[17:17:10] ANALYSIS (criterion: 0 errors for the reader/writer): NOT MET. The reader had 10 timeouts (8 s limit) out of 147 requests (6.8%) and a worst latency of 8096 ms. node-b was also reported DOWN for one poll (t+36 s) while node-c was being filled, i.e. the repair load made a healthy unit exceed the call timeout on the loaded VMs. The BMKG count shown while node-c was DOWN (670) was LOWER than the baseline (680) although the answer said partial=False; it returned to 683 after repair. With RF=2 and one unit down every key should still have a live replica, so this dip is a finding to investigate, not a pass.

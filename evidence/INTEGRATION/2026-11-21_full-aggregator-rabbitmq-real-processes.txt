@@ -1,0 +1,19 @@
+# INT-3.1 / P5-K1 / X-05: real aggregator (2 instances, src/index.ts) + real RabbitMQ 3.13 (docker) + mocks + sensor fixture + ring (2026-11-21)
+# command: npx tsx scripts/demo/int-full-e2e.ts  (AAT-bebasss @ integration)
+# consumer is OUR amqplib script (fanout queue + critical_alerts_queue), not the notifier service; sensor is OUR fixture, not the assistants' image
+# phase B: critical queue created 12 s late, broker docker-paused 8 s, storage unit-1 SIGKILLed
+--- A clean ---
+  326 events stored, 326 delivered to the exchange queue (42 duplicate deliveries); 10 critical observations, 10 critical alerts delivered (11 duplicates), detected->received p50 29 ms, p95 41 ms, max 41 ms; 11 s
+  [PASS] A clean: every stored event reached a consumer of the fanout exchange (0 missing of 326)
+  [PASS] A clean: every critical observation produced a critical alert on critical_alerts_queue (0 missing of 10)
+  [PASS] A clean: critical delivery p95 41 ms <= 5000 ms (P5-K1 target)
+  [PASS] A clean: outbox drained (0 pending)
+--- B faults (late critical queue, broker paused 8 s, storage unit killed) ---
+  broker paused for 8 s; critical queue does not exist yet
+  storage unit-1 killed
+  critical queue created and consumed (late)
+  329 events stored, 329 delivered to the exchange queue (47 duplicate deliveries); 10 critical observations, 10 critical alerts delivered (1 duplicates), detected->received p50 20171 ms, p95 21241 ms, max 21241 ms; 27 s
+  [PASS] B faults (late critical queue, broker paused 8 s, storage unit killed): every stored event reached a consumer of the fanout exchange (0 missing of 329)
+  [PASS] B faults (late critical queue, broker paused 8 s, storage unit killed): every critical observation produced a critical alert on critical_alerts_queue (0 missing of 10)
+  [PASS] B faults (late critical queue, broker paused 8 s, storage unit killed): outbox drained (0 pending)
+RESULT: PASS

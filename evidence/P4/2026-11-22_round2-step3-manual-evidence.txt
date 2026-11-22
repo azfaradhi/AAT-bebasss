@@ -1,0 +1,36 @@
+﻿# Round 2 / Step 3 manual P4 evidence on k3s (real feed, group token valid): live frames, satellite stats/metrics, Audit WILDFIRE listing with time_total
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Drill result (scripts/cluster/drills/p4-satellite-leader.mjs): PASS on 4 checks; note the check 'events kept arriving' passed with 297 -> 297 (no NEW events in the 60 s after takeover), so resumed-flow is only 'not lost', not 'visibly increasing'. Feed session (GET /v1/session): profile=practice, speed=60, group=bebasss.
+
+[22:02:39] $ kubectl -n sistem-informasi-kebencanaan-bnpb logs deploy/satellite-processor --tail=40
+    {"level":"info","ts":"2026-11-22T15:01:20.699Z","service":"satellite-processor","instance":"satellite-processor-696f69bfdb-b2f2w","node":"node-a","committed":26427,"fence":8795,"msg":"satellite leader term started"}
+    {"level":"warn","ts":"2026-11-22T15:01:50.679Z","service":"satellite-processor","instance":"satellite-processor-696f69bfdb-b2f2w","node":"node-a","err":"storage unavailable: aggregator-gateway","permanent":false,"msg":"satellite stream ended abnormally"}
+[22:02:43] stats / metrics / audit listing (run from an aggregator pod):
+    SATELLITE STATS 200 234ms {"committed_offset":26427,"lag":6647587,"watermark":null,"open_fires":0,"singletons":0,"singles_total":0,"stored_detections":0,"lateApplied":0,"lateBeyond":0,"frozenIgnored":0,"finalizedFires":0,"evictedDetections":0,"singletonsEvicted":0}
+    SATELLITE /metrics 200 25ms
+    # TYPE bnpb_sat_gaps_total counter
+    bnpb_sat_gaps_total 0
+    # TYPE bnpb_sat_reconnects_total counter
+    bnpb_sat_reconnects_total 0
+    # TYPE bnpb_sat_offset_lag gauge
+    bnpb_sat_offset_lag 6674006
+    # TYPE bnpb_sat_event_to_store_seconds histogram
+    bnpb_sat_event_to_store_seconds_bucket{le="0.01"} 0
+    bnpb_sat_event_to_store_seconds_bucket{le="0.05"} 0
+    bnpb_sat_event_to_store_seconds_bucket{le="0.1"} 0
+    bnpb_sat_event_to_store_seconds_bucket{le="0.25"} 0
+    bnpb_sat_event_to_store_seconds_bucket{le="0.5"} 0
+    bnpb_sat_event_to_store_seconds_bucket{le="1"} 0
+    bnpb_sat_event_to_store_seconds_bucket{le="2"} 0
+    bnpb_sat_event_to_store_seconds_bucket{le="5"} 0
+    bnpb_sat_event_to_store_seconds_bucket{le="10"} 0
+    bnpb_sat_event_to_store_seconds_bucket{le="30"} 0
+    bnpb_sat_event_to_store_seconds_bucket{le="60"} 0
+    bnpb_sat_event_to_store_seconds_bucket{le="+Inf"} 0
+    bnpb_sat_event_to_store_seconds_sum 0
+    bnpb_sat_event_to_store_seconds_count 0
+    bnpb_sat_late_applied_total 0
+    bnpb_sat_late_beyond_bound_total 0
+    bnpb_sat_frozen_ignored_total 0
+    AUDIT /internal/audit/events?source=SATELIT&limit=5 -> 200 time_total=2.822s items=5
+    [{"hazard_id":"hz-438a795b6804","source":"SATELIT","source_ref_id":"fire-0da7c7192ee8","hazard_type":"WILDFIRE","severity":"AWAS","area_name":"Papua Pegunungan","latitude":-3.18028,"longitude":139.27594,"occurred_at":"2026-11-26T20:17:00.000Z","ingested_at":"2026-11-22T13:11:47.347Z","attributes":{"detection_count":34,"satellites":["N","N20","N21"],"max_confidence":"h","total_frp_mw":408.76,"detec

@@ -1,0 +1,24 @@
+﻿# Tester Agent practice scenario 'schema' rerun with BOTH mocks alive: which mock does call_mock_admin target and what does it answer
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Command: kubectl exec -n tester-agent daemonset/tester-agent -- /app run practice schema. Agent logs read afterwards (hash fields stripped).
+
+[17:47:29] $ kubectl -n sistem-informasi-kebencanaan-bnpb get deploy bmkg-mock pvmbg-mock
+    NAME         READY   UP-TO-DATE   AVAILABLE   AGE
+    bmkg-mock    1/1     1            1           6h19m
+    pvmbg-mock   1/1     1            1           6h19m
+[17:47:29] $ kubectl -n sistem-informasi-kebencanaan-bnpb get svc bmkg-mock pvmbg-mock
+    NAME         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)    AGE
+    bmkg-mock    ClusterIP   10.43.139.20   <none>        8081/TCP   6h19m
+    pvmbg-mock   ClusterIP   10.43.64.8     <none>        8082/TCP   6h19m
+[17:47:32] /app run output: Latihan "schema": 1 langkah /   - t+5s call_mock_admin role= nodes= / Permintaan 8cdf4d812cb7 dikirim. Lihat hasil dengan: kubectl logs -n tester-agent -l app=tester-agent / 
+[17:47:59] agent z6zsb: {"seq":23,"ts":"2026-11-22T10:47:32Z","action":"[L] skenario \"schema\" (practice) mulai; 1 langkah"}
+[17:47:59] agent z6zsb: {"seq":24,"ts":"2026-11-22T10:47:37Z","action":"[L] langkah 1 mulai: call_mock_admin POST /admin/schema-version"}
+[17:47:59] agent z6zsb: {"seq":25,"ts":"2026-11-22T10:47:38Z","action":"[L] mock POST /admin/schema-version -\u003e HTTP 404"}
+[17:47:59] agent z6zsb: {"seq":26,"ts":"2026-11-22T10:47:38Z","action":"[L] langkah 1 gagal: mock menjawab HTTP 404"}
+[17:48:04] $ kubectl -n sistem-informasi-kebencanaan-bnpb logs deploy/bmkg-mock --since=3m | findstr /i admin
+    {"level":30,"time":1795344458081,"service":"bmkg-mock","reqId":"req-p","req":{"method":"POST","url":"/admin/schema-version","host":"10.43.139.20:8081","remoteAddress":"10.42.1.0","remotePort":42672},"msg":"incoming request"}
+    {"level":30,"time":1795344458376,"service":"bmkg-mock","reqId":"req-p","request_log":{"ts":"2026-11-22T10:47:38.376Z","method":"POST","path":"/admin/schema-version","status":404,"caller_instance":null,"correlation_id":"00dc312d-3240-4e1d-a7e4-3f022330222d","duration_ms":284},"msg":"request logged"}
+[17:48:04] $ kubectl -n sistem-informasi-kebencanaan-bnpb logs deploy/pvmbg-mock --since=3m | findstr /i admin
+    
+[17:48:17] RESULT: the agent's call_mock_admin POST /admin/schema-version went to bmkg-mock (ClusterIP 10.43.139.20:8081; logged on bmkg-mock as POST /admin/schema-version status 404). pvmbg-mock logged no admin request at all. Both mocks were Running 1/1. So the agent targets the BMKG mock (likely the first service with role=mock by name), which has no admin routes; only pvmbg-mock implements the endpoint.
+[17:48:18] DECISION NEEDED: add /admin/schema-version (and the incompatible-change modes) to bmkg-mock, or find out from the assistants how the Tester chooses its target (service name? label?). Nothing was changed.

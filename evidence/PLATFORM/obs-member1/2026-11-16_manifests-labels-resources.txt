@@ -1,0 +1,39 @@
+# cmd: scripts/verify/p3-owned-manifests.sh  (kubectl kustomize of deploy/k8s/{bmkg-mock,pvmbg-mock,satellite-processor,field-report-processor}; stand-in for make verify-labels verify-resources)
+# date: 2026-11-16 16:03
+PASS  bmkg-mock: pod label role=mock
+PASS  bmkg-mock: deployment label matches pod role
+PASS  bmkg-mock/bmkg-mock: memory 64Mi/128Mi (Lampiran B mock: 64Mi/128Mi)
+PASS  bmkg-mock/bmkg-mock: startupProbe
+PASS  bmkg-mock/bmkg-mock: readinessProbe
+PASS  bmkg-mock/bmkg-mock: livenessProbe
+PASS  bmkg-mock/bmkg-mock: BMKG_API_KEY comes from a Secret, no literal value
+PASS  bmkg-mock/bmkg-mock: containerPort declared
+PASS  bmkg-mock: ConfigMap present
+PASS  pvmbg-mock: pod label role=mock
+PASS  pvmbg-mock: deployment label matches pod role
+PASS  pvmbg-mock/pvmbg-mock: memory 64Mi/128Mi (Lampiran B mock: 64Mi/128Mi)
+PASS  pvmbg-mock/pvmbg-mock: startupProbe
+PASS  pvmbg-mock/pvmbg-mock: readinessProbe
+PASS  pvmbg-mock/pvmbg-mock: livenessProbe
+PASS  pvmbg-mock/pvmbg-mock: PVMBG_JWT_SECRET comes from a Secret, no literal value
+PASS  pvmbg-mock/pvmbg-mock: containerPort declared
+PASS  pvmbg-mock: ConfigMap present
+PASS  satellite-processor: pod label role=broker
+PASS  satellite-processor: deployment label matches pod role
+PASS  satellite-processor/satellite-processor: memory 512Mi/1Gi (Lampiran B broker: 512Mi/1Gi)
+PASS  satellite-processor/satellite-processor: startupProbe
+PASS  satellite-processor/satellite-processor: readinessProbe
+PASS  satellite-processor/satellite-processor: livenessProbe
+PASS  satellite-processor/satellite-processor: SAT_GROUP_TOKEN comes from a Secret, no literal value
+PASS  satellite-processor/satellite-processor: containerPort declared
+PASS  satellite-processor: ConfigMap present
+PASS  field-report-processor: pod label role=consumer
+PASS  field-report-processor: deployment label matches pod role
+PASS  field-report-processor/field-report-processor: memory 128Mi/256Mi (Lampiran B consumer: 128Mi/256Mi)
+PASS  field-report-processor/field-report-processor: startupProbe
+PASS  field-report-processor/field-report-processor: readinessProbe
+PASS  field-report-processor/field-report-processor: livenessProbe
+PASS  field-report-processor/field-report-processor: containerPort declared
+PASS  field-report-processor: ConfigMap present
+
+PASS: all checks

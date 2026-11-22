@@ -1,0 +1,47 @@
+# Static manifest verification + resource totals (2026-11-21). NOT a cluster run: nothing was applied.
+# environment: Windows 11, kubectl v1.36.1 (kustomize v5.8.1), node, AAT-bebasss @ f17df56 branch integration
+# commands: node scripts/verify/verify-manifests.mjs ; kubectl kustomize deploy/k8s/overlays/demo | python res.py (sums replicas x container requests/limits)
+# note: the wrappers scripts/verify/verify-{labels,resources,netpol}.sh --manifest-check fail on this Windows shell with 'Argument list too long' (finding); the .mjs itself works
+
+=== Verifying Kustomize overlay: deploy/k8s/overlays/dev ===
+[PASS] Deployment/grafana (ns=observability, role=other) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/otel-collector (ns=observability, role=other) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/prometheus (ns=observability, role=other) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/tempo (ns=observability, role=other) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/aggregator (ns=sistem-informasi-kebencanaan-bnpb, role=aggregator) -> memory requests=256Mi, limits=512Mi
+[PASS] Deployment/analytics-dashboard (ns=sistem-informasi-kebencanaan-bnpb, role=other) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/auth-service (ns=sistem-informasi-kebencanaan-bnpb, role=api) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/bmkg-mock (ns=sistem-informasi-kebencanaan-bnpb, role=mock) -> memory requests=64Mi, limits=128Mi
+[PASS] Deployment/client-api (ns=sistem-informasi-kebencanaan-bnpb, role=api) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/dashboard-updater (ns=sistem-informasi-kebencanaan-bnpb, role=consumer) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/field-report-processor (ns=sistem-informasi-kebencanaan-bnpb, role=consumer) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/notifier (ns=sistem-informasi-kebencanaan-bnpb, role=consumer) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/pvmbg-mock (ns=sistem-informasi-kebencanaan-bnpb, role=mock) -> memory requests=64Mi, limits=128Mi
+[PASS] Deployment/satellite-processor (ns=sistem-informasi-kebencanaan-bnpb, role=broker) -> memory requests=512Mi, limits=1Gi
+[PASS] Deployment/sensor-pantai (ns=sistem-informasi-kebencanaan-bnpb, role=sensor) -> memory requests=128Mi, limits=256Mi
+[PASS] StatefulSet/rabbitmq (ns=sistem-informasi-kebencanaan-bnpb, role=broker) -> memory requests=512Mi, limits=1Gi
+[PASS] DaemonSet/storage-unit (ns=sistem-informasi-kebencanaan-bnpb, role=store) -> memory requests=512Mi, limits=1Gi
+[PASS] NetworkPolicies verified: store-ingress (role=store <- [aggregator, store]) and rabbitmq-ingress (app=rabbitmq <- [aggregator, api, consumer, broker])
+[OK] All 13 application workloads + 4 observability workloads + 2 NetworkPolicies verified cleanly.
+
+--- per workload (overlay demo); storage-unit is a DaemonSet (rep=None), counted below as 3 nodes
+observability Deployment  grafana                rep=1 role=other req=50m/128Mi lim=250m/256Mi
+observability Deployment  otel-collector         rep=1 role=other req=50m/128Mi lim=250m/256Mi
+observability Deployment  prometheus             rep=1 role=other req=50m/128Mi lim=500m/256Mi
+observability Deployment  tempo                  rep=1 role=other req=50m/128Mi lim=250m/256Mi
+sistem-informasi-kebencanaan-bnpb Deployment  aggregator             rep=3 role=aggregator req=100m/256Mi lim=500m/512Mi
+sistem-informasi-kebencanaan-bnpb Deployment  analytics-dashboard    rep=1 role=other req=50m/128Mi lim=500m/256Mi
+sistem-informasi-kebencanaan-bnpb Deployment  auth-service           rep=2 role=api req=50m/128Mi lim=500m/256Mi
+sistem-informasi-kebencanaan-bnpb Deployment  bmkg-mock              rep=1 role=mock req=25m/64Mi lim=250m/128Mi
+sistem-informasi-kebencanaan-bnpb Deployment  client-api             rep=2 role=api req=50m/128Mi lim=500m/256Mi
+sistem-informasi-kebencanaan-bnpb Deployment  dashboard-updater      rep=1 role=consumer req=50m/128Mi lim=500m/256Mi
+sistem-informasi-kebencanaan-bnpb Deployment  field-report-processor rep=1 role=consumer req=50m/128Mi lim=500m/256Mi
+sistem-informasi-kebencanaan-bnpb Deployment  notifier               rep=1 role=consumer req=50m/128Mi lim=500m/256Mi
+sistem-informasi-kebencanaan-bnpb Deployment  pvmbg-mock             rep=1 role=mock req=25m/64Mi lim=250m/128Mi
+sistem-informasi-kebencanaan-bnpb Deployment  satellite-processor    rep=1 role=broker req=100m/512Mi lim=500m/1024Mi
+sistem-informasi-kebencanaan-bnpb Deployment  sensor-pantai          rep=1 role=sensor req=50m/128Mi lim=250m/256Mi
+sistem-informasi-kebencanaan-bnpb StatefulSet rabbitmq               rep=3 role=broker req=100m/512Mi lim=1000m/1024Mi
+sistem-informasi-kebencanaan-bnpb DaemonSet   storage-unit           rep=None role=store req=100m/512Mi lim=500m/1024Mi
+
+--- sums (replicas x values), namespace sistem-informasi-kebencanaan-bnpb without storage-unit: 18 pods, requests 1200m/4096Mi, limits 9750m/8192Mi
+--- plus 3 storage-unit pods (3 labelled nodes): +300m/1536Mi requests, +1500m/3072Mi limits => 21 pods, requests 1500m/5632Mi, limits 11250m/11264Mi

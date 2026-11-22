@@ -1,0 +1,34 @@
+﻿# P2-K5 on k3s: freeze the pvmbg Lease holder (SIGSTOP on PID 1), let another replica take over, wake it (SIGCONT), check that the woken instance writes nothing
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Method: kubectl exec <holder> -- kill -STOP 1; poll the Lease; after takeover + 20 s kubectl exec <holder> -- kill -CONT 1; read pvmbg mock request log and storage-unit logs for fencing rejections.
+
+[16:59:51] holder=aggregator-5d4dd8dd4f-6dns5 leaseTransitions=7410
+[16:59:52] SIGSTOP sent to PID 1 of aggregator-5d4dd8dd4f-6dns5
+[17:01:14] RESULT takeover: new holder  after 82.6 s (spec <= 60 s)
+[17:01:34] waking the frozen instance (SIGCONT)
+[17:02:21] Lease after wake: holder=aggregator-5d4dd8dd4f-6dns5
+[17:02:26] pvmbg mock request log, last 150 s, runs of consecutive callers: [{"c":"aggregator-5d4dd8dd4f-6dns5","from":"2026-11-22T09:59:58.760Z","n":35}]
+[17:02:27] storage-unit storage-unit-bw9zn : lines with FENCED/409 in last 5 min = 0
+[17:02:28] storage-unit storage-unit-cn4wf : lines with FENCED/409 in last 5 min = 0
+[17:02:29] storage-unit storage-unit-ncf4l : lines with FENCED/409 in last 5 min = 0
+[17:02:30] woken pod log (fenced lines): 
+[17:02:47] ATTEMPT 1 INVALID: SIGSTOP to PID 1 from inside the pod has no effect (PID 1 of a container ignores signals sent from within its own PID namespace). The Lease never changed and the mock log shows the same caller throughout, so no freeze happened. Redone below with SIGSTOP on the host PID.
+[17:02:54] ATTEMPT 2: holder=aggregator-5d4dd8dd4f-6dns5 on node-b, container 25e67b70a9fa, host PID=
+[17:04:30] RESULT takeover: new holder '' after 96.7 s (spec <= 60 s; manifest lease 10 s)
+[17:05:38] Lease after wake: holder=aggregator-5d4dd8dd4f-6dns5
+[17:05:45] pvmbg mock request log, last 200 s, runs of consecutive callers: [{"c":"aggregator-5d4dd8dd4f-6dns5","from":"2026-11-22T10:02:25.296Z","n":47}]
+[17:05:46] storage-unit storage-unit-bw9zn : FENCED/fence lines in last 6 min = 0
+[17:05:46] storage-unit storage-unit-cn4wf : FENCED/fence lines in last 6 min = 0
+[17:05:47] storage-unit storage-unit-ncf4l : FENCED/fence lines in last 6 min = 0
+[17:05:48] woken pod log (leadership/fence lines): 
+[17:06:03] ATTEMPT 2 INVALID: the host PID could not be read (shell quoting error), so no SIGSTOP was sent; the Lease and the mock log are unchanged. Redone as attempt 3 with a script.
+[17:06:12] ATTEMPT 3: holder=aggregator-5d4dd8dd4f-6dns5 on node-b, container 25e67b70a9fa, host PID=67517
+[17:06:15] SIGSTOP on host PID 67517; process state:   67517 Tsl
+[17:06:27] RESULT takeover: new holder 'aggregator-5d4dd8dd4f-xvkjq' after 15.6 s (spec <= 60 s; manifest lease 10 s)
+[17:06:51] SIGCONT (frozen instance wakes); process state:   67517 Rsl
+[17:07:36] Lease after wake: holder=aggregator-5d4dd8dd4f-xvkjq
+[17:07:44] pvmbg mock request log, last 200 s, runs of consecutive callers: [{"c":"aggregator-5d4dd8dd4f-6dns5","from":"2026-11-22T10:04:24.949Z","n":27},{"c":"aggregator-5d4dd8dd4f-xvkjq","from":"2026-11-22T10:06:31.820Z","n":15}]
+[17:07:44] storage-unit storage-unit-bw9zn : FENCED/fence lines in last 6 min = 0
+[17:07:45] storage-unit storage-unit-cn4wf : FENCED/fence lines in last 6 min = 0
+[17:07:46] storage-unit storage-unit-ncf4l : FENCED/fence lines in last 6 min = 0
+[17:07:47] woken pod leadership/fence lines: 

@@ -1,0 +1,30 @@
+﻿# P3-K3 on k3s: serve hostile responses from pvmbg-mock /volcanic-reports (POST /admin/fuzz) and check the aggregator never restarts and parks the bad input
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# 9 cases from services/pvmbg-mock/src/fuzz.ts. For each: set the case, wait 25 s (PVMBG poll interval 7 s), read parked items (Audit /internal/audit/unprocessed) and the restartCount of every aggregator pod. The case is cleared at the end.
+
+[17:48:52] pvmbg-mock: pvmbg-mock   1/1   1     1     6h20m
+[17:48:53] BEFORE restartCounts: 6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0
+[17:49:19] BEFORE PVMBG parked total=0; by reason: 
+[17:49:26] case truncated_json set: 200 {"case":"truncated_json"}
+[17:50:12]   after truncated_json : PVMBG parked total=0; by reason:  || restartCounts: 6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0
+[17:50:17] case deep_nesting set: 200 {"case":"deep_nesting"}
+[17:51:08]   after deep_nesting : PVMBG parked total=0; by reason:  || restartCounts: 6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0
+[17:51:14] case invalid_utf8 set: 200 {"case":"invalid_utf8"}
+[17:52:05]   after invalid_utf8 : PVMBG parked total=0; by reason:  || restartCounts: 6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0
+[17:52:10] case huge_body set: 200 {"case":"huge_body"}
+[17:53:03]   after huge_body : PVMBG parked total=0; by reason:  || restartCounts: 6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0
+[17:53:07] case empty_body set: 200 {"case":"empty_body"}
+[17:53:55]   after empty_body : PVMBG parked total=0; by reason:  || restartCounts: 6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0
+[17:54:00] case wrong_content_type set: 200 {"case":"wrong_content_type"}
+[17:54:50]   after wrong_content_type : PVMBG parked total=0; by reason:  || restartCounts: 6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0
+[17:54:56] case bom set: 200 {"case":"bom"}
+[17:55:43]   after bom : PVMBG parked total=0; by reason:  || restartCounts: 6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0
+[17:55:48] case nul_bytes set: 200 {"case":"nul_bytes"}
+[17:56:36]   after nul_bytes : PVMBG parked total=0; by reason:  || restartCounts: 6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0
+[17:56:41] case mixed_batch set: 200 {"case":"mixed_batch"}
+[17:57:32]   after mixed_batch : PVMBG parked total=0; by reason:  || restartCounts: 6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0
+[17:57:37] fuzz cleared: 200 {"case":null}
+[17:57:37] FINAL restartCounts: 6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0
+[17:57:38] FINAL aggregator pods: aggregator-5d4dd8dd4f-6dns5 1/1 Running 2 ; aggregator-5d4dd8dd4f-cdm5c 1/1 Running 3 ; aggregator-5d4dd8dd4f-q5lpw 1/1 Running 0 ; aggregator-5d4dd8dd4f-v62nd 1/1 Running 3 ; aggregator-5d4dd8dd4f-xvkjq 1/1 Running 0
+[17:58:05] RESULT K3: restartCount of all 5 aggregator pods was identical before and after all 9 hostile cases (6dns5=2 cdm5c=3 q5lpw=0 v62nd=3 xvkjq=0), and all pods stayed Running 1/1: the aggregator did not crash on any case.
+[17:58:05] OBSERVATION (limit of the evidence): no PVMBG item was parked in any case (parked total stayed 0). The Lease holder's log for the 10 minutes of the drill shows 130 polls started, 63 upstream requests completed and 68 'source poll failed: breaker open: default' (the circuit breaker opened and the polling loop kept running). So these hostile responses were rejected as an upstream failure by the guarded fetch / breaker, not parked record by record; the 'a bad message parks and the loop continues' behaviour was therefore NOT demonstrated on this path (mixed_batch in particular did not produce a parked item). Needs a follow-up with the breaker closed.

@@ -1,5 +1,27 @@
 # Platform Koordinasi Kebencanaan BNPB — IF4031 Milestone 2
 
+## Status Implementasi
+
+Semua komponen Milestone 2 ada pada repositori ini dan dapat dijalankan mengikuti bagian 3. Ringkasan per problem; berkas bukti ada di `evidence/` dan pemetaan kriteria ke kode ada di `docs/PEMETAAN-KRITERIA.md`.
+
+| Problem | Yang berjalan | Tempat pengujian |
+|---|---|---|
+| P1 | Cincin penyimpanan RF=2 dengan primary/replica per node, pemulihan unit yang hilang, bacaan berpaginasi lintas lokasi, dasbor analitik yang sama dengan Audit | proses nyata; k3s untuk K4--K7 |
+| P2 | Satu pengambil per sumber lewat Lease, failover pemegang Lease, pergeseran jam, fencing token, rolling update | proses nyata; k3s untuk K1--K5 |
+| P3 | Guard dan Parker untuk pesan gagal, kebijakan perubahan skema, replay, jalur laporan lapangan yang durabel, rute khusus Internal Ops | proses nyata; k3s untuk K1--K2, K4--K6 |
+| P4 | Pemroses feed satelit (SSE) dengan pengelompokan waktu deteksi, update/retract, pemulihan crash yang hasil akhirnya identik | proses nyata; k3s untuk K1, K5 |
+| P5 | Validasi observasi berbasis perilaku, circuit breaker dan bulkhead, admisi berprioritas, jalur peringatan kritis, SLO dan error budget | proses nyata; k3s untuk K3, K5 |
+| Bonus | Advisor berbasis LLM di luar jalur peringatan (BON-2); pengendali autoscaling dan HPA (BON-3) | proses nyata; k3s untuk HPA naik |
+
+## Batasan yang diketahui
+
+- Pengujian cluster dilakukan pada tiga VM di satu laptop, sehingga angka latensi dan beban tidak mewakili perangkat keras produksi.
+- P2-K6: k6 menjalankan 10.000 VU secara nominal, tetapi hanya 450 yang mengirim permintaan; di k3s kriteria ini tidak terpenuhi.
+- P5-K5 lulus pada 40 klien media dan 8 lapangan, dan gagal pada 150 dan 10 klien.
+- P5-K4: bacaan klien tetap cepat saat sensor mati, tetapi pemulihan mandiri breaker belum terbukti di k3s.
+- P4-K4: di k3s pemroses satelit tertinggal jauh dari umpan latihan; perbandingan dengan referensi asisten (K6) belum dilakukan.
+- BON-3: di k3s HPA terbukti menaikkan replika, penurunan kembali belum terbukti.
+
 ## 1. Ikhtisar Arsitektur (Milestone 2: Sistem Terdistribusi Skalabel)
 
 Platform Koordinasi Kebencanaan BNPB mengagregasi empat sumber bahaya (**BMKG** `SEISMIC`, **PVMBG** `VOLCANIC`, **Citra Satelit** `WILDFIRE`, dan **Sensor Pantai** `COASTAL`) ke dalam format kanonik `HazardEvent`, menyimpannya pada penyimpanan terdistribusi berbasis kuorum (**Problem 1**), mengoordinasikan pemrosesan satelit menggunakan pemilihan pemimpin & *fencing token* (**Problem 2**), memproses laporan lapangan secara idempoten dengan karantina pesan rusak (**Problem 3**), menjalankan agregasi analitik terisolasi (**Problem 4**), serta menjamin ketahanan menyeluruh dan jalur cepat peringatan kritis di bawah gangguan berlapis (**Problem 5**).

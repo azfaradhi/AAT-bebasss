@@ -1,0 +1,84 @@
+﻿# Raw responses of the real sustuna/sensor-pantai (profile practice) on k3s: generated_at vs observed_at
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Collected from inside an aggregator pod: GET /v1/stations and GET /v1/observations?limit=5 (first page) and the LAST page, with Authorization: Bearer <PANTAI_AUTH_TOKEN> (token not printed). Purpose: decide whether staleness should use the sensor's generated_at.
+
+{
+ "client_now_utc": "2026-11-22T10:38:34.531Z",
+ "http": 200,
+ "response_headers_date": "Sun, 22 Nov 2026 10:38:35 GMT",
+ "first_page_raw": {
+  "generated_at": "2026-11-25T18:49:05Z",
+  "items": [
+   {
+    "critical": false,
+    "observation_id": "obs-000000",
+    "observed_at": "2026-11-12T00:00:00Z",
+    "quality": "ok",
+    "sea_level_anomaly_m": -0.04,
+    "station_id": "stn-padang-01",
+    "wave_height_m": 0.95
+   },
+   {
+    "critical": false,
+    "observation_id": "obs-000001",
+    "observed_at": "2026-11-12T00:00:15Z",
+    "quality": "ok",
+    "sea_level_anomaly_m": 0.04,
+    "station_id": "stn-banda-aceh-01",
+    "wave_height_m": 1.15
+   },
+   {
+    "critical": false,
+    "observation_id": "obs-000002",
+    "observed_at": "2026-11-12T00:00:30Z",
+    "quality": "ok",
+    "sea_level_anomaly_m": 0.25,
+    "station_id": "stn-cilacap-01",
+    "wave_height_m": 1.37
+   },
+   {
+    "critical": false,
+    "observation_id": "obs-000003",
+    "observed_at": "2026-11-12T00:00:45Z",
+    "quality": "ok",
+    "sea_level_anomaly_m": 0.27,
+    "station_id": "stn-pelabuhan-ratu-01",
+    "wave_height_m": 1.33
+   },
+   {
+    "critical": false,
+    "observation_id": "obs-000004",
+    "observed_at": "2026-11-12T00:01:00Z",
+    "quality": "ok",
+    "sea_level_anomaly_m": -0.01,
+    "station_id": "stn-padang-01",
+    "wave_height_m": 0.67
+   }
+  ],
+  "next_cursor": "eyJvIjo1fQ"
+ },
+ "pages_walked": 400,
+ "last_page_generated_at": "2026-11-25T19:11:33Z",
+ "last_page_items": 100,
+ "last_item": {
+  "critical": false,
+  "observation_id": "obs-039111",
+  "observed_at": "2026-11-18T18:57:45Z",
+  "quality": "ok",
+  "sea_level_anomaly_m": -0.1,
+  "station_id": "stn-pelabuhan-ratu-01",
+  "wave_height_m": 0.75
+ },
+ "top_level_keys": [
+  "generated_at",
+  "items",
+  "next_cursor"
+ ]
+}
+
+[17:39:14] ANALYSIS (what the raw dump shows):
+[17:39:14]  1. Client real clock 2026-11-22T10:38:34Z; the sensor's HTTP Date header is the same (10:38:35 GMT), but the JSON field generated_at is 2026-11-25T18:49:05Z on page 1 and 2026-11-25T19:11:33Z on page 400 => generated_at is a SIMULATED clock, about 3 days AHEAD of the real clock, and it moves faster than real time (22 min of simulated time across ~400 requests).
+[17:39:14]  2. observed_at starts at 2026-11-12T00:00:00Z (obs-000000) and advances 15 s per item (obs-039111 = 2026-11-18T18:57:45Z at page 400, the cursor is still non-null): the feed is an ordered backlog that the consumer drains from the oldest item. At that point the backlog is still 6.7 days behind generated_at, so a staleness rule against generated_at would ALSO park every item reached so far.
+[17:39:14]  3. The aggregator compares observed_at with the REAL wall clock (age 343668-440595 s, limit 3600 s) and parks everything with reason stale_observation. Both clocks make the early backlog stale; only items near the tail of the feed can be fresh relative to generated_at.
+[17:39:14]  4. Consequence for P5: (a) staleness must be judged against the sensor's own clock (generated_at), not the real clock, and (b) the poller must jump to the tail (or the end of the backlog) instead of draining tens of thousands of old items (the feed length was not measured); otherwise 0 critical alerts are ever delivered. DECISION NEEDED from the team: which behaviour the exam profile expects (SENSOR-BEHAVIORS.md). Not changed in code yet.
+

@@ -1,0 +1,28 @@
+# CPU profile (Node inspector, 12 s) of ONE storage-unit (storage-unit-59sck) while 15 VU read GET /api/v1/hazards through client-api. Date 2026-11-22. Frames under /app.
+ 25.6%  (anon) services/storage-unit/node_modules/fastify/lib/wrap-thenable.js:14
+ 25.5%  preSerializationHookEnd services/storage-unit/node_modules/fastify/lib/reply.js:538
+ 25.5%  preSerializationHook services/storage-unit/node_modules/fastify/lib/reply.js:524
+ 25.5%  Reply.send services/storage-unit/node_modules/fastify/lib/reply.js:156
+ 20.0%  onSendHook services/storage-unit/node_modules/fastify/lib/reply.js:565
+ 20.0%  onSendEnd services/storage-unit/node_modules/fastify/lib/reply.js:599
+ 17.4%  writePayload services/storage-unit/node_modules/fastify/lib/reply.js:718
+  5.4%  serialize services/storage-unit/node_modules/fastify/lib/reply.js:1086
+  4.7%  preRouting services/storage-unit/node_modules/fastify/fastify.js:836
+  4.7%  lookup services/storage-unit/node_modules/find-my-way/index.js:583
+  4.7%  routing services/storage-unit/node_modules/fastify/lib/route.js:117
+  4.1%  callHandler services/storage-unit/node_modules/find-my-way/index.js:611
+  4.0%  routeHandler services/storage-unit/node_modules/fastify/lib/route.js:465
+  3.5%  preHandlerCallback services/storage-unit/node_modules/fastify/lib/handle-request.js:149
+  3.5%  preHandlerCallbackInner services/storage-unit/node_modules/fastify/lib/handle-request.js:171
+  3.5%  validationCompleted services/storage-unit/node_modules/fastify/lib/handle-request.js:126
+  3.5%  preValidationCallback services/storage-unit/node_modules/fastify/lib/handle-request.js:106
+  3.5%  handler services/storage-unit/node_modules/fastify/lib/handle-request.js:89
+  3.5%  runPreParsing services/storage-unit/node_modules/fastify/lib/route.js:679
+  3.3%  handleRequest services/storage-unit/node_modules/fastify/lib/handle-request.js:24
+  2.0%  list services/storage-unit/dist/services/storage-unit/src/engine.js:108
+  2.0%  (anon) services/storage-unit/dist/services/storage-unit/src/app.js:30
+
+# self time overall:
+storage-unit-59sck   249m   47Mi   
+[19:05:27] FOLLOW-UP MEASUREMENT (19:05, no external load): a sequential GET /internal/hazard-events?limit=5 straight to the aggregator took 4.4-6.0 s (5 requests: 6016, 5244, 4509, 5544, 4361 ms), whereas the same read through client-api took 331 ms on average with 1 VU this morning when the units held 7-10k keys. The node-a unit now holds 36,069 keys (rows + docs; node-b 18,358, node-c 18,058) and the storage-units use 244-309 m CPU while 'idle'.
+[19:05:27] READING (hypothesis, not proven): engine.list() only scans the rows map, not the docs, so the key count itself is not an O(N) scan on the read path; the likely cost is the single-threaded unit queueing reads behind a constant stream of doc writes (putDoc: structuredClone + append to the log) from the pollers, the outbox and the fence barrier, plus the per-call states() fan-out in the ring client. To verify: count writes/s per unit (writes_total over time) and profile a unit with reads stopped.

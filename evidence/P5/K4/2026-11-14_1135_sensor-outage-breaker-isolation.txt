@@ -1,0 +1,10 @@
+
+ RUN  v3.2.7 C:/File/ITB/Semester-7/aat/AAT-bebasss/services/aggregator
+
+ ✓ src/sources/pantai-client.test.ts (3 tests) 84ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  11:35:59
+   Duration  915ms (transform 170ms, setup 0ms, collect 245ms, tests 84ms, environment 0ms, prepare 218ms)
+

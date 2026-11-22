@@ -1,0 +1,23 @@
+{
+  "stream": {
+    "frames": 9000,
+    "distinct_detections": 7761,
+    "retracted": 165,
+    "eligible": 6666
+  },
+  "allowed_lateness_min": 360,
+  "fires": {
+    "pipeline": 153,
+    "reference": 153
+  },
+  "singles": {
+    "pipeline_total": 849,
+    "reference": 849
+  },
+  "beyond_bound_detections": 0,
+  "frozen_updates_ignored": 0,
+  "differences": 0,
+  "by_cause": {},
+  "unexplained": 0,
+  "examples": []
+}

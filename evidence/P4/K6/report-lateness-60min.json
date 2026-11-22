@@ -1,0 +1,115 @@
+{
+  "stream": {
+    "frames": 9000,
+    "distinct_detections": 7761,
+    "retracted": 165,
+    "eligible": 6666
+  },
+  "allowed_lateness_min": 60,
+  "fires": {
+    "pipeline": 153,
+    "reference": 153
+  },
+  "singles": {
+    "pipeline_total": 789,
+    "reference": 849
+  },
+  "beyond_bound_detections": 435,
+  "frozen_updates_ignored": 0,
+  "differences": 849,
+  "by_cause": {
+    "lateness bound (detections beyond the allowed lateness are counted, not merged)": 771,
+    "lateness bound (detections beyond the allowed lateness are counted, not merged); the smallest key was beyond the bound, so the id derives from another key": 78
+  },
+  "unexplained": 0,
+  "examples": [
+    {
+      "fire": "fire-0571cf6a6a05",
+      "field": "detection_count",
+      "pipeline": 14,
+      "reference": 16,
+      "cause": "lateness bound (detections beyond the allowed lateness are counted, not merged)"
+    },
+    {
+      "fire": "fire-0571cf6a6a05",
+      "field": "detection_keys",
+      "pipeline": [
+        "N20|2026-11-28|512|-3.68814|130.35369",
+        "N20|2026-11-28|513|-3.68975|130.35503",
+        "N20|2026-11-28|518|-3.68717|130.35834",
+        "N20|2026-11-28|518|-3.68919|130.35706",
+        "N21|2026-11-28|442|-3.68999|130.35618",
+        "N21|2026-11-28|510|-3.68298|130.35809",
+        "N21|2026-11-28|513|-3.68894|130.35506",
+        "N21|2026-11-28|514|-3.68449|130.35554",
+        "N21|2026-11-28|514|-3.68783|130.35727",
+        "N21|2026-11-28|516|-3.68423|130.35743",
+        "N21|2026-11-28|518|-3.68954|130.35439",
+        "N|2026-11-28|512|-3.68974|130.35599",
+        "N|2026-11-28|515|-3.68859|130.35901",
+        "N|2026-11-28|519|-3.68754|130.35761"
+      ],
+      "reference": [
+        "N20|2026-11-28|512|-3.68814|130.35369",
+        "N20|2026-11-28|513|-3.68975|130.35503",
+        "N20|2026-11-28|518|-3.68717|130.35834",
+        "N20|2026-11-28|518|-3.68919|130.35706",
+        "N21|2026-11-28|442|-3.68999|130.35618",
+        "N21|2026-11-28|510|-3.68298|130.35809",
+        "N21|2026-11-28|513|-3.68894|130.35506",
+        "N21|2026-11-28|514|-3.68449|130.35554",
+        "N21|2026-11-28|514|-3.68783|130.35727",
+        "N21|2026-11-28|516|-3.68423|130.35743",
+        "N21|2026-11-28|518|-3.68954|130.35439",
+        "N|2026-11-28|243|-3.68681|130.36073",
+        "N|2026-11-28|338|-3.68529|130.35599",
+        "N|2026-11-28|512|-3.68974|130.35599",
+        "N|2026-11-28|515|-3.68859|130.35901",
+        "N|2026-11-28|519|-3.68754|130.35761"
+      ],
+      "cause": "lateness bound (detections beyond the allowed lateness are counted, not merged)"
+    },
+    {
+      "fire": "fire-0571cf6a6a05",
+      "field": "occurred_at",
+      "pipeline": "2026-11-28T04:42:00.000Z",
+      "reference": "2026-11-28T02:43:00.000Z",
+      "cause": "lateness bound (detections beyond the allowed lateness are counted, not merged)"
+    },
+    {
+      "fire": "fire-0571cf6a6a05",
+      "field": "total_frp_mw",
+      "pipeline": 113.59,
+      "reference": 124.92,
+      "cause": "lateness bound (detections beyond the allowed lateness are counted, not merged)"
+    },
+    {
+      "fire": "fire-0571cf6a6a05",
+      "field": "latitude",
+      "pipeline": -3.68772,
+      "reference": -3.68751,
+      "cause": "lateness bound (detections beyond the allowed lateness are counted, not merged)"
+    },
+    {
+      "fire": "fire-0571cf6a6a05",
+      "field": "longitude",
+      "pipeline": 130.35648,
+      "reference": 130.35671,
+      "cause": "lateness bound (detections beyond the allowed lateness are counted, not merged)"
+    },
+    {
+      "fire": "fire-0d1a606e7369",
+      "field": "hazard_id / fire id",
+      "pipeline": "fire-94a42157cf5a",
+      "reference": "fire-0d1a606e7369",
+      "cause": "lateness bound (detections beyond the allowed lateness are counted, not merged); the smallest key was beyond the bound, so the id derives from another key"
+    },
+    {
+      "fire": "fire-0d1a606e7369",
+      "field": "detection_count",
+      "pipeline": 38,
+      "reference": 41,
+      "cause": "lateness bound (detections beyond the allowed lateness are counted, not merged)"
+    }
+  ]
+}

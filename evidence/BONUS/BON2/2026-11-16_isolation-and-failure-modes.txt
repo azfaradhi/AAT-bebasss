@@ -1,0 +1,68 @@
+# cmd: scripts/demo/bon2-advisor.sh
+# date: 2026-11-16 17:20
+{
+  "events": {
+    "without_advisor": 153,
+    "with_advisor": 153,
+    "identical": true,
+    "sha": "0add97d448093374"
+  },
+  "alert_path_batch_apply_ms": {
+    "without": {
+      "mean": 13.61,
+      "p95": 16.82
+    },
+    "with_advisor": {
+      "mean": 12.54,
+      "p95": 16.42
+    }
+  },
+  "llm_modes_exercised": [
+    "normal",
+    "slow",
+    "normal",
+    "dead",
+    "normal",
+    "hallucinate",
+    "normal"
+  ],
+  "breaker_states_seen": [
+    "closed",
+    "open",
+    "half_open"
+  ],
+  "advisor_outcomes": {
+    "flagged": 642,
+    "llm": 91,
+    "template": 183,
+    "timeout": 2,
+    "llm_error": 4,
+    "rejected": 4,
+    "breaker_open": 82,
+    "rate_limited": 0,
+    "dropped": 0,
+    "source_error": 0,
+    "store_error": 0
+  },
+  "advisory_records": {
+    "total": 61,
+    "by_source": {
+      "llm": 61
+    },
+    "every_record_labelled": true
+  },
+  "example": {
+    "source": "llm",
+    "summary": "Terdapat 45 titik panas di Kalimantan Utara dengan total FRP 277.97 MW (tingkat AWAS), terpantau oleh satelit N, N20, N21."
+  }
+}
+alert-path events identical with and without the advisor       | 153 events, sha 0add97d448093374             | PASS
+alert-path batch p95 not degraded (<= 1.5x + 25 ms)            | 16.82 ms vs 16.42 ms                         | PASS
+advisor flagged unusual fires                                  | 642 flags, 61 records                        | PASS
+every record carries the advisory label                        | true                                         | PASS
+slow LLM timed out, dead LLM failed, wrong LLM rejected        | timeout 2, error 4, rejected 4               | PASS
+breaker opened and calls were skipped                          | states closed,open,half_open, skipped 82     | PASS
+a validated LLM summary was stored when the LLM was healthy    | llm 61, template 0                           | PASS
+advisory records are not events                                | checked via listEvents export                | PASS
+
+PASS: the advisor adds advisory records and changes nothing on the alert path

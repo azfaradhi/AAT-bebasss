@@ -1,0 +1,12 @@
+﻿# P2-K4 on k3s: shift the wall clock of the node running the pvmbg Lease holder by +45 s then -30 s
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Method: ssh to the node (node-b, a worker), timedatectl set-ntp false, date -s relative; poll the Lease holders every 3 s; read the pvmbg mock request log afterwards. NTP is restored at the end. (The bmkg holder was on the control-plane node-a, whose clock was not touched.)
+
+[16:57:16] pvmbg holder=aggregator-5d4dd8dd4f-6dns5 on node-b
+[16:57:20] node-b UTC before: 09:57:20
+[16:57:32] shift +45 s -> node-b UTC now 09:58:17
+[16:58:19] during +45 s (45 s window): holders seen -> pvmbg=aggregator-5d4dd8dd4f-6dns5 x14
+[16:58:22] shift -30 s -> node-b UTC now 09:58:36
+[16:59:09] during -30 s (45 s window): holders seen -> pvmbg=aggregator-5d4dd8dd4f-6dns5 x14
+[16:59:29] NTP restored, node-b UTC 09:59:29
+[16:59:36] pvmbg mock request log, last 240 s, runs of consecutive callers: [{"c":"aggregator-5d4dd8dd4f-lqmmf","from":"2026-11-22T09:55:40.816Z","n":4},{"c":"aggregator-5d4dd8dd4f-6dns5","from":"2026-11-22T09:56:14.416Z","n":46}]

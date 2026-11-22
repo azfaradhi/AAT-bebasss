@@ -1,0 +1,24 @@
+# CPU profile (Node inspector, 12 s, inclusive time of app frames) of ONE aggregator replica while 15 VU read GET /api/v1/hazards through client-api. Date 2026-11-22. Pod aggregator-5d4dd8dd4f-6dns5. Purpose: find why the read path sustains only ~3-4 successful req/s.
+  4.2%  (anon) services/aggregator/dist/shared-types/src/ring/http-storage-client.js:7
+  2.9%  listEvents services/aggregator/dist/shared-types/src/ring/http-storage-client.js:165
+  2.1%  (anon) services/aggregator/dist/shared-types/src/ring/http-storage-client.js:71
+  2.0%  states services/aggregator/dist/shared-types/src/ring/http-storage-client.js:67
+  1.8%  next services/aggregator/node_modules/fastify/lib/hooks.js:234
+  1.7%  send services/aggregator/dist/shared-types/src/ring/http-storage-client.js:84
+  1.7%  handleResolve services/aggregator/node_modules/fastify/lib/hooks.js:252
+  1.7%  preHandlerCallbackInner services/aggregator/node_modules/fastify/lib/handle-request.js:184
+  1.7%  preHandlerCallback services/aggregator/node_modules/fastify/lib/handle-request.js:162
+  1.6%  (anon) services/aggregator/dist/shared-types/src/ring/http-storage-client.js:183
+  1.4%  (anon) services/aggregator/dist/services/aggregator/src/internal-api/hazards-route.js:6
+  1.3%  list services/aggregator/dist/services/aggregator/src/storage/storage-canonical-store.js:30
+  0.6%  actualWrite services/aggregator/node_modules/sonic-boom/index.js:636
+  0.6%  Reply.send services/aggregator/node_modules/fastify/lib/reply.js:156
+  0.6%  write services/aggregator/node_modules/pino/lib/proto.js:206
+  0.6%  LOG services/aggregator/node_modules/pino/lib/tools.js:47
+  0.5%  drainM2Storage services/aggregator/dist/services/aggregator/src/publisher/outbox-dispatcher.js:83
+  0.5%  write services/aggregator/node_modules/sonic-boom/index.js:306
+  0.4%  routeHandler services/aggregator/node_modules/fastify/lib/route.js:461
+  0.4%  callHandler services/aggregator/node_modules/find-my-way/index.js:568
+  0.4%  lookup services/aggregator/node_modules/find-my-way/index.js:540
+  0.4%  preRouting services/aggregator/node_modules/fastify/fastify.js:802
+[18:28:56] READ: top inclusive app frame is 4.2% (ring client send/listEvents); the replica is mostly idle. During the same run k6 reported status 200 x9 and 503 x60 in 20 s.

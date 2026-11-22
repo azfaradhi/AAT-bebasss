@@ -1,0 +1,47 @@
+# P5-K7 groundwork (2026-11-22): do the dashboard panels and SLO rules have data? Real processes under traffic, /metrics scraped directly (no Prometheus: Docker Desktop kept crashing under memory pressure)
+# command: npx --prefix services/aggregator tsx scripts/demo/obs-metrics-audit.ts
+# NO DATA for counters that only appear after their first event (fencing rejection, partial response, field report, 5xx) and for the notifier/broker metrics is expected in this run; bnpb_parked_messages was a real gap (fixed before this run)
+scraped client-api: 58 samples
+scraped aggregator ring-host: 57 samples
+scraped aggregator (real index.ts): 49 samples
+scraped satellite-processor: 26 samples
+scraped storage-unit-0: 1 samples
+scraped storage-unit-1: 1 samples
+scraped storage-unit-2: 1 samples
+checked 29 dashboard/rule expressions against 190 scraped samples (client-api, ring-host, real aggregator with an unreachable broker and pollers, satellite-processor, 3 storage units; no notifier and no broker, so critical-alert metrics cannot appear)
+ok      [P1 — Distributed Storage Ring & Replication] Storage Unit Health (bnpb_storage_unit_up)
+ok      [P1 — Distributed Storage Ring & Replication] Ring Epoch (bnpb_ring_epoch)
+NO DATA [P1 — Distributed Storage Ring & Replication] Partial Responses Rate (bnpb_partial_responses_total)
+          bnpb_partial_responses_total: metric not exposed by any scraped process
+ok      [P1 — Distributed Storage Ring & Replication] Keys Stored per Unit (bnpb_unit_keys)
+ok      [P1 — Distributed Storage Ring & Replication] Writes/sec per Unit (bnpb_unit_writes_total)
+ok      [P2 — Leader Election, Fencing & Stateless Scaling] Active Leader per Lease (bnpb_leader)
+NO DATA [P2 — Leader Election, Fencing & Stateless Scaling] Fencing Token Rejections (bnpb_fencing_rejections_total)
+          bnpb_fencing_rejections_total: metric not exposed by any scraped process
+ok      [P2 — Leader Election, Fencing & Stateless Scaling] Request Distribution Across Aggregator Replicas
+ok      [P3 — Data Quality, Poison-Pill Quarantine & Field Reports] Ingest Events by Source & Outcome (bnpb_ingest_events_total)
+ok      [P3 — Data Quality, Poison-Pill Quarantine & Field Reports] Parked / Retrying Messages by Reason (bnpb_parked_messages)
+NO DATA [P3 — Data Quality, Poison-Pill Quarantine & Field Reports] Field Reports Throughput (bnpb_field_reports_total)
+          bnpb_field_reports_total: metric not exposed by any scraped process
+ok      [P4 — Satellite Stream (VIIRS) & Fire Recognition] Satellite Stream Offset Lag (bnpb_sat_offset_lag)
+ok      [P4 — Satellite Stream (VIIRS) & Fire Recognition] Event-to-Store Latency p95 (bnpb_sat_event_to_store_seconds)
+ok      [P4 — Satellite Stream (VIIRS) & Fire Recognition] Late Detections Applied vs Beyond Bound
+ok      [P4 — Satellite Stream (VIIRS) & Fire Recognition] Late Detections Applied vs Beyond Bound
+ok      [P5 — Sensor Pantai Resilience, Critical Alerts & SLO Error Budget] Critical Alert E2E Latency p95 (SLO <= 5s)
+ok      [P5 — Sensor Pantai Resilience, Critical Alerts & SLO Error Budget] Circuit Breaker State (0=CLOSED, 1=HALF_OPEN, 2=OPEN)
+ok      [P5 — Sensor Pantai Resilience, Critical Alerts & SLO Error Budget] SLO-1 Error Budget Remaining & Burn Rate
+ok      [P5 — Sensor Pantai Resilience, Critical Alerts & SLO Error Budget] SLO-1 Error Budget Remaining & Burn Rate
+ok      [P5 — Sensor Pantai Resilience, Critical Alerts & SLO Error Budget] Outbox Pending Messages (bnpb_outbox_pending)
+ok      [P5 — Sensor Pantai Resilience, Critical Alerts & SLO Error Budget] Priority Load Shedding by Identity Class (bnpb_shed_total)
+NO DATA [P5 — Sensor Pantai Resilience, Critical Alerts & SLO Error Budget] Critical Alerts Delivered vs Published (bnpb_critical_total)
+          bnpb_critical_total: metric not exposed by any scraped process
+ok      [P5 — Sensor Pantai Resilience, Critical Alerts & SLO Error Budget] HTTP Server Request Rate & Latency p99 by Service (RED)
+NO DATA [SLO rules] sli:client_api_availability:ratio_rate5m
+          bnpb_http_server_request_duration_seconds_count: labels {"service":"client-api","status_class":"5xx"} never seen (have: le,method,route,service,status_class)
+ok      [SLO rules] sli:client_api_latency_p99:seconds_5m
+ok      [SLO rules] slo:client_api_error_budget_remaining:ratio
+ok      [SLO rules] slo:client_api_burn_rate:5m
+NO DATA [SLO rules] sli:critical_alert_e2e_p95:seconds_5m
+          bnpb_critical_e2e_seconds_bucket: metric not exposed by any scraped process
+ok      [SLO rules] sli:storage_units_healthy:count
+RESULT: 6 selector(s) without data in this run

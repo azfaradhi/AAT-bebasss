@@ -1,0 +1,15 @@
+﻿# P5 on k3s EXPERIMENT: real sensor-pantai (practice profile) with PANTAI_MAX_STALENESS_S raised from 3600 to 99999999 so that the old backlog is accepted
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# NOT the demo configuration. Purpose: see which behaviours get quarantined besides staleness and whether critical observations reach the notifier. Config is restored at the end.
+
+[18:29:09] original PANTAI_MAX_STALENESS_S=3600
+[18:31:11] rollout: deployment "aggregator" successfully rolled out
+[18:32:25] t+75s stored SENSOR_PANTAI=0; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x7 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x990
+[18:33:34] t+143s stored SENSOR_PANTAI=0; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:34:39] t+209s stored SENSOR_PANTAI=0; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:35:41] t+270s stored SENSOR_PANTAI=0; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:36:42] t+331s stored SENSOR_PANTAI=0; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:37:43] t+393s stored SENSOR_PANTAI=0; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:38:47] t+456s stored SENSOR_PANTAI=0; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+
+[INVALID ATTEMPT] The ConfigMap patch failed (invalid JSON patch, shell quoting) so PANTAI_MAX_STALENESS_S stayed 3600 and every line above reflects the NORMAL configuration, not the experiment. Redone in ..._staleness-relaxed-redo.txt.

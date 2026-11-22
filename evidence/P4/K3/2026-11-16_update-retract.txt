@@ -1,0 +1,11 @@
+# cmd: scripts/demo/p4-k3-update-retract.sh  (FireSink + InMemoryStorage; synthetic update/retract/revive + real slice with 164 updates, 60 retracts)
+# date: 2026-11-16 14:30 node v20.20.2 branch ms2-prob3-prob4 (T06 working tree, uncommitted)
+update keeps hazard_id                               | hz-ab070b7d9687 -> hz-ab070b7d9687           | PASS
+update changes attributes                            | 19.75 -> 42.5 MW, WASPADA -> SIAGA           | PASS
+retract below 2 detections: event leaves listing     | 0 events                                     | PASS
+tombstoned event is no longer served                 | getEvent -> null                             | PASS
+re-detection revives the same hazard_id              | hz-ab070b7d9687                              | PASS
+real slice: update/retract frames applied            | 164 updates, 60 retracts                     | PASS
+real slice: one event per hazard_id                  | 51                                           | PASS
+
+PASS (k3)

@@ -1,0 +1,19 @@
+﻿# Tester Agent practice scenario: kill-leader. Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on one laptop).
+# Command: kubectl exec -n tester-agent daemonset/tester-agent -- /app run practice kill-leader
+# Method: mock data sources scaled to 0 first so Audit checksums are stable; baseline -> scenario -> poll Audit until recovered -> compare.
+
+[13:50:59] BASELINE
+[13:51:16]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[13:51:16]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:51:16]   ring: node-a:STABLE/1638 node-b:STABLE/2105 node-c:STABLE/2018 redundancy_ok=True repairing=False
+[13:51:35] RUN
+[13:51:36]   Latihan "kill-leader": 1 langkah
+[13:51:36]     - t+5s stop_pod role=aggregator nodes=any
+[13:51:36]   Permintaan 1a427bb11388 dikirim. Lihat hasil dengan: kubectl logs -n tester-agent -l app=tester-agent
+[13:52:06] t+30s ring: node-a:STABLE/1809 node-b:STABLE/2356 node-c:STABLE/2254 redundancy_ok=True repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:52:35] t+59s ring: node-a:STABLE/1923 node-b:STABLE/2543 node-c:STABLE/2427 redundancy_ok=True repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:53:01] FINAL
+[13:53:01]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[13:53:01]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:53:01]   ring: node-a:STABLE/2013 node-b:STABLE/2663 node-c:STABLE/2527 redundancy_ok=True repairing=False
+[13:53:01] RESULT recovered=True checksums_equal_to_baseline=True audit_errors_during_run=0

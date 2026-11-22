@@ -1,0 +1,352 @@
+# P5-K5 on k3s: priority load shedding with load-tests/p5/mixed-priority-shedding.k6.js (40 media VU, 8 internal VU, 8 lapangan VU, 30 s) against client-api through a temporary NodePort. Date 2026-11-22. Label: PROSES NYATA (3 VMs on one laptop; the load generator runs on the same laptop). Tokens obtained from auth-service just before the run (not printed).
+# client-api replicas: 2; admission defaults: max 64 in flight, 16 reserved for lapangan, media max 24 (README/admission.ts)
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: load-tests/p5/mixed-priority-shedding.k6.js
+        output: -
+
+     scenarios: (100.00%) 3 scenarios, 56 max VUs, 1m0s max duration (incl. graceful stop):
+              * internal_ops: 8 looping VUs for 30s (exec: internalScenario, gracefulStop: 30s)
+              * lapangan_critical: 8 looping VUs for 30s (exec: lapanganScenario, gracefulStop: 30s)
+              * media_flood: 40 looping VUs for 30s (exec: mediaScenario, gracefulStop: 30s)
+
+
+running (0m01.0s), 56/56 VUs, 0 complete and 0 interrupted iterations
+internal_ops        [   3% ] 8 VUs   01.0s/30s
+lapangan_critical   [   3% ] 8 VUs   01.0s/30s
+media_flood         [   3% ] 40 VUs  01.0s/30s
+
+running (0m02.0s), 56/56 VUs, 0 complete and 0 interrupted iterations
+internal_ops        [   7% ] 8 VUs   02.0s/30s
+lapangan_critical   [   7% ] 8 VUs   02.0s/30s
+media_flood         [   7% ] 40 VUs  02.0s/30s
+
+running (0m03.0s), 56/56 VUs, 9 complete and 0 interrupted iterations
+internal_ops        [  10% ] 8 VUs   03.0s/30s
+lapangan_critical   [  10% ] 8 VUs   03.0s/30s
+media_flood         [  10% ] 40 VUs  03.0s/30s
+
+running (0m04.0s), 56/56 VUs, 19 complete and 0 interrupted iterations
+internal_ops        [  13% ] 8 VUs   04.0s/30s
+lapangan_critical   [  13% ] 8 VUs   04.0s/30s
+media_flood         [  13% ] 40 VUs  04.0s/30s
+
+running (0m05.0s), 56/56 VUs, 30 complete and 0 interrupted iterations
+internal_ops        [  17% ] 8 VUs   05.0s/30s
+lapangan_critical   [  17% ] 8 VUs   05.0s/30s
+media_flood         [  17% ] 40 VUs  05.0s/30s
+
+running (0m06.0s), 56/56 VUs, 35 complete and 0 interrupted iterations
+internal_ops        [  20% ] 8 VUs   06.0s/30s
+lapangan_critical   [  20% ] 8 VUs   06.0s/30s
+media_flood         [  20% ] 40 VUs  06.0s/30s
+
+running (0m07.0s), 56/56 VUs, 57 complete and 0 interrupted iterations
+internal_ops        [  23% ] 8 VUs   07.0s/30s
+lapangan_critical   [  23% ] 8 VUs   07.0s/30s
+media_flood         [  23% ] 40 VUs  07.0s/30s
+
+running (0m08.0s), 56/56 VUs, 59 complete and 0 interrupted iterations
+internal_ops        [  27% ] 8 VUs   08.0s/30s
+lapangan_critical   [  27% ] 8 VUs   08.0s/30s
+media_flood         [  27% ] 40 VUs  08.0s/30s
+
+running (0m09.0s), 56/56 VUs, 75 complete and 0 interrupted iterations
+internal_ops        [  30% ] 8 VUs   09.0s/30s
+lapangan_critical   [  30% ] 8 VUs   09.0s/30s
+media_flood         [  30% ] 40 VUs  09.0s/30s
+
+running (0m10.0s), 56/56 VUs, 84 complete and 0 interrupted iterations
+internal_ops        [  33% ] 8 VUs   10.0s/30s
+lapangan_critical   [  33% ] 8 VUs   10.0s/30s
+media_flood         [  33% ] 40 VUs  10.0s/30s
+
+running (0m11.0s), 56/56 VUs, 93 complete and 0 interrupted iterations
+internal_ops        [  37% ] 8 VUs   11.0s/30s
+lapangan_critical   [  37% ] 8 VUs   11.0s/30s
+media_flood         [  37% ] 40 VUs  11.0s/30s
+
+running (0m12.0s), 56/56 VUs, 104 complete and 0 interrupted iterations
+internal_ops        [  40% ] 8 VUs   12.0s/30s
+lapangan_critical   [  40% ] 8 VUs   12.0s/30s
+media_flood         [  40% ] 40 VUs  12.0s/30s
+
+running (0m13.0s), 56/56 VUs, 118 complete and 0 interrupted iterations
+internal_ops        [  43% ] 8 VUs   13.0s/30s
+lapangan_critical   [  43% ] 8 VUs   13.0s/30s
+media_flood         [  43% ] 40 VUs  13.0s/30s
+
+running (0m14.0s), 56/56 VUs, 126 complete and 0 interrupted iterations
+internal_ops        [  47% ] 8 VUs   14.0s/30s
+lapangan_critical   [  47% ] 8 VUs   14.0s/30s
+media_flood         [  47% ] 40 VUs  14.0s/30s
+
+running (0m15.0s), 56/56 VUs, 135 complete and 0 interrupted iterations
+internal_ops        [  50% ] 8 VUs   15.0s/30s
+lapangan_critical   [  50% ] 8 VUs   15.0s/30s
+media_flood         [  50% ] 40 VUs  15.0s/30s
+
+running (0m16.0s), 56/56 VUs, 147 complete and 0 interrupted iterations
+internal_ops        [  53% ] 8 VUs   16.0s/30s
+lapangan_critical   [  53% ] 8 VUs   16.0s/30s
+media_flood         [  53% ] 40 VUs  16.0s/30s
+
+running (0m17.0s), 56/56 VUs, 152 complete and 0 interrupted iterations
+internal_ops        [  57% ] 8 VUs   17.0s/30s
+lapangan_critical   [  57% ] 8 VUs   17.0s/30s
+media_flood         [  57% ] 40 VUs  17.0s/30s
+
+running (0m18.0s), 56/56 VUs, 154 complete and 0 interrupted iterations
+internal_ops        [  60% ] 8 VUs   18.0s/30s
+lapangan_critical   [  60% ] 8 VUs   18.0s/30s
+media_flood         [  60% ] 40 VUs  18.0s/30s
+
+running (0m19.0s), 56/56 VUs, 163 complete and 0 interrupted iterations
+internal_ops        [  63% ] 8 VUs   19.0s/30s
+lapangan_critical   [  63% ] 8 VUs   19.0s/30s
+media_flood         [  63% ] 40 VUs  19.0s/30s
+
+running (0m20.0s), 56/56 VUs, 170 complete and 0 interrupted iterations
+internal_ops        [  67% ] 8 VUs   20.0s/30s
+lapangan_critical   [  67% ] 8 VUs   20.0s/30s
+media_flood         [  67% ] 40 VUs  20.0s/30s
+
+running (0m21.0s), 56/56 VUs, 189 complete and 0 interrupted iterations
+internal_ops        [  70% ] 8 VUs   21.0s/30s
+lapangan_critical   [  70% ] 8 VUs   21.0s/30s
+media_flood         [  70% ] 40 VUs  21.0s/30s
+
+running (0m22.0s), 56/56 VUs, 210 complete and 0 interrupted iterations
+internal_ops        [  73% ] 8 VUs   22.0s/30s
+lapangan_critical   [  73% ] 8 VUs   22.0s/30s
+media_flood         [  73% ] 40 VUs  22.0s/30s
+
+running (0m23.0s), 56/56 VUs, 225 complete and 0 interrupted iterations
+internal_ops        [  77% ] 8 VUs   23.0s/30s
+lapangan_critical   [  77% ] 8 VUs   23.0s/30s
+media_flood         [  77% ] 40 VUs  23.0s/30s
+
+running (0m24.0s), 56/56 VUs, 232 complete and 0 interrupted iterations
+internal_ops        [  80% ] 8 VUs   24.0s/30s
+lapangan_critical   [  80% ] 8 VUs   24.0s/30s
+media_flood         [  80% ] 40 VUs  24.0s/30s
+
+running (0m25.0s), 56/56 VUs, 234 complete and 0 interrupted iterations
+internal_ops        [  83% ] 8 VUs   25.0s/30s
+lapangan_critical   [  83% ] 8 VUs   25.0s/30s
+media_flood         [  83% ] 40 VUs  25.0s/30s
+
+running (0m26.0s), 56/56 VUs, 244 complete and 0 interrupted iterations
+internal_ops        [  87% ] 8 VUs   26.0s/30s
+lapangan_critical   [  87% ] 8 VUs   26.0s/30s
+media_flood         [  87% ] 40 VUs  26.0s/30s
+
+running (0m27.0s), 56/56 VUs, 244 complete and 0 interrupted iterations
+internal_ops        [  90% ] 8 VUs   27.0s/30s
+lapangan_critical   [  90% ] 8 VUs   27.0s/30s
+media_flood         [  90% ] 40 VUs  27.0s/30s
+
+running (0m28.0s), 56/56 VUs, 245 complete and 0 interrupted iterations
+internal_ops        [  93% ] 8 VUs   28.0s/30s
+lapangan_critical   [  93% ] 8 VUs   28.0s/30s
+media_flood         [  93% ] 40 VUs  28.0s/30s
+
+running (0m29.0s), 56/56 VUs, 252 complete and 0 interrupted iterations
+internal_ops        [  97% ] 8 VUs   29.0s/30s
+lapangan_critical   [  97% ] 8 VUs   29.0s/30s
+media_flood         [  97% ] 40 VUs  29.0s/30s
+
+running (0m30.0s), 56/56 VUs, 260 complete and 0 interrupted iterations
+internal_ops        [ 100% ] 8 VUs   30.0s/30s
+lapangan_critical   [ 100% ] 8 VUs   30.0s/30s
+media_flood         [ 100% ] 40 VUs  30.0s/30s
+
+running (0m31.0s), 55/56 VUs, 261 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m32.0s), 45/56 VUs, 271 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m33.0s), 44/56 VUs, 272 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m34.0s), 44/56 VUs, 272 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m35.0s), 44/56 VUs, 272 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m36.0s), 44/56 VUs, 272 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m37.0s), 44/56 VUs, 272 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m38.0s), 44/56 VUs, 272 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m39.0s), 44/56 VUs, 272 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m40.0s), 44/56 VUs, 272 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+time="2026-11-22T18:26:29+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:29+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+
+running (0m41.0s), 44/56 VUs, 272 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+time="2026-11-22T18:26:29+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:29+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:29+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards?view=raw\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:29+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+
+running (0m42.0s), 38/56 VUs, 278 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+time="2026-11-22T18:26:30+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:30+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:30+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:30+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:30+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:30+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards?view=raw\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:30+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:30+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:30+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+
+running (0m43.0s), 29/56 VUs, 287 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards?view=raw\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards?view=raw\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:31+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+
+running (0m44.0s), 17/56 VUs, 299 complete and 0 interrupted iterations
+internal_ops      ↓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+time="2026-11-22T18:26:32+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:32+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:32+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:32+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:32+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:32+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:32+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+
+running (0m45.0s), 10/56 VUs, 306 complete and 0 interrupted iterations
+internal_ops      ✓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m46.0s), 10/56 VUs, 306 complete and 0 interrupted iterations
+internal_ops      ✓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m47.0s), 09/56 VUs, 307 complete and 0 interrupted iterations
+internal_ops      ✓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+running (0m48.0s), 07/56 VUs, 309 complete and 0 interrupted iterations
+internal_ops      ✓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+time="2026-11-22T18:26:36+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards?view=raw\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+time="2026-11-22T18:26:36+07:00" level=warning msg="Request Failed" error="Get \"http://192.168.56.101:31744/api/v1/hazards\": dial tcp 192.168.56.101:31744: connectex: A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond."
+
+running (0m49.0s), 03/56 VUs, 313 complete and 0 interrupted iterations
+internal_ops      ✓ [ 100% ] 8 VUs   30s
+lapangan_critical ↓ [ 100% ] 8 VUs   30s
+media_flood       ↓ [ 100% ] 40 VUs  30s
+
+
+  █ THRESHOLDS 
+
+    http_req_duration{priority:lapangan}
+    ✗ 'p(99)<500' p(99)=27.51s
+
+    http_req_failed{priority:lapangan}
+    ✗ 'rate==0' rate=100.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 316    6.371945/s
+    checks_succeeded...: 1.26%  4 out of 316
+    checks_failed......: 98.73% 312 out of 316
+
+    ✗ media is 200 or 429 shed with Retry-After
+      ↳  1% — ✓ 4 / ✗ 232
+    ✗ internal is 200 or 429
+      ↳  0% — ✓ 0 / ✗ 50
+    ✗ lapangan always succeeds with 200 OK
+      ↳  0% — ✓ 0 / ✗ 30
+
+    HTTP
+    http_req_duration..............: avg=5.01s min=0s       med=4.28s max=28.33s p(90)=8.41s  p(95)=12.09s
+      { expected_response:true }...: avg=4.14s min=2.29s    med=3.64s max=6.97s  p(90)=6.07s  p(95)=6.52s 
+      { priority:lapangan }........: avg=8.28s min=0s       med=5.92s max=28.33s p(90)=22.79s p(95)=24.3s 
+    http_req_failed................: 98.73%  312 out of 316
+      { priority:lapangan }........: 100.00% 30 out of 30
+    http_reqs......................: 316     6.371945/s
+
+    EXECUTION
+    iteration_duration.............: avg=7.34s min=553.41ms med=5.08s max=28.57s p(90)=21.05s p(95)=21.11s
+    iterations.....................: 316     6.371945/s
+    vus............................: 3       min=3          max=56
+    vus_max........................: 56      min=56         max=56
+
+    NETWORK
+    data_received..................: 513 kB  10 kB/s
+    data_sent......................: 108 kB  2.2 kB/s
+
+
+
+
+running (0m49.6s), 00/56 VUs, 316 complete and 0 interrupted iterations
+internal_ops      ✓ [ 100% ] 8 VUs   30s
+lapangan_critical ✓ [ 100% ] 8 VUs   30s
+media_flood       ✓ [ 100% ] 40 VUs  30s
+time="2026-11-22T18:26:38+07:00" level=error msg="thresholds on metrics 'http_req_duration{priority:lapangan}, http_req_failed{priority:lapangan}' have been crossed"
+[18:28:56] RESULT P5-K5: NOT MET. 98.7% of 316 requests failed (lapangan 30 of 30), average latency 5.0 s, lapangan p99 27.5 s; thresholds 'lapangan failure rate == 0' and 'p99 < 500 ms' both crossed. No controlled 429 was observed for media (checks 'media is 200 or 429': 4 ok of 236), i.e. admission control never shed because the system saturated downstream (client-api timeouts / aggregator 503) before the in-flight ceiling (64) was reached.
+[18:28:56] WHY the read path is slow was investigated (see the two CPU-profile files in this folder): one aggregator replica spent < 5% of its time in application code under 15 VU, and one storage-unit about 25% (response serialization). Neither is CPU-bound. Earlier 'top' on node-a showed 20-30% system and 20-29% softirq time and load average 8-21 on 3-4 vCPU, so the suspected bottleneck is the virtualized platform itself (VirtualBox e1000 NIC emulation under VXLAN + k3s control plane on one 12-thread laptop), not an algorithmic defect that was found. Not proven. A cheap experiment to try: switch the VM adapters to 'Paravirtualized Network (virtio-net)'.

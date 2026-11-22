@@ -1,0 +1,30 @@
+{
+  "config": {
+    "frames": 108000,
+    "batch": 500,
+    "checkpoint_every": 500,
+    "flush_interval_ms": 250,
+    "write_concurrency": 32,
+    "simulated_ring_write_latency_ms": 5
+  },
+  "duration_s": 48.773,
+  "throughput_fps": 2214,
+  "lag_peak_frames": 21600,
+  "catch_up_after_burst_s": 9.17,
+  "event_to_store_seconds": {
+    "p50": 0.149,
+    "p95": 0.61,
+    "p99": 0.618,
+    "samples": 108000
+  },
+  "rss_peak_mb": 136.1,
+  "delivered_frames": 108000,
+  "unique_offsets": 108000,
+  "gaps": 0,
+  "events": {
+    "burst": 1836,
+    "reference": 1836,
+    "identical": true,
+    "sha": "12b0fbc01efcf55e"
+  }
+}

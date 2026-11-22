@@ -1,0 +1,44 @@
+# date: 2026-11-22T07:25:07Z
+# command: ulimit -n 10240 && P2_K6_DURATION_S=120 npx --prefix services/aggregator tsx scripts/demo/p2-k1-k6-k7-k8-e2e.ts
+# environment: 3 real storage-unit processes (node-a..c) + fake-apiserver + bmkg-mock + pvmbg-mock + 4-worker HTTP Load Balancer + 1..5 real aggregator processes (v1 & v2) + k6 v1.4.2 (10,000 VUs, 120s)
+
+=== Problem 2 Real-Process Verification: P2-K1, P2-K6 (10,000 VU / 120s / 3->5->2), P2-K7 (>=2.0x), P2-K8 (Rolling Update) ===
+
+--- Phase 1: P2-K1 Multi-Instance Spread & Unhealthy Instance Isolation ---
+   Healthy 3-instance traffic distribution: aggregator-3=40, aggregator-2=40, aggregator-1=40 across nodes [node-c, node-b, node-a]
+   With aggregator-2 unhealthy (/ready=503): routed=aggregator-3=75, aggregator-1=75, errors=0
+  [PASS] P2-K1a: >= 3 Aggregator instances run across 3 distinct nodes (node-a, node-b, node-c) behind a single entry point
+  [PASS] P2-K1b: entry point stops routing requests to unhealthy instance (0 requests to aggregator-2 while /ready=503, 0 client errors)
+
+--- Phase 2: P2-K7 Throughput Benchmark (1 Instance vs 3 Instances) ---
+   1 Aggregator instance : 326.7 req/s (1974 reqs, p95=77.8 ms, failed=0)
+   3 Aggregator instances: 845.1 req/s (5093 reqs, p95=38.8 ms, failed=0)
+   Throughput scaling ratio (3 instances / 1 instance): 2.59x (requirement >= 2.00x)
+  [PASS] P2-K7: throughput of 3 instances (845.1 req/s) is >= 2.0x throughput of 1 instance (326.7 req/s) [ratio=2.59x]
+
+--- Phase 3: P2-K6 & P2-K8 Sustained Load Test (10000 VUs, 120s, Scale 3 -> 5 -> 2 + Live Rolling Update v1 -> v2) ---
+   [t=24s] Scaling OUT Aggregator pool: 3 -> 5 instances...
+   [t=28s] Active healthy Aggregator instances = 5 (aggregator-1, aggregator-2, aggregator-3, aggregator-4, aggregator-5)
+   [t=50s] Scaling IN Aggregator pool: 5 -> 2 instances (graceful readiness drain)...
+   [t=53s] Active healthy Aggregator instances = 2 (aggregator-1, aggregator-2)
+   [t=74s] Restoring 3rd replica & executing Rolling Update v1 -> v2 (maxSurge=1, maxUnavailable=0)...
+     [t=86s] Rolled out aggregator-v2-1 (v2 on node-a) replacing aggregator-1 (v1); active=aggregator-2:v1, aggregator-3b:v1, aggregator-v2-1:v2
+     [t=89s] Rolled out aggregator-v2-2 (v2 on node-b) replacing aggregator-2 (v1); active=aggregator-3b:v1, aggregator-v2-1:v2, aggregator-v2-2:v2
+     [t=94s] Rolled out aggregator-v2-3 (v2 on node-c) replacing aggregator-3b (v1); active=aggregator-v2-1:v2, aggregator-v2-2:v2, aggregator-v2-3:v2
+   Post-rollout version probe (60 requests): versions=[v2], failures=0
+
+--- k6 Sustained Load Test & Rolling Update Summary ---
+   Virtual Users (vus_max)     : 10000 VUs (duration=120s, active connection pool=450)
+   Scaling trajectory          : 3 -> 5 -> 2 -> 3 (rolled out v1 -> v2)
+   Total HTTP requests         : 86734 (716.8 req/s)
+   Failed requests             : 0 / 86734 (0.0000 %, requirement < 1.00 %)
+   Latency                     : p50=45.1 ms, p95=622.4 ms, p99=1846.5 ms
+   Version responses served    : v1=68308, v2=18426
+   LB per-instance distribution: {"aggregator-3":13577,"aggregator-2":23607,"aggregator-1":23189,"agg-bench-1-1":1989,"agg-bench-3-2":1703,"agg-bench-3-3":1703,"agg-bench-3-1":1702,"aggregator-4":3317,"aggregator-5":3271,"aggregator-3b":1617,"aggregator-v2-1":6533,"aggregator-v2-2":6220,"aggregator-v2-3":5733}
+   BMKG upstream polls         : 54 polls across leader sequence [aggregator-1 -> aggregator-v2-1], concurrent violations=0
+   Stored events uniqueness    : 378 unique / 378 total (0 duplicates)
+  [PASS] P2-K6a: sustained load test ran with 10000 VUs (>= 10,000) and scaled instances 3 -> 5 -> 2
+  [PASS] P2-K6b: error rate during scaling & load test is 0.0000% (< 1.0%)
+  [PASS] P2-K6c: P2-K2 preserved during 3->5->2 scaling (0 concurrent multi-instance upstream polls, 0 duplicate HazardEvents in ring)
+  [PASS] P2-K8: live rolling update v1 -> v2 completed during load test with 0 failed requests (v1=68308, v2=18426)
+RESULT: PASS

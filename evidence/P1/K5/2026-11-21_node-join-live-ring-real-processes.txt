@@ -1,0 +1,15 @@
+# P1-K5/K6 live node join on real processes (2026-11-21)
+# command: npx tsx scripts/demo/p1-join-e2e.ts  (AAT-bebasss @ integration)
+# processes: 3 then 4 storage-unit, aggregator ring-host (STORAGE_UNITS_FILE, membership+repair every 500 ms); load through the storage gateway
+# note: units that no longer own a key keep their copy (no compaction), so per-unit key counts after the join add up to more than 2x the events
+before: unit-a=1027 keys, unit-b=1025 keys, unit-c=948 keys (redundancy_ok=true)
+unit-d announced via the units file, STABLE after 807 ms
+after:  unit-a=1528 keys, unit-b=1594 keys, unit-c=1442 keys, unit-d=1317 keys; 2463 events written, 1951 operations during the run
+  [PASS] no failed write and no failed/missing read during the join (0 write failures, 0 read failures)
+  [PASS] ring now has four units, all STABLE, redundancy_ok
+  [PASS] new unit holds its share of the data (1317 of 4926 replica copies = 26.7 %, ideal 25 %)
+  [PASS] new unit takes write load after joining (writes 43 -> 362)
+  [PASS] checksum over all 2463 written events is complete and equals an independent computation
+  [PASS] original unit-a killed after the join: nothing lost, not partial
+  [PASS] writes still accepted with unit-a down
+RESULT: PASS

@@ -1,0 +1,62 @@
+﻿# BON-3 on k3s: aggregator HPA (min 3, max 5, CPU target 70%) changes the replica count by itself
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Source: kubectl get/describe hpa and the Deployment's ReplicaSet history. The HPA was pinned (min=max) only during the P2 load drills and then restored to 3..5, so the automatic scaling shown below happened outside those pinned windows.
+
+[18:56:23] $ kubectl -n sistem-informasi-kebencanaan-bnpb get hpa aggregator-hpa -o wide
+    NAME             REFERENCE               TARGETS         MINPODS   MAXPODS   REPLICAS   AGE
+    aggregator-hpa   Deployment/aggregator   cpu: 354%/70%   3         5         5          7h27m
+[18:56:24] $ kubectl -n sistem-informasi-kebencanaan-bnpb describe hpa aggregator-hpa
+    Name:                                                  aggregator-hpa
+    Namespace:                                             sistem-informasi-kebencanaan-bnpb
+    Labels:                                                <none>
+    Annotations:                                           <none>
+    CreationTimestamp:                                     Sun, 22 Nov 2026 11:28:28 +0700
+    Reference:                                             Deployment/aggregator
+    Metrics:                                               ( current / target )
+      resource cpu on pods  (as a percentage of request):  354% (354m) / 70%
+    Min replicas:                                          3
+    Max replicas:                                          5
+    Behavior:
+      Scale Up:
+        Stabilization Window: 0 seconds
+        Select Policy: Max
+        Policies:
+          - Type: Pods     Value: 4    Period: 15 seconds
+          - Type: Percent  Value: 100  Period: 15 seconds
+      Scale Down:
+        Stabilization Window: 60 seconds
+        Select Policy: Max
+        Policies:
+          - Type: Percent  Value: 100  Period: 15 seconds
+    Deployment pods:       5 current / 5 desired
+    Conditions:
+      Type            Status  Reason            Message
+      ----            ------  ------            -------
+      AbleToScale     True    ReadyForNewScale  recommended size matches current size
+      ScalingActive   True    ValidMetricFound  the HPA was able to successfully calculate a replica count from cpu resource utilization (percentage of request)
+      ScalingLimited  True    TooManyReplicas   the desired replica count is more than the maximum replica count
+      ScaledToZero    False   NotScaledToZero   the HPA controller did not scale the workload to zero
+    Events:
+      Type     Reason                        Age   From                       Message
+      ----     ------                        ----  ----                       -------
+      Warning  FailedGetResourceMetric       43m   horizontal-pod-autoscaler  failed to get cpu utilization: unable to get metrics for resource cpu: unable to fetch metrics from resource metrics API: the server is currently unable to handle the request (get pods.metrics.k8s.io)
+      Warning  FailedComputeMetricsReplicas  43m   horizontal-pod-autoscaler  invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: unable to get metrics for resource cpu: unable to fetch metrics from resource metrics API: the server is currently unable to handle the request (get pods.metrics.k8s.io)
+[18:56:27] $ kubectl -n sistem-informasi-kebencanaan-bnpb get events --field-selector involvedObject.name=aggregator-hpa --sort-by=.lastTimestamp
+    LAST SEEN   TYPE      REASON                         OBJECT                                   MESSAGE
+    43m         Warning   FailedGetResourceMetric        horizontalpodautoscaler/aggregator-hpa   failed to get cpu utilization: unable to get metrics for resource cpu: unable to fetch metrics from resource metrics API: the server is currently unable to handle the request (get pods.metrics.k8s.io)
+    43m         Warning   FailedComputeMetricsReplicas   horizontalpodautoscaler/aggregator-hpa   invalid metrics (1 invalid out of 1), first error is: failed to get cpu resource metric value: failed to get cpu utilization: unable to get metrics for resource cpu: unable to fetch metrics from resource metrics API: the server is currently unable to handle the request (get pods.metrics.k8s.io)
+[18:56:27] $ kubectl -n sistem-informasi-kebencanaan-bnpb get rs -l app=aggregator -o custom-columns=NAME:.metadata.name,DESIRED:.spec.replicas,CREATED:.metadata.creationTimestamp --sort-by=.metadata.creationTimestamp
+    NAME                    DESIRED   CREATED
+    aggregator-78955dc646   0         2026-11-22T04:41:52Z
+    aggregator-7dffd9bf84   0         2026-11-22T04:45:22Z
+    aggregator-7898dbbb55   0         2026-11-22T05:19:35Z
+    aggregator-5b4b6c6c45   0         2026-11-22T05:43:45Z
+    aggregator-6dd74df9d    0         2026-11-22T05:59:10Z
+    aggregator-578df8d8d5   0         2026-11-22T06:11:12Z
+    aggregator-76f76b6c56   0         2026-11-22T08:23:10Z
+    aggregator-5d4dd8dd4f   0         2026-11-22T08:59:08Z
+    aggregator-6b46555dff   0         2026-11-22T11:29:10Z
+    aggregator-5c4886cbbc   0         2026-11-22T11:39:20Z
+    aggregator-6484675f75   5         2026-11-22T11:49:30Z
+[18:56:37] ANALYSIS: the HPA works mechanically (it computes a desired size from CPU as a percentage of request: 354% of 100m against the 70% target and is limited to the maximum of 5). But BON-3 asks for capacity that goes up AND down with load. Here the aggregator's baseline CPU while idle (about 350m per replica against a 100m request) is far above the target, so the HPA stays at 5 replicas regardless of load, and scale-down was NOT observed. The scale-up events from earlier in the day (rescale 3 -> 5) are no longer in the event list (events expire after one hour).
+[18:56:37] CONSEQUENCE: BON-3 is NOT demonstrated on k3s. To demonstrate it the idle CPU of the aggregator must fall below the target (see the idle fan-out finding and the CPU profiles) or the target/request must be re-tuned, then run load up and down while recording kubectl get hpa -w.

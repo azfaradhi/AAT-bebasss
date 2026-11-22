@@ -1,0 +1,15 @@
+# cmd: scripts/demo/bon2-real-llm.sh  (one real call to Groq, model openai/gpt-oss-20b, synthetic fire facts; the key is read from the untracked .env.local and is not printed)
+# date: 2026-11-16 17:20
+model: openai/gpt-oss-20b  latency: 676 ms
+answer : Kalimantan Barat terdeteksi 14 titik panas dengan total FRP 61,5 MW, dilaporkan oleh satelit N, N20, dan N21; tingkat SIAGA, deteksi pertama pada 2026‑11‑16 05:30, pertumbuhan 9 titik panas, disebabkan oleh peningkatan jumlah titik panas di jendela waktu dan kenaikan tingkat ke SIAGA.
+valid  : yes, would be stored as summary_source=llm
+template fallback: Kebakaran di Kalimantan Barat: 14 titik panas dari satelit N, N20, N21, total FRP 61.5 MW, tingkat SIAGA. Ditandai karena pertumbuhan 9 titik panas dalam jendela waktu, jauh di atas kebakaran lain; tingkat naik ke SIAGA.
+label  : ADVISORY: automated, not an official assessment
+
+# six more calls (validator verdict only):
+model: openai/gpt-oss-20b  latency: 767 ms valid  : yes, would be stored as summary_source=llm 
+model: openai/gpt-oss-20b  latency: 740 ms valid  : yes, would be stored as summary_source=llm 
+model: openai/gpt-oss-20b  latency: 684 ms valid  : yes, would be stored as summary_source=llm 
+model: openai/gpt-oss-20b  latency: 661 ms valid  : yes, would be stored as summary_source=llm 
+model: openai/gpt-oss-20b  latency: 541 ms valid  : yes, would be stored as summary_source=llm 
+model: openai/gpt-oss-20b  latency: 779 ms valid  : yes, would be stored as summary_source=llm 

@@ -1,0 +1,5 @@
+undisturbed run: 51 satellite events, sha256=31721e0a6ba34f61…, leader=sat-2
+  [failover] sat-1 killed with 18 events stored; sat-2 took over after 4111 ms (fence 2)
+failover run: 51 satellite events, sha256=31721e0a6ba34f61…, leaders=sat-1 -> sat-2
+identical final result: true; takeover within 60 s: true
+RESULT: PASS (leader killed, other instance took over, final result identical to the undisturbed run)

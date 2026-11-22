@@ -1,0 +1,10 @@
+# P1-K3 and X-09 on real processes (2026-11-21)
+# command: npx tsx scripts/demo/p1-k3-x09-e2e.ts  (AAT-bebasss @ integration)
+# processes: 3 storage-unit, ring-host (now built with the Aggregator's buildApp: internal hazards route + audit + analytics + ops + gateway), client-api (Date shifted by skew-preload.cjs)
+# 1200 events over BMKG/PVMBG/SATELIT/SENSOR_PANTAI written in shuffled order; X-09 token lives 20 s, client-api tolerance JWT_CLOCK_TOLERANCE_S=60 (default)
+  [PASS] K3: paginated Audit walk over all 1200 events in 12 pages equals the sorted ground truth (ingested_at, hazard_id), no gap or repeat
+  [PASS] K3: GET /hazard-events?limit=50 through client-api returns the 50 newest events of all types, newest first (4 hazard types present)
+  client-api clock shifted: 0 s -> 200, +45 s -> 200, -30 s -> 200, +100 s -> 401 (token valid 20 s, tolerance 60 s)
+  [PASS] X-09: no false 401 for +45 s and -30 s clock shifts
+  [PASS] X-09: a clock beyond the tolerance (+100 s, token expired 80 s ago) is still rejected (401), so the tolerance is bounded
+RESULT: PASS

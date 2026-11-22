@@ -1,0 +1,10 @@
+# P5-K5: 150 concurrent media clients vs 10 lapangan clients for 40 s
+# date: 2026-11-22T15:56:55.334Z  label: PROSES NYATA di cluster k3s (bukan simulasi)
+# nodes: node-a v1.37.2+k3s1 node-b v1.37.2+k3s1 node-c v1.37.2+k3s1
+# code: AAT-bebasss @ ad3fdd3; drill: scripts/cluster/drills/cluster-p5-priority-shed.mjs
+[15:57:44] media: 200=3190 429=1065 other=0,503 p95=10001 ms
+[15:57:44] lapangan: 200=89 429=0 other=0,503 p95=10106 ms
+[15:57:44] [FAIL] lapangan requests are served (>= 95 % answered 200)
+[15:57:44] [FAIL] media requests are rejected in a controlled way (some 429, no 5xx)
+[15:57:44] [FAIL] overload did not take lapangan down (p95 < 5000 ms)
+[15:57:44] RESULT: FAIL  -> <repo>\AAT-docs\m2\evidence\P5\K5\2026-11-22_1556_cluster-p5-priority-shed.txt

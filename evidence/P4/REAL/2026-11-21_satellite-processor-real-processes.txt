@@ -1,0 +1,13 @@
+# P4 on real processes (2026-11-21)
+# command: npx tsx scripts/demo/p4-e2e.ts  (AAT-bebasss @ integration)
+# processes per scenario: 3 storage-unit, aggregator ring-host (gateway), fake apiserver (Lease), feed-fixture-server (3000 REAL captured frames, offsets 11900..14899), satellite-processor(s)
+# reference digest d11898de253f4d7c = fault-free IN-PROCESS export in m2/evidence/P4/K5/2026-11-16_crash-exactness.txt (same export function: ingested_at dropped, sorted by hazard_id)
+# scenario C chains 36 copies of the slice (108000 frames); only the event count (1836, = the in-process burst reference) and no duplicates are checked, not a 60 s catch-up
+fault-free real-process run: 51 satellite events, digest d11898de253f4d7c (in-process reference d11898de253f4d7c)
+  [PASS] K1/K3/FIRE: one event per fire, no duplicate hazard ids
+  [PASS] K1/K3/FIRE: ring result is byte-identical to the in-process pipeline result (ingested_at ignored)
+leader killed 4x, feed dropped the connection every 250 frames (72 connections served): 51 events, digest d11898de253f4d7c
+  [PASS] K5/K8: after repeated leader kills and feed disconnects the result is byte-identical to the fault-free run (no loss, no duplicates)
+backlog of 108000 frames: 1836 events stored, 79.9 s from start to stable (includes 6 s stability wait)
+  [PASS] K4: 108000 frames processed with no duplicates (1836 events, 0 duplicates)
+RESULT: PASS

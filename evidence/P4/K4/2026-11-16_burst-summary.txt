@@ -1,0 +1,98 @@
+# cmd: scripts/demo/p4-k4-burst.sh (default config: batch 500, checkpoint 500, flush 250 ms, write concurrency 32), 108 000-frame burst (36 chained copies of the captured slice, ~ the real backlog) at 3000 frames/s
+# date: 2026-11-16 node v20.20.2 branch ms2-prob3-prob4 (T13 working tree, uncommitted)
+
+## simulated ring write 0 ms
+{
+ "config": {
+  "frames": 108000,
+  "batch": 500,
+  "checkpoint_every": 500,
+  "flush_interval_ms": 250,
+  "write_concurrency": 32,
+  "simulated_ring_write_latency_ms": 0
+ },
+ "duration_s": 39.735,
+ "throughput_fps": 2718,
+ "lag_peak_frames": 490,
+ "catch_up_after_burst_s": 0,
+ "event_to_store_seconds": {
+  "p50": 0.147,
+  "p95": 0.201,
+  "p99": 0.225,
+  "samples": 108000
+ },
+ "rss_peak_mb": 133.1,
+ "delivered_frames": 108000,
+ "unique_offsets": 108000,
+ "gaps": 0,
+ "events": {
+  "burst": 1836,
+  "reference": 1836,
+  "identical": true,
+  "sha": "12b0fbc01efcf55e"
+ }
+}
+
+## simulated ring write 2 ms
+{
+ "config": {
+  "frames": 108000,
+  "batch": 500,
+  "checkpoint_every": 500,
+  "flush_interval_ms": 250,
+  "write_concurrency": 32,
+  "simulated_ring_write_latency_ms": 2
+ },
+ "duration_s": 39.99,
+ "throughput_fps": 2701,
+ "lag_peak_frames": 1500,
+ "catch_up_after_burst_s": 0.04,
+ "event_to_store_seconds": {
+  "p50": 0.137,
+  "p95": 0.394,
+  "p99": 0.464,
+  "samples": 108000
+ },
+ "rss_peak_mb": 113.6,
+ "delivered_frames": 108000,
+ "unique_offsets": 108000,
+ "gaps": 0,
+ "events": {
+  "burst": 1836,
+  "reference": 1836,
+  "identical": true,
+  "sha": "12b0fbc01efcf55e"
+ }
+}
+
+## simulated ring write 5 ms
+{
+ "config": {
+  "frames": 108000,
+  "batch": 500,
+  "checkpoint_every": 500,
+  "flush_interval_ms": 250,
+  "write_concurrency": 32,
+  "simulated_ring_write_latency_ms": 5
+ },
+ "duration_s": 48.773,
+ "throughput_fps": 2214,
+ "lag_peak_frames": 21600,
+ "catch_up_after_burst_s": 9.17,
+ "event_to_store_seconds": {
+  "p50": 0.149,
+  "p95": 0.61,
+  "p99": 0.618,
+  "samples": 108000
+ },
+ "rss_peak_mb": 136.1,
+ "delivered_frames": 108000,
+ "unique_offsets": 108000,
+ "gaps": 0,
+ "events": {
+  "burst": 1836,
+  "reference": 1836,
+  "identical": true,
+  "sha": "12b0fbc01efcf55e"
+ }
+}

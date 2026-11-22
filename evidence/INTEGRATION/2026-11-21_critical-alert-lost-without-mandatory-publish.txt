@@ -1,0 +1,11 @@
+# NEGATIVE CONTROL for the mandatory-publish fix (2026-11-21): same phase B with services/aggregator/src/publisher/event-publisher.ts as committed before the fix
+# result: the critical queue did not exist when the alerts were published; the broker dropped them silently and the outbox rows were marked published => 0 of 10 critical alerts delivered
+--- B faults (late critical queue, broker paused 8 s, storage unit killed) ---
+  broker paused for 8 s; critical queue does not exist yet
+  storage unit-1 killed
+  critical queue created and consumed (late)
+  330 events stored, 330 delivered to the exchange queue (64 duplicate deliveries); 10 critical observations, 0 critical alerts delivered (0 duplicates), detected->received p50 undefined ms, p95 NaN ms, max undefined ms; 140 s
+  [PASS] B faults (late critical queue, broker paused 8 s, storage unit killed): every stored event reached a consumer of the fanout exchange (0 missing of 330)
+  [FAIL] B faults (late critical queue, broker paused 8 s, storage unit killed): every critical observation produced a critical alert on critical_alerts_queue (0 missing of 10)
+  [PASS] B faults (late critical queue, broker paused 8 s, storage unit killed): outbox drained (0 pending)
+RESULT: FAIL

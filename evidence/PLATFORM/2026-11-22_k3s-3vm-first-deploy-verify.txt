@@ -1,0 +1,98 @@
+# Evidence: first real k3s deploy + platform verify scripts
+# Date: 2026-11-22 | Label: PROSES NYATA (k3s) -- but nodes are 3 VirtualBox VMs on ONE Windows laptop (host-only 192.168.56.0/24), NOT separate physical hosts
+# Cluster: k3s v1.37.2+k3s1, Ubuntu 24.04.5, kernel 6.8.0-139, flannel-iface=enp0s8
+# Images: node-a:5000/bnpb-*:m2 built locally and pushed to registry on node-a (aggregator rebuilt with /ready,/healthz,/metrics fix; Makefile mints PVMBG_ACCESS_TOKEN)
+# Overlay: demo. NOT covered: Tester Agent, drills, load tests, real sensor image.
+
+$ kubectl get nodes -o wide
+NAME     STATUS   ROLES           AGE   VERSION        INTERNAL-IP      EXTERNAL-IP   OS-IMAGE             KERNEL-VERSION              CONTAINER-RUNTIME
+node-a   Ready    control-plane   62m   v1.37.2+k3s1   192.168.56.101   <none>        Ubuntu 24.04.5 LTS   6.8.0-139-generic (amd64)   containerd://2.3.7-k3s1
+node-b   Ready    <none>          60m   v1.37.2+k3s1   192.168.56.102   <none>        Ubuntu 24.04.5 LTS   6.8.0-139-generic (amd64)   containerd://2.3.7-k3s1
+node-c   Ready    <none>          59m   v1.37.2+k3s1   192.168.56.103   <none>        Ubuntu 24.04.5 LTS   6.8.0-139-generic (amd64)   containerd://2.3.7-k3s1
+
+$ kubectl -n sistem-informasi-kebencanaan-bnpb get pods -L role -o wide
+NAME                                     READY   STATUS    RESTARTS      AGE     IP           NODE     NOMINATED NODE   READINESS GATES   ROLE
+aggregator-7dffd9bf84-4c79v              1/1     Running   0             2m17s   10.42.2.21   node-c   <none>           <none>            aggregator
+aggregator-7dffd9bf84-4tzqr              1/1     Running   0             2m48s   10.42.2.20   node-c   <none>           <none>            aggregator
+aggregator-7dffd9bf84-88dcp              1/1     Running   0             3m9s    10.42.0.18   node-a   <none>           <none>            aggregator
+aggregator-7dffd9bf84-lfkg7              1/1     Running   0             2m20s   10.42.1.20   node-b   <none>           <none>            aggregator
+aggregator-7dffd9bf84-mw9km              1/1     Running   0             2m17s   10.42.1.21   node-b   <none>           <none>            aggregator
+analytics-dashboard-6d547d8456-z288f     1/1     Running   0             20m     10.42.1.15   node-b   <none>           <none>            other
+auth-service-75db8d4d49-frgdt            1/1     Running   0             20m     10.42.0.9    node-a   <none>           <none>            api
+auth-service-75db8d4d49-mh8gv            1/1     Running   0             20m     10.42.1.13   node-b   <none>           <none>            api
+bmkg-mock-545f9675b4-vbgjz               1/1     Running   0             20m     10.42.2.13   node-c   <none>           <none>            mock
+client-api-79464c4b4b-t4bm5              1/1     Running   0             20m     10.42.2.10   node-c   <none>           <none>            api
+client-api-79464c4b4b-wjhvw              1/1     Running   0             20m     10.42.0.10   node-a   <none>           <none>            api
+dashboard-updater-58778b9fc9-d855h       0/1     Running   0             20m     10.42.2.17   node-c   <none>           <none>            consumer
+field-report-processor-ddbfdd977-7tvzf   1/1     Running   0             20m     10.42.1.12   node-b   <none>           <none>            consumer
+notifier-7796487985-gln8k                0/1     Running   0             20m     10.42.2.16   node-c   <none>           <none>            consumer
+pvmbg-mock-5d7d56446d-cljjk              1/1     Running   0             20m     10.42.0.15   node-a   <none>           <none>            mock
+rabbitmq-0                               0/1     Running   1 (54s ago)   20m     10.42.0.12   node-a   <none>           <none>            broker
+rabbitmq-1                               1/1     Running   1 (10m ago)   18m     10.42.1.18   node-b   <none>           <none>            broker
+rabbitmq-2                               1/1     Running   0             7m27s   10.42.2.19   node-c   <none>           <none>            broker
+satellite-processor-54656b4675-nvnwg     1/1     Running   0             20m     10.42.0.14   node-a   <none>           <none>            broker
+sensor-pantai-78f588f5b9-qmdgn           1/1     Running   0             20m     10.42.1.14   node-b   <none>           <none>            sensor
+storage-unit-7fsfx                       1/1     Running   0             20m     10.42.1.16   node-b   <none>           <none>            store
+storage-unit-8ldqw                       1/1     Running   0             20m     10.42.0.13   node-a   <none>           <none>            store
+storage-unit-p7kpm                       1/1     Running   0             20m     10.42.2.15   node-c   <none>           <none>            store
+
+$ make verify-labels verify-resources verify-netpol
+bash scripts/verify/verify-labels.sh
+[verify-labels] Checking live pods in namespace 'sistem-informasi-kebencanaan-bnpb'...
+[PASS] Pod aggregator-7dffd9bf84-4c79v -> role=aggregator
+[PASS] Pod aggregator-7dffd9bf84-4tzqr -> role=aggregator
+[PASS] Pod aggregator-7dffd9bf84-88dcp -> role=aggregator
+[PASS] Pod aggregator-7dffd9bf84-lfkg7 -> role=aggregator
+[PASS] Pod aggregator-7dffd9bf84-mw9km -> role=aggregator
+[PASS] Pod analytics-dashboard-6d547d8456-z288f -> role=other
+[PASS] Pod auth-service-75db8d4d49-frgdt -> role=api
+[PASS] Pod auth-service-75db8d4d49-mh8gv -> role=api
+[PASS] Pod bmkg-mock-545f9675b4-vbgjz -> role=mock
+[PASS] Pod client-api-79464c4b4b-t4bm5 -> role=api
+[PASS] Pod client-api-79464c4b4b-wjhvw -> role=api
+[PASS] Pod dashboard-updater-58778b9fc9-d855h -> role=consumer
+[PASS] Pod field-report-processor-ddbfdd977-7tvzf -> role=consumer
+[PASS] Pod notifier-7796487985-gln8k -> role=consumer
+[PASS] Pod pvmbg-mock-5d7d56446d-cljjk -> role=mock
+[PASS] Pod rabbitmq-0 -> role=broker
+[PASS] Pod rabbitmq-1 -> role=broker
+[PASS] Pod rabbitmq-2 -> role=broker
+[PASS] Pod satellite-processor-54656b4675-nvnwg -> role=broker
+[PASS] Pod sensor-pantai-78f588f5b9-qmdgn -> role=sensor
+[PASS] Pod storage-unit-7fsfx -> role=store
+[PASS] Pod storage-unit-8ldqw -> role=store
+[PASS] Pod storage-unit-p7kpm -> role=store
+[verify-labels] OK: all 23 pods have valid role labels.
+bash scripts/verify/verify-resources.sh
+[verify-resources] Checking live pods in namespace 'sistem-informasi-kebencanaan-bnpb'...
+[PASS] Pod aggregator-7dffd9bf84-4c79v (aggregator, role=aggregator) -> 256Mi/512Mi
+[PASS] Pod aggregator-7dffd9bf84-4tzqr (aggregator, role=aggregator) -> 256Mi/512Mi
+[PASS] Pod aggregator-7dffd9bf84-88dcp (aggregator, role=aggregator) -> 256Mi/512Mi
+[PASS] Pod aggregator-7dffd9bf84-lfkg7 (aggregator, role=aggregator) -> 256Mi/512Mi
+[PASS] Pod aggregator-7dffd9bf84-mw9km (aggregator, role=aggregator) -> 256Mi/512Mi
+[PASS] Pod analytics-dashboard-6d547d8456-z288f (analytics-dashboard, role=other) -> 128Mi/256Mi
+[PASS] Pod auth-service-75db8d4d49-frgdt (auth-service, role=api) -> 128Mi/256Mi
+[PASS] Pod auth-service-75db8d4d49-mh8gv (auth-service, role=api) -> 128Mi/256Mi
+[PASS] Pod bmkg-mock-545f9675b4-vbgjz (bmkg-mock, role=mock) -> 64Mi/128Mi
+[PASS] Pod client-api-79464c4b4b-t4bm5 (client-api, role=api) -> 128Mi/256Mi
+[PASS] Pod client-api-79464c4b4b-wjhvw (client-api, role=api) -> 128Mi/256Mi
+[PASS] Pod dashboard-updater-58778b9fc9-d855h (dashboard-updater, role=consumer) -> 128Mi/256Mi
+[PASS] Pod field-report-processor-ddbfdd977-7tvzf (field-report-processor, role=consumer) -> 128Mi/256Mi
+[PASS] Pod notifier-7796487985-gln8k (notifier, role=consumer) -> 128Mi/256Mi
+[PASS] Pod pvmbg-mock-5d7d56446d-cljjk (pvmbg-mock, role=mock) -> 64Mi/128Mi
+[PASS] Pod rabbitmq-0 (rabbitmq, role=broker) -> 512Mi/1Gi
+[PASS] Pod rabbitmq-1 (rabbitmq, role=broker) -> 512Mi/1Gi
+[PASS] Pod rabbitmq-2 (rabbitmq, role=broker) -> 512Mi/1Gi
+[PASS] Pod satellite-processor-54656b4675-nvnwg (satellite-processor, role=broker) -> 512Mi/1Gi
+[PASS] Pod sensor-pantai-78f588f5b9-qmdgn (sensor, role=sensor) -> 128Mi/256Mi
+[PASS] Pod storage-unit-7fsfx (storage-unit, role=store) -> 512Mi/1Gi
+[PASS] Pod storage-unit-8ldqw (storage-unit, role=store) -> 512Mi/1Gi
+[PASS] Pod storage-unit-p7kpm (storage-unit, role=store) -> 512Mi/1Gi
+[verify-resources] OK: all live containers match Lampiran B.
+bash scripts/verify/verify-netpol.sh
+[verify-netpol] Running live NetworkPolicy test in namespace 'sistem-informasi-kebencanaan-bnpb'...
+[verify-netpol] 1/2 Positive test: role=aggregator -> http://10.42.0.22:8100/ (MUST succeed, retried up to 60s)...
+[verify-netpol] PASS: role=aggregator allowed.
+[verify-netpol] 2/2 Negative test: role=api -> http://10.42.0.22:8100/ (MUST fail every time)...
+[verify-netpol] PASS: role=api blocked.
+[PASS] PLAT-8 store isolation enforced by NetworkPolicy.

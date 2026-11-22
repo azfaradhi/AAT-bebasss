@@ -1,0 +1,11 @@
+# P4-K5/K8: delete the Lease holder of the satellite stream, watch SATELIT events continue without duplicates
+# date: 2026-11-22T15:00:46.083Z  label: PROSES NYATA di cluster k3s (bukan simulasi)
+# nodes: node-a v1.37.2+k3s1 node-b v1.37.2+k3s1 node-c v1.37.2+k3s1
+# code: AAT-bebasss @ 45b265c; drill: scripts/cluster/drills/cluster-p4-satellite-leader.mjs
+[15:00:47] satellite-processor pods: satellite-processor-696f69bfdb-b2f2w@node-a, satellite-processor-696f69bfdb-ffj6g@node-b
+[15:01:08] holder satellite-processor-696f69bfdb-ffj6g, transitions 8794; SATELIT events 289 -> 297 in 20 s
+[15:01:21] [PASS] another instance holds the satellite lease after 12.1 s (limit 60 s) (new holder satellite-processor-696f69bfdb-b2f2w)
+[15:02:21] [PASS] SATELIT events kept arriving after the takeover (stream resumed from the stored offset) (297 -> 297)
+[15:02:23] [PASS] no duplicate fire (unique source_ref_id) and stable ids (297 events)
+[15:02:23] [PASS] the standby never got HTTP 429 from the feed (never opened a second connection)
+[15:02:23] RESULT: PASS  -> <repo>\AAT-docs\m2\evidence\P4\K5\2026-11-22_1500_cluster-p4-satellite-leader.txt

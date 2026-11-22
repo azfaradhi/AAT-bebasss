@@ -1,0 +1,34 @@
+﻿# OBS-1..3 on k3s: Prometheus targets, Grafana dashboards/datasources and Tempo traces queried through their HTTP APIs
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# The stack had been scaled to 0 to relieve the VMs and was scaled to 1 for this check. Screenshots of Grafana in a browser are NOT included (cannot be taken from here).
+
+[18:59:21] $ kubectl -n observability get pods -o wide
+    NAME                              READY   STATUS    RESTARTS   AGE     IP           NODE     NOMINATED NODE   READINESS GATES
+    grafana-645d945f5c-724tt          0/1     Running   0          2m30s   10.42.2.91   node-c   <none>           <none>
+    otel-collector-6756468456-lbnvp   1/1     Running   0          2m30s   10.42.2.93   node-c   <none>           <none>
+    prometheus-6b96f7f4d4-2bjvp       1/1     Running   0          2m30s   10.42.2.92   node-c   <none>           <none>
+    tempo-79b47f896d-z5xk7            1/1     Running   0          2m28s   10.42.2.94   node-c   <none>           <none>
+[18:59:21] $ kubectl -n observability get svc
+    NAME             TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE
+    grafana          ClusterIP   10.43.250.231   <none>        3000/TCP                     7h30m
+    otel-collector   ClusterIP   10.43.182.235   <none>        4317/TCP,4318/TCP            7h30m
+    prometheus       ClusterIP   10.43.26.218    <none>        9090/TCP                     7h30m
+    tempo            ClusterIP   10.43.104.95    <none>        3200/TCP,4317/TCP,4318/TCP   7h30m
+[18:59:56] API checks from inside the cluster:
+    PROM targets 200 active=21 {"bnpb-pods:down":4,"bnpb-pods:up":17}
+    GRAFANA datasources ERR fetch failed
+    GRAFANA search ERR fetch failed
+    PROM RED query 200 {"status":"success","data":{"resultType":"vector","result":[{"metric":{"service":"client-api"},"value":[1795348794.968,"0.6423658211542197"]},{"metric":{"service":"bmkg-mock"},"value":[1795348794.968,"0.3809893405224575"]},{"metric":{"service":"pvmbg-mock"},"value":[1795348794.968,"0.18360830091865582"]},{"metric":{"service":"notifier"},"value":[1795348794.968,"0.3262843016712838"]},{"metric":{"se
+    TEMPO search 200 {"traces":[{"traceID":"2b21ea2bada38e9f3dc9d5d6222c66f","rootServiceName":"client-api","rootTraceName":"GET /healthz","startTimeUnixNano":"1795348715077246976"},{"traceID":"b285e43b66a2be674d419e98ead84f","rootServiceName":"client-api","rootTraceName":"GET /healthz","startTimeUnixNano":"1795348680125098496"},{"traceID":"28c33818250f1ed72906e9e3cd45c85","rootServiceName":"client-api","rootTraceName
+[19:01:17] second check after 60 s:
+    DOWN targets: ["storage-unit-v5pcw server returned HTTP status 404 Not Found","storage-unit-59sck server returned HTTP status 404 Not Found","storage-unit-nvl9j server returned HTTP status 404 Not Found"]
+    GRAFANA health 200 {
+      "commit": "701c851be7a930e04fbc6ebb1cd4254da80edd4c",
+      "database": "ok",
+      "version": "10.4.2"
+    }
+    GRAFANA datasources 200 [{"id":1,"uid":"prometheus","orgId":1,"name":"Prometheus","type":"prometheus","typeName":"Prometheus","typeLogoUrl":"public/app/plugins/datasource/prometheus/img/prometheus_logo.svg","access":"proxy","url":"http://prometheus.observability.svc.cluster.local:9090","user":"","database":"","basicAuth":f
+    GRAFANA dashboards 200 [{"id":2,"uid":"bnpb-p1-storage","title":"P1 — Distributed Storage Ring \u0026 Replication","uri":"db/p1-e28094-distributed-storage-ring-and-replication","url":"/d/bnpb-p1-storage/p1-e28094-distributed-storage-ring-and-replication","slug":"","type":"dash-db","tags":[],"isStarred":false,"folderId":1,"folderUid":"eg52euc1r981sd","folderTitle":"BNPB M2","folderUrl":"/dashboards/f/eg52euc1r981sd/bnpb-
+    TEMPO non-probe traces: []
+[19:01:17] ANALYSIS: Prometheus scrapes 21 pod targets (17 up, 4 down at the time) and answers the RED query by the 'service' label for client-api, bmkg-mock, pvmbg-mock...; Tempo holds traces (mostly health probes from client-api). A single trace across client-api -> aggregator -> storage-unit -> broker -> consumer (X-04) was NOT looked up here, and NO browser screenshots of Grafana were taken: they must be captured by hand (port-forward svc/grafana 3000:3000, login per the manifest).
+[19:01:24] RESULT: Grafana 10.4.2 is healthy (database ok) with a Prometheus datasource and provisioned dashboards (folder 'BNPB M2', e.g. 'P1 - Distributed Storage Ring & Replication'). The 3 storage-unit scrape targets are DOWN with 'HTTP 404 Not Found': the storage-unit exposes no /metrics endpoint, so the P1 dashboard has no data for the ring. Tempo returned NO application trace other than health/ready/metrics probes, so a trace across services (X-04) is NOT available yet (trace propagation or sampling needs a look).

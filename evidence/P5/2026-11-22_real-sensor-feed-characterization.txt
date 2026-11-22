@@ -1,0 +1,22 @@
+# Evidence: the real sustuna/sensor-pantai image (sha256:51fbd90d...) on k3s, profile "practice". Date 2026-11-22.
+# Label: PROSES NYATA (k3s; 3 VirtualBox VMs on one laptop). Collected from inside an aggregator pod with node fetch (GET /v1/stations, GET /v1/observations paged x60).
+# NOT run: behaviours B1-B8 of SENSOR-BEHAVIORS.md as scenarios (they need the exam/fault profiles); this file only characterizes what the practice feed serves
+# and what our aggregator did with it.
+
+sensor log:   sensor-pantai mulai; profil=practice siap (skenario dimuat); mendengarkan di :8080
+/v1/stations: 200, 4 stations (e.g. stn-padang-01, stn-banda-aceh-01)
+
+paged /v1/observations (60 pages x 100 = 6000 items):
+{"pages":60,"items":6000,"stations":4,"observed_min":"2026-11-12T00:00:00.000Z","observed_max":"2026-11-13T00:25:45.000Z",
+ "quality":{"ok":5935,"suspect":65},"critical":{"false":5997,"true":3},"unknown_station":0,"dup_ids":136,
+ "sea_out_of_range":0,"wave_out_of_range":0,"missing_fields":0,
+ "keys":["critical","observation_id","observed_at","quality","sea_level_anomaly_m","station_id","wave_height_m"]}
+
+what the aggregator did (GET /internal/audit/unprocessed?limit=200, all 200 returned):
+  every item: source=SENSOR_PANTAI, status=parked, retryable=false,
+  reason="contract_violation: stale_observation: age 343668s..440595s exceeds max 3600s"
+GET /internal/audit/checksum?source=SENSOR_PANTAI -> count=0 (nothing stored).
+
+Reading: with the practice profile every observation is about 4-5 days to 10 days older than the wall clock, so the staleness guard (PANTAI_MAX_STALENESS_S=3600)
+parks all of them with an explicit reason (P5-K2 "quarantine with reasons" is visible), but also the 3 critical observations are parked instead of alerting.
+Open question for the team: whether the exam profile emits current timestamps, or whether staleness should be judged against the sensor's own generated_at.

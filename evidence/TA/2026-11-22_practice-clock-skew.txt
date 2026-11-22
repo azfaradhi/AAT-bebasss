@@ -1,0 +1,19 @@
+﻿# Tester Agent practice scenario: clock-skew. Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on one laptop).
+# Command: kubectl exec -n tester-agent daemonset/tester-agent -- /app run practice clock-skew
+# Method: mock data sources scaled to 0 first so Audit checksums are stable; baseline -> scenario -> poll Audit until recovered -> compare.
+
+[13:55:19] BASELINE
+[13:55:36]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[13:55:36]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:55:36]   ring: node-a:STABLE/2625 node-b:STABLE/3415 node-c:STABLE/3253 redundancy_ok=True repairing=False
+[13:55:53] RUN
+[13:55:55]   Latihan "clock-skew": 1 langkah
+[13:55:55]     - t+5s shift_clock role= nodes=any
+[13:55:55]   Permintaan d1106710b6ea dikirim. Lihat hasil dengan: kubectl logs -n tester-agent -l app=tester-agent
+[13:56:21] t+27s ring: node-a:STABLE/2774 node-b:STABLE/3617 node-c:STABLE/3444 redundancy_ok=True repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:56:49] t+55s ring: node-a:STABLE/2879 node-b:STABLE/3745 node-c:STABLE/3577 redundancy_ok=True repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:57:08] FINAL
+[13:57:08]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[13:57:08]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:57:08]   ring: node-a:STABLE/2937 node-b:STABLE/3828 node-c:STABLE/3662 redundancy_ok=True repairing=False
+[13:57:08] RESULT recovered=True checksums_equal_to_baseline=True audit_errors_during_run=0

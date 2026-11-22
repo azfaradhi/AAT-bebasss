@@ -1,0 +1,14 @@
+# P5-K3/K4: sensor-pantai scaled to 0 for 90 s
+# date: 2026-11-22T16:00:23.574Z  label: PROSES NYATA di cluster k3s (bukan simulasi)
+# nodes: node-a v1.37.2+k3s1 node-b v1.37.2+k3s1 node-c v1.37.2+k3s1
+# code: AAT-bebasss @ ad3fdd3; drill: scripts/cluster/drills/cluster-p5-sensor-outage.mjs
+[16:00:45] baseline client reads: p95 104 ms, non-200: 0
+[16:00:45] sensor-pantai scaled to 0
+[16:02:15] during the outage: client reads p95 91 ms, non-200 0; BMKG mock calls 62; breaker: bnpb_breaker_state{target="sensor-pantai"} 0
+[16:02:15] [PASS] K4: client reads stay fast during the outage (p95 < 2000 ms, no timeout waiting for the sensor)
+[16:02:15] [PASS] K3: the other sources keep being polled during the outage (BMKG mock still called) (62 calls)
+[16:02:15] [PASS] K4: the breaker for the sensor opened (request rate to the sensor is bounded) (bnpb_breaker_state{target="sensor-pantai"} 0)
+[16:02:15] sensor-pantai scaled back to 1; waiting for the aggregator to use it again without intervention
+[16:04:31] after recovery: reads p95 12 ms; SENSOR_PANTAI events 0 -> 0; breaker: bnpb_breaker_state{target="sensor-pantai"} 0
+[16:04:31] [FAIL] K4: the system returned to normal on its own (reads fine, breaker not open)
+[16:04:31] RESULT: FAIL  -> <repo>\AAT-docs\m2\evidence\P5\K4\2026-11-22_1600_cluster-p5-sensor-outage.txt

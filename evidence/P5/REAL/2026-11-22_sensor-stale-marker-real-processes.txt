@@ -1,0 +1,15 @@
+pantai leader poller-2 killed with 72/270 valid observations stored; poller-1 took over after 4288 ms
+stored 270 COASTAL events (expected 270); parked 30 contract violations (expected 30); callers of /v1/observations: poller-2, poller-1
+  [PASS] P5-K2: every valid observation is stored exactly once, none of the violating ones is stored as an event
+  [PASS] P5-K2: contract violations are parked (not dropped, not stored), with a reason
+  [PASS] X-02/P2: only the Lease holder called the sensor at a time; after the kill the second instance took over
+outbox: 322 distinct messages claimed, 10 critical (expected 10 critical observations)
+  [PASS] P5-K1 (storage side): each critical observation has exactly one critical-priority outbox row written with the event
+coastal read before outage: 7 ms stale_since=null; during: 9 ms stale_since=2026-11-22T10:39:11.933Z (20 events still served); seismic stale_since=null; after: stale_since=null
+  [PASS] P5-K4: during the outage coastal reads stay fast (<500 ms), still return the stored events, and carry stale_since
+  [PASS] P5-K4: other hazard types are not marked stale by the sensor outage
+  [PASS] P5-K4: the poller clears stale_since by itself once the sensor is back (no operator action)
+  [PASS] P5-K3/K4: sensor outage (10 refused requests): poller process stays up and BMKG polling continues (26 more BMKG calls)
+  [PASS] P5-K4: the request rate to the unhealthy sensor is bounded by the circuit breaker (far fewer refused calls than polls in 6 s at 600 ms)
+  [PASS] after the outage nothing was lost or duplicated
+RESULT: PASS

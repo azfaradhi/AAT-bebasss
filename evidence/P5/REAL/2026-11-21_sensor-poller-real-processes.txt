@@ -1,0 +1,14 @@
+# P5 poller on real processes (2026-11-21), against OUR sensor fixture (NOT the assistants' sustuna/sensor-pantai image: Docker is not available here)
+# command: npx tsx scripts/demo/p5-e2e.ts  (AAT-bebasss @ integration); fixture: tools/sensor-fixture-server/server.mjs (300 observations: 30 contract violations of 6 kinds, 10 critical)
+# processes: 3 storage-unit, ring-host, fake apiserver (Lease 'pantai'), sensor fixture, bmkg-mock, pvmbg-mock, 2 poller-host (PantaiPoller + BMKG/PVMBG pollers; no RabbitMQ so the critical fast path is not exercised, only the outbox row)
+pantai leader poller-2 killed with 54/270 valid observations stored; poller-1 took over after 4256 ms
+stored 270 COASTAL events (expected 270); parked 30 contract violations (expected 30); callers of /v1/observations: poller-2, poller-1
+  [PASS] P5-K2: every valid observation is stored exactly once, none of the violating ones is stored as an event
+  [PASS] P5-K2: contract violations are parked (not dropped, not stored), with a reason
+  [PASS] X-02/P2: only the Lease holder called the sensor at a time; after the kill the second instance took over
+outbox: 322 distinct messages claimed, 10 critical (expected 10 critical observations)
+  [PASS] P5-K1 (storage side): each critical observation has exactly one critical-priority outbox row written with the event
+  [PASS] P5-K3/K4: sensor outage (10 refused requests): poller process stays up and BMKG polling continues (14 more BMKG calls)
+  [PASS] P5-K4: the request rate to the unhealthy sensor is bounded by the circuit breaker (far fewer refused calls than polls in 6 s at 600 ms)
+  [PASS] after the outage nothing was lost or duplicated
+RESULT: PASS

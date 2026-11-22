@@ -1,0 +1,12 @@
+# P3-K4 rerun after null-body fix (http-storage-client.ts: unreadable 200 body => unit unreachable). Result: FAIL (cluster-level, not the fix)
+- aggregator + client-api images rebuilt, pushed (docker save -> scp -> push on node-a), rolled out 22:20 WIB.
+- Drill 15:20-15:23 UTC: schema change 200, parked after 180 s = 0, then audit checksum(BMKG) returned null -> drill crashed (see 2026-11-22_1520_cluster-p3-schema-replay.txt).
+- Cause seen at 15:24 UTC: storage-unit node-a CrashLoopBackOff (RECOVERING, exit 0, killed by liveness 6x5 s while replaying a 31 MB node-a.log), node-b 0/1; aggregators log "storage membership check failed: fetch failed".
+- Log grows ~30 MB/h (aggregator write amplification), startup replay blocks /healthz longer than the liveness budget.
+- Not verified: whether the null-body fix works (ring never became readable during the run).
+
+## Update 22:40 WIB (after liveness failureThreshold 6->60, store logs wiped, ring clean, aggregator 3 replicas)
+- 22:25 run: ring healthy, replay HTTP 200 in ~6 s but nothing parked: aggregator still had VOLCANIC_MAPPER_VERSION=v2 from the previous run (drill leaves v2 set; reset to v1 before each run).
+- 22:31 run (mapper v1): K1/K2 PASS (parked 6, schema_incompatible: required field missing: volcano_id), K3 PASS, K5 PASS. Replay HTTP 0 because the drill client timeout was 5 s (drill bug, fixed: 120 s in scripts/cluster/drills/p3-schema-replay.mjs line 11).
+- 22:33 run: K3/K5 PASS, nothing newly parked in 180 s (flaky: leader changed during rollouts), replay -> HTTP 503 AGGREGATOR_UNAVAILABLE "Replay could not reach the aggregator" after ~68 s (client-api -> aggregator timeout). Aggregator pods did publish the replayed events (hz-1b0801adc566 etc.) so the replay does run, but takes >60 s for ~6 parked items.
+- Verdict: P3-K4 still FAIL. Open: replay latency >60 s (client-api upstream timeout) and drill must reset mapper to v1 first.

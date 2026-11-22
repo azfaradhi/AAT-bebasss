@@ -1,0 +1,12 @@
+﻿# P1-K6 round 2 on k3s: after the K5 repair the unit on node-b is wiped (hostPath + pod); counts and checksums vs baseline
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Pass: BMKG and PVMBG count+checksum equal the baseline after the second loss; partial=false only when nothing is missing.
+
+[21:55:22] BASELINE ring: node-a:STABLE/33964 node-b:STABLE/43469 node-c:STABLE/42372 redundancy_ok=True repairing=False
+[21:55:22] BASELINE BMKG count=1038 checksum=668da34966df7469 partial=False unavailable= | PVMBG count=1009 checksum=2f25d6964a570c8b partial=False unavailable=
+[21:58:54] after K5: ring node-a:STABLE/34795 node-b:STABLE/44610 node-c:STABLE/17707 redundancy_ok=True repairing=False
+[21:58:56] second loss: pod storage-unit-59sck deleted and node-b hostPath wiped
+[21:59:06] t+10s ring: node-a:STABLE/34867 node-b:RECOVERING/82 node-c:STABLE/17988 redundancy_ok=False repairing=False
+[21:59:17] t+21s ring: node-a:STABLE/34867 node-b:STABLE/19026 node-c:STABLE/17997 redundancy_ok=True repairing=False
+[21:59:28] RESULT K6: recovered = True in 31 s; counts+checksums equal baseline = False. BASELINE BMKG count=1038 checksum=668da34966df7469 partial=False unavailable= | PVMBG count=1009 checksum=2f25d6964a570c8b partial=False unavailable=; FINAL BMKG count=577 checksum=fb54c6530657ddb3 partial=False unavailable= | PVMBG count=583 checksum=06209fcb26d6dae4 partial=False unavailable=
+[21:59:53] STOPPED per VM-TASKS-ROUND-2 Step 2.3 (no blind retry). FAIL: K6 lost data again with the repair fix deployed. Evidence of the cause: right after the K5 repair node-c reported STABLE with only 17,707 keys while node-a had 34,795 and node-b 44,610 (node-c held 41,632 before it was wiped); redundancy_ok=true, so the repair promoted node-c although it was far from complete, and wiping node-b then removed the only copy of ~45% of the BMKG/PVMBG rows (1038 -> 577).

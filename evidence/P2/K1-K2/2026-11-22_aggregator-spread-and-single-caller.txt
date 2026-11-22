@@ -1,0 +1,46 @@
+﻿# P2-K1/K2 on k3s: aggregator replicas on different nodes; one active caller per source (Lease holders + mock request log)
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+
+
+[16:54:59] $ kubectl -n sistem-informasi-kebencanaan-bnpb get pods -l app=aggregator -o wide
+    NAME                          READY   STATUS    RESTARTS      AGE   IP           NODE     NOMINATED NODE   READINESS GATES
+    aggregator-5d4dd8dd4f-6dns5   1/1     Running   0             54m   10.42.1.47   node-b   <none>           <none>
+    aggregator-5d4dd8dd4f-cdm5c   1/1     Running   3 (26m ago)   30m   10.42.1.48   node-b   <none>           <none>
+    aggregator-5d4dd8dd4f-lqmmf   1/1     Running   0             54m   10.42.0.73   node-a   <none>           <none>
+    aggregator-5d4dd8dd4f-v62nd   1/1     Running   3 (26m ago)   30m   10.42.0.77   node-a   <none>           <none>
+    aggregator-5d4dd8dd4f-xvkjq   1/1     Running   0             53m   10.42.0.74   node-a   <none>           <none>
+[16:55:00] $ kubectl -n sistem-informasi-kebencanaan-bnpb get lease
+    NAME            HOLDER                                   AGE
+    bmkg            aggregator-5d4dd8dd4f-lqmmf              5h15m
+    field-reports   field-report-processor-ddbfdd977-7tvzf   5h17m
+    pantai          aggregator-5d4dd8dd4f-6dns5              5h15m
+    pvmbg           aggregator-5d4dd8dd4f-lqmmf              5h15m
+    satellite       satellite-processor-54656b4675-nvnwg     5h26m
+[16:55:01] $ kubectl -n sistem-informasi-kebencanaan-bnpb get lease -o custom-columns=NAME:.metadata.name,HOLDER:.spec.holderIdentity,DURATION:.spec.leaseDurationSeconds,TRANSITIONS:.spec.leaseTransitions
+    NAME            HOLDER                                   DURATION   TRANSITIONS
+    bmkg            aggregator-5d4dd8dd4f-lqmmf              10         7241
+    field-reports   field-report-processor-ddbfdd977-7tvzf   10         7259
+    pantai          aggregator-5d4dd8dd4f-6dns5              10         9603
+    pvmbg           aggregator-5d4dd8dd4f-lqmmf              10         7409
+    satellite       satellite-processor-54656b4675-nvnwg     10         8661
+[16:55:47] RESULT K2: mock bmkg request log (GET /admin/request-log): n=972 requests between 09:25:48Z and 09:55:23Z, distinct caller_instance = 1 (aggregator-5d4dd8dd4f-lqmmf: 972). Five aggregator replicas were running; only the bmkg/pvmbg Lease holder called the source.
+[16:55:47] NOTE: leaseTransitions is 7241..9603 after 5 h (about one increment per renew, i.e. it behaves as the fencing counter), so do not read it as holder churn; renewTime stays within 1 s of now for every Lease and the holder names are live pods.
+[16:55:47] $ kubectl -n sistem-informasi-kebencanaan-bnpb get pods -l app=aggregator -o custom-columns=POD:.metadata.name,NODE:.spec.nodeName,READY:.status.containerStatuses[0].ready
+    POD                           NODE     READY
+    aggregator-5d4dd8dd4f-6dns5   node-b   true
+    aggregator-5d4dd8dd4f-cdm5c   node-b   true
+    aggregator-5d4dd8dd4f-lqmmf   node-a   true
+    aggregator-5d4dd8dd4f-v62nd   node-a   true
+    aggregator-5d4dd8dd4f-xvkjq   node-a   true
+[17:08:03] ---- K1 unhealthy replica receives no traffic ----
+[17:08:06] victim (non-holder) = aggregator-5d4dd8dd4f-6dns5 on node-b, podIP 10.42.1.47
+[17:08:06] $ kubectl -n sistem-informasi-kebencanaan-bnpb get endpoints aggregator -o jsonpath='{.subsets[0].addresses[*].ip}'
+    10.42.0.74 10.42.0.77 10.42.1.47 10.42.1.48 10.42.2.81
+[17:08:18] SIGSTOP host PID 73290 (replica made unready/unresponsive)
+[17:08:44] pod ready after freeze: false
+[17:08:44] $ kubectl -n sistem-informasi-kebencanaan-bnpb get endpoints aggregator -o jsonpath='{.subsets[0].addresses[*].ip} | notReady: {.subsets[0].notReadyAddresses[*].ip}'
+    10.42.0.74 10.42.0.77 10.42.1.48 10.42.2.81 | notReady: 10.42.1.47
+[17:10:24] RESULT K1: 60 requests via the Service 'aggregator' while aggregator-5d4dd8dd4f-6dns5 was frozen/unready: {"requests":60,"ok":60,"bad":0,"codes":{"200":60}}
+[17:10:27] SIGCONT: replica resumed
+[17:10:47] pod ready after resume: true
+[17:10:59] NOTE: the SIGCONT printed 'No such process' because the frozen replica failed its liveness probe and the kubelet restarted the container before the resume (pod ready=true afterwards is the restarted container).

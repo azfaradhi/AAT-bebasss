@@ -1,0 +1,19 @@
+﻿# Tester Agent practice scenario: kill-store. Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on one laptop).
+# Command: kubectl exec -n tester-agent daemonset/tester-agent -- /app run practice kill-store
+# Method: mock data sources scaled to 0 first so Audit checksums are stable; baseline -> scenario -> poll Audit until recovered -> compare.
+
+[13:49:05] BASELINE
+[13:49:22]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[13:49:22]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:49:22]   ring: node-a:STABLE/1285 node-b:STABLE/1663 node-c:STABLE/1623 redundancy_ok=True repairing=False
+[13:49:36] RUN
+[13:49:38]   Latihan "kill-store": 1 langkah
+[13:49:38]     - t+5s stop_pod role=store nodes=any
+[13:49:38]   Permintaan b10357e36125 dikirim. Lihat hasil dengan: kubectl logs -n tester-agent -l app=tester-agent
+[13:50:16] t+38s ring: node-a:STABLE/1408 node-b:STABLE/1813 node-c:STABLE/1774 redundancy_ok=True repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:50:40] t+62s ring: node-a:STABLE/1513 node-b:STABLE/1933 node-c:STABLE/1875 redundancy_ok=True repairing=False | BMKG count=83 checksum=d6416a62c0680251 partial=False unavailable= | PVMBG count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:50:53] FINAL
+[13:50:53]   BMKG: count=83 checksum=d6416a62c0680251 partial=False unavailable=
+[13:50:53]   PVMBG: count=48 checksum=8f33a60998055726 partial=False unavailable=
+[13:50:53]   ring: node-a:STABLE/1572 node-b:STABLE/2012 node-c:STABLE/1941 redundancy_ok=True repairing=False
+[13:50:53] RESULT recovered=True checksums_equal_to_baseline=True audit_errors_during_run=0

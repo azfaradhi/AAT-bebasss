@@ -1,0 +1,12 @@
+﻿# P1-K6 on k3s: after the join/repair (K5), lose a second unit (pod deleted and its hostPath wiped on node-b) and compare Audit counts and checksums
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Mocks are scaled to 0 for 60 s before the baseline so that the checksum can be compared exactly.
+
+[17:18:37] BASELINE ring: node-a:STABLE/22247 node-b:STABLE/28324 node-c:STABLE/951 redundancy_ok=True repairing=False
+[17:18:37] BASELINE BMKG count=699 checksum=9826bc1d8c3cad66 partial=False unavailable= | PVMBG count=720 checksum=25e2330cdd7226e9 partial=False unavailable=
+[17:18:41] deleted storage-unit pod storage-unit-bw9zn on node-b and wiped its hostPath
+[17:19:23] t+42s ring: node-a:DOWN/0 node-b:RECOVERING/602 node-c:STABLE/997 redundancy_ok=False repairing=False | BMKG count=410 checksum=2696c02f5301081a partial=False unavailable= | PVMBG count=419 checksum=3092b95274f6b4cd partial=False unavailable=
+[17:19:45] t+64s ring: node-a:STABLE/22360 node-b:STABLE/678 node-c:STABLE/1078 redundancy_ok=True repairing=False | BMKG count=410 checksum=2696c02f5301081a partial=False unavailable= | PVMBG count=419 checksum=3092b95274f6b4cd partial=False unavailable=
+[17:20:00] RESULT: redundancy restored=True in 79 s; checksums equal to baseline=False; Audit errors during recovery=0
+[17:20:31] ANALYSIS: P1-K6 FAILED. After the second loss BMKG fell from 699 to 410 events and PVMBG from 720 to 419 (about 41% lost) while the API still answered partial=False and the ring reported redundancy_ok=True. So events were lost silently.
+[17:20:31] LIKELY CAUSE (from the K5 file, same day): during the K5 repair of node-c, node-b was reported DOWN for one poll (timeout on the loaded VM). repair() builds its source set from the units that are readable at that moment, copies only what those sources hold, and then marks the target STABLE. Rows whose two replicas were node-b and node-c were therefore never copied to node-c, but node-c was declared STABLE (it held only 89 keys at that moment, 951 later from new writes). Redundancy for those rows was NOT restored; wiping node-b in K6 destroyed the only copy. Unit key counts at the K6 baseline: node-a 22247, node-b 28324, node-c 951 (node-a/b also hold thousands of fence/doc keys, so compare rows, not keys).

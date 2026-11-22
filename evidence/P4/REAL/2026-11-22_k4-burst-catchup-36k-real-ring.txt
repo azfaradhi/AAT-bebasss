@@ -1,0 +1,21 @@
+# P4-K4 on real processes (2026-11-22): satellite-processor + gateway + 3-unit ring over HTTP, feed fixture paced at BURST_FPS; machine was loaded by other work (load average ~12-15), numbers vary with load
+# command: BURST_CYCLES=12 BURST_FPS=1500 ONLY=D npx --prefix services/aggregator tsx scripts/demo/p4-e2e.ts
+D burst: 36000 frames offered at 1500/s; sampled 78 points every 0.5 s
+  t=1.0s sent=255 committed=-1 lag=null
+  t=4.0s sent=4425 committed=14899 lag=null
+  t=7.1s sent=8520 committed=15399 lag=32500
+  t=10.1s sent=12690 committed=18399 lag=29500
+  t=13.2s sent=16905 committed=20899 lag=27000
+  t=16.2s sent=20940 committed=23899 lag=24000
+  t=19.3s sent=25080 committed=24899 lag=23000
+  t=22.3s sent=29355 committed=28399 lag=19500
+  t=25.5s sent=33690 committed=32399 lag=15500
+  t=28.5s sent=36000 committed=34899 lag=13000
+  t=31.5s sent=36000 committed=38899 lag=9000
+  t=34.6s sent=36000 committed=41899 lag=6000
+  t=37.6s sent=36000 committed=44899 lag=3000
+D burst ended (last frame sent) at 27.5 s; caught up (committed offset = last offset 47899) at 40.1 s => 12.6 s after the burst; max lag 33000 frames; frame->stored p95 <= 2 s (histogram bucket upper bound); 612 events, 0 duplicates
+  [PASS] K4: no data lost or duplicated in the burst (612 events = 12 x 51 expected, 0 duplicates)
+  [PASS] K4: up to date within 60 s after the burst ends (12.6 s)
+  [PASS] K4: p95 latency frame->stored is reported (<= 2 s) and lag is observable (max 33000 frames via /internal/satellite/stats and bnpb_sat_offset_lag)
+RESULT: PASS

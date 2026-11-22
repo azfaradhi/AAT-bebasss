@@ -1,0 +1,7 @@
+# 6 more seeds, 60 kills each, kills every 1..90 writes (harsher):
+seed 1: processor killed at random write points                    | 60 kills over 61 process lifetimes                   | PASS byte-identical export (ingested_at ignored)                | sha d11898de253f4d7c vs d11898de253f4d7c             | PASS 
+seed 2: processor killed at random write points                    | 60 kills over 61 process lifetimes                   | PASS byte-identical export (ingested_at ignored)                | sha d11898de253f4d7c vs d11898de253f4d7c             | PASS 
+seed 3: processor killed at random write points                    | 60 kills over 61 process lifetimes                   | PASS byte-identical export (ingested_at ignored)                | sha d11898de253f4d7c vs d11898de253f4d7c             | PASS 
+seed 4: processor killed at random write points                    | 60 kills over 61 process lifetimes                   | PASS byte-identical export (ingested_at ignored)                | sha d11898de253f4d7c vs d11898de253f4d7c             | PASS 
+seed 5: processor killed at random write points                    | 60 kills over 61 process lifetimes                   | PASS byte-identical export (ingested_at ignored)                | sha d11898de253f4d7c vs d11898de253f4d7c             | PASS 
+seed 6: processor killed at random write points                    | 60 kills over 61 process lifetimes                   | PASS byte-identical export (ingested_at ignored)                | sha d11898de253f4d7c vs d11898de253f4d7c             | PASS 

@@ -1,0 +1,27 @@
+# Evidence: Tester Agent installed unchanged on k3s (TA-1/TA-2 part). Date: 2026-11-22 12:30:29. Label: PROSES NYATA (k3s, 3 VMs on one laptop).
+# Command (exactly from the spec): kubectl apply -f https://raw.githubusercontent.com/susTuna/if4031-tester-agent/ebb55261711123a9a211739ffbf140a275caa6da/manifest.yaml
+# No NetworkPolicy/ResourceQuota/LimitRange/PSA label was created in the tester-agent namespace. No practice scenario has been run yet.
+
+$ kubectl get ds,pods -n tester-agent -o wide
+NAME                          DESIRED   CURRENT   READY   UP-TO-DATE   AVAILABLE   NODE SELECTOR   AGE   CONTAINERS   IMAGES                                                                                         SELECTOR
+daemonset.apps/tester-agent   3         3         3       3            3           <none>          70s   agent        sustuna/tester-agent@sha256:b3143da159cf23a8744ede12b847da6208353754234d53a5a7b46d071cf277ec   app=tester-agent
+
+NAME                     READY   STATUS    RESTARTS   AGE   IP               NODE     NOMINATED NODE   READINESS GATES
+pod/tester-agent-tdj7n   1/1     Running   0          70s   192.168.56.103   node-c   <none>           <none>
+pod/tester-agent-tmlq5   1/1     Running   0          71s   192.168.56.101   node-a   <none>           <none>
+pod/tester-agent-z6zsb   1/1     Running   0          70s   192.168.56.102   node-b   <none>           <none>
+
+$ kubectl get netpol,resourcequota,limitrange -n tester-agent
+No resources found in tester-agent namespace.
+
+$ kubectl get ns tester-agent --show-labels
+NAME           STATUS   AGE   LABELS
+tester-agent   Active   75s   app=tester-agent,kubernetes.io/metadata.name=tester-agent
+
+$ kubectl exec -n tester-agent daemonset/tester-agent -- /app list   (run with MSYS_NO_PATHCONV=1 on Git Bash)
+clock-skew
+kill-leader
+kill-store
+partition
+schema
+wipe-node

@@ -1,0 +1,18 @@
+# P1-K1 (spek M2-2 klarifikasi 20 Nov): sebaran unit primary/replica per node, 2026-11-22
+# command: npx tsx scripts/demo/p1-placement-e2e.ts (AAT-bebasss @ integration); 3 storage-unit processes as 3 nodes + aggregator host; 3000 synthetic events; route GET /internal/audit/placement
+# PROSES NYATA (bukan cluster). Di cluster: kubectl port-forward svc/aggregator dan panggil /internal/audit/placement dengan token audit
+placement of 3000 events, rf=2:
+  unit            node    primary  replica  held   share of all events
+  shard-unit-0    node-a      815      788   1603  53.4 %
+  shard-unit-1    node-b     1024     1228   2252  75.1 %
+  shard-unit-2    node-c     1161      984   2145  71.5 %
+  [PASS] no unit holds the whole dataset (every unit share < 100 %)
+  [PASS] primary (write load) is spread over more than one node
+  primary share per unit: 27.2 % / 34.1 % / 38.7 % (max/min 1.42)
+  [PASS] primary share per unit stays between 20 % and 50 % (natural consistent-hashing skew, no hot unit)
+  [PASS] every unit holds both primary and replica keys (a node keeps replicas of units whose primary is elsewhere)
+  [PASS] replica of every key sits on a node different from its primary (P1-K4 normal condition)
+  [PASS] primary + replica copies = rf x events
+  location of eq-42: [{"node":"node-a","unit":"shard-unit-0","role":"primary"},{"node":"node-c","unit":"shard-unit-2","role":"replica"}]
+  [PASS] /internal/audit/location reports primary and replica on two different nodes
+RESULT: PASS

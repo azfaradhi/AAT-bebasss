@@ -1,0 +1,5 @@
+# cmd: docker build services/satellite-processor + docker run --memory 1g with an unreachable feed (SAT_FEED_BASE_URL=http://host.docker.internal:9)
+# date: 2026-11-15  Docker Desktop, local, not the cluster
+/health 200, /ready 200, /metrics shows bnpb_sat_reconnects_total=5 after 6 s (jittered backoff, no hot loop), bnpb_sat_offset_lag=0
+docker inspect: restarts=0 oom=false running=true ; docker stats: 27.42 MiB / 1 GiB
+Not covered: Kubernetes (512Mi/1Gi limits under real traffic), real Coordinator (replicas>1), the real feed.

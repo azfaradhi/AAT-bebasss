@@ -1,0 +1,11 @@
+﻿# P3-K5/K6 on k3s: /ops routes with media/lapangan/internal clients; 40 field reports with the field-report-processor and an aggregator pod killed mid-stream
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Client credentials come from .env.local and are never printed. Reports: POST client-api /field-reports (lapangan), unique Idempotency-Key per report, 1 report / 0.5 s; kills at about +8 s (field-report-processor) and +14 s (one aggregator). Counters from GET aggregator /internal/audit/field-reports.
+
+[18:21:49] K5: OPS /ops/unprocessed status per client class: {"MEDIA":403,"LAPANGAN":403,"INTERNAL":200} OPS without token: 401
+[18:21:56] K6 BEFORE: accepted_total=0 processed_total=0 duplicates_dropped=0 unprocessed_keys=1
+[18:22:05] killed field-report-processor field-report-processor-ddbfdd977-7tvzf
+[18:22:12] killed aggregator pod aggregator-5d4dd8dd4f-cdm5c
+[18:22:49] K6 sender: SENT {"sent":40,"accepted_202":40,"codes":{"202":40}}
+[18:24:03] K6 AFTER 70 s: accepted_total=40 processed_total=40 duplicates_dropped=0 unprocessed_keys=1
+[18:24:57] K6 AFTER 120 s: accepted_total=40 processed_total=40 duplicates_dropped=0 unprocessed_keys=1

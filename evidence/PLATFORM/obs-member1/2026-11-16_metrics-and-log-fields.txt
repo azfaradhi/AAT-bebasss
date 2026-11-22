@@ -1,0 +1,22 @@
+# cmd: scripts/verify/p3-owned-metrics.sh  (the four owned components started locally with tsx + fixture feed; curl /metrics and /internal/satellite/stats; first JSON log line of satellite-processor)
+# date: 2026-11-16 16:03 node v20.20.2 branch ms2-prob3-prob4 (T11 working tree, uncommitted)
+PASS  pvmbg-mock: bnpb_http_server_request_duration_seconds
+PASS  pvmbg-mock: status_class="2xx"
+PASS  bmkg-mock: bnpb_http_server_request_duration_seconds
+PASS  satellite-processor: bnpb_http_server_request_duration_seconds
+PASS  satellite-processor: bnpb_sat_offset_lag
+PASS  satellite-processor: bnpb_sat_late_applied_total
+PASS  satellite-processor: bnpb_sat_late_beyond_bound_total
+PASS  satellite-processor: bnpb_sat_event_to_store_seconds_bucket
+PASS  satellite-processor: bnpb_ingest_events_total
+PASS  satellite-processor: bnpb_parked_messages
+PASS  field-report-processor: bnpb_http_server_request_duration_seconds
+PASS  field-report-processor: bnpb_field_reports_total
+PASS  satellite-processor: open_fires
+PASS  satellite-log: "ts"
+PASS  satellite-log: "level"
+PASS  satellite-log: "service":"satellite-processor"
+PASS  satellite-log: "instance":"sat-test"
+PASS  satellite-log: "node":"node-test"
+
+PASS: contract metric names and log fields present

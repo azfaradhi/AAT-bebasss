@@ -1,0 +1,9 @@
+# P1-K2 per-unit load on real processes (2026-11-21)
+# command: npx tsx scripts/demo/p1-surge-e2e.ts  (AAT-bebasss @ integration); 3 storage-unit processes, RF=2
+# writes per unit = replica writes counted by each unit; ideal share = 6000/3 = 2000 per phase
+dataset load (3000 events, 8 regions): writes per unit = 1925 / 2107 / 1968  (imbalance 9.1 % of mean)
+one-region burst (3000 events, all "Palu"): writes per unit = 1910 / 2129 / 1961  (imbalance 10.9 % of mean)
+  [PASS] dataset load: no unit carries more than 1.15x or less than 0.85x of the mean share
+  [PASS] one-region burst: same bound holds (placement keys on hazard_id, not on area or time)
+  [PASS] no unit holds all data (every unit holds fewer keys than the 6000 events)
+RESULT: PASS

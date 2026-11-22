@@ -1,0 +1,19 @@
+# P1-K7 analytics dashboard on real processes (2026-11-20)
+# command: DEMO_HOLD_MS=12000 npx tsx scripts/demo/p1-analytics-e2e.ts  (AAT-bebasss @ integration)
+# processes: 3 storage-unit, aggregator ring-host (Audit+analytics), analytics-dashboard; headless Chrome screenshots of http://127.0.0.1:18225/
+# note: 600 synthetic events with an uneven deterministic mix, not the real earthquake catalogue
+seeded 600 events across 5 sources/types
+  [PASS] GET / serves the dashboard page (HTML)
+  [PASS] Audit lists 600 events, equal to the seeded 600
+  [PASS] dashboard total = Audit event count
+  [PASS] dashboard per-severity = counts computed from Audit events
+  [PASS] dashboard per-area = counts computed from Audit events
+  [PASS] dashboard per-type-over-time = counts computed from Audit events
+  [PASS] complete ring: partial=false, no unavailable units
+HOLD complete
+  [PASS] from/bucket filters pass through (hourly buckets, fewer events than total)
+  [PASS] one unit down: dashboard total unchanged and not partial
+  [PASS] two units down: dashboard flags partial=true and names unit-b, unit-c
+HOLD partial
+  [PASS] aggregator down: dashboard answers 503 in the error envelope (not 500)
+RESULT: PASS

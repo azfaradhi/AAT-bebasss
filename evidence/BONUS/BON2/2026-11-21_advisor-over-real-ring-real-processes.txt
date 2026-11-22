@@ -1,0 +1,9 @@
+# INT-4.4 advisor over the real ring (2026-11-21)
+# command: npx tsx scripts/demo/int-advisor-ring-e2e.ts  (AAT-bebasss @ integration)
+# processes: 3 storage-unit, aggregator ring-host (storage gateway), advisor (STORAGE_GATEWAY_URL, no LLM key => template-only)
+advisory served: label="ADVISORY: automated, not an official assessment", llm_enabled=false, 1 item(s)
+  [PASS] advisor, reading the real ring through the gateway, flagged the one fire that grew (and only it)
+  [PASS] advisory carries the "not an official assessment" label and runs template-only without a key
+  [PASS] advisories do not appear among events and do not change them (9 events listed, same count in the checksum before and after the advisory)
+  [PASS] one storage unit killed: advisor stays up and keeps serving its advisories
+RESULT: PASS

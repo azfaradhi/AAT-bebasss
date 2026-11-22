@@ -1,0 +1,10 @@
+# cmd: scripts/demo/p4-k5-crash.sh  (fixture feed + full pipeline FeedClient -> runSatellite -> FireSink -> InMemoryStorage; processor killed at random storage writes; a dead process loses memory and writes nothing more; NOT kubectl delete pod)
+# date: 2026-11-16 16:08 node v20.20.2 branch ms2-prob3-prob4 (T12 working tree, uncommitted)
+processor killed at random write points                    | 40 kills over 41 process lifetimes                   | PASS
+fault-free events / with-kills events                      | 51 / 51                                              | PASS
+duplicate hazard ids with kills                            | 0                                                    | PASS
+byte-identical export (ingested_at ignored)                | sha d11898de253f4d7c vs d11898de253f4d7c             | PASS
+frames delivered to the sink: fault-free / with-kills      | 3000 / 3800                                          | PASS
+exports: /tmp/p4-k5/fault-free.json, /tmp/p4-k5/with-kills.json
+
+PASS: result after repeated kills equals the fault-free run

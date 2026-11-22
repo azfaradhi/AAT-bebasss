@@ -1,0 +1,10 @@
+
+ RUN  v3.2.7 C:/File/ITB/Semester-7/aat/AAT-bebasss/services/aggregator
+
+ ✓ src/resilience/gameday-slo.test.ts (1 test) 77ms
+
+ Test Files  1 passed (1)
+      Tests  1 passed (1)
+   Start at  11:36:43
+   Duration  907ms (transform 167ms, setup 0ms, collect 254ms, tests 77ms, environment 0ms, prepare 222ms)
+

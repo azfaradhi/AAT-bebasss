@@ -1,0 +1,57 @@
+﻿# Analysis of node-c after the Tester wipe-node scenario: boots, shutdown reasons, k3s-agent rejoin, storage-unit data
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Source: journalctl on node-c (192.168.56.103). Times in the journal are UTC (WIB = UTC+7). The scenario was started at 13:59:48 WIB = 06:59:48 UTC.
+
+
+$ journalctl --list-boots
+IDX BOOT ID                          FIRST ENTRY                 LAST ENTRY
+ -7 224ef7334d9d4ba6ae72c3388f0cf093 Sun 2026-11-22 03:38:56 UTC Sun 2026-11-22 04:05:01 UTC
+ -6 5e4ab72f586247fd87f71242fa8c52a5 Sun 2026-11-22 04:09:14 UTC Sun 2026-11-22 04:54:44 UTC
+ -5 ecf2d64ac26645ca8ecbb62ab21567ad Sun 2026-11-22 04:59:20 UTC Sun 2026-11-22 06:59:55 UTC
+ -4 59cd0c77d96d43e1bad90194737e8d3c Sun 2026-11-22 07:10:18 UTC Sun 2026-11-22 07:25:29 UTC
+ -3 45f89c8210e94b869e23f1acae1ee4be Sun 2026-11-22 07:38:35 UTC Sun 2026-11-22 07:40:18 UTC
+ -2 6e9660d6564a4b9c91b767771a50476a Sun 2026-11-22 07:48:35 UTC Sun 2026-11-22 08:01:09 UTC
+ -1 67081634c95140739ec471cd28860aa3 Sun 2026-11-22 08:03:11 UTC Sun 2026-11-22 08:08:57 UTC
+  0 a903cdcd550f429f8c3fbdc2eab1f672 Sun 2026-11-22 08:11:45 UTC Sun 2026-11-22 10:39:29 UTC
+
+
+$ journalctl -b <N> (filtered for shutdown/power/tester lines, last 8 per boot)
+==== boot -5: last lines
+Nov 22 06:51:03 node-c systemd-journald[30881]: Journal stopped
+Nov 22 06:57:16 node-c systemd-logind[633]: New session 33 of user vboxuser.
+Nov 22 06:57:18 node-c systemd-logind[633]: Session 33 logged out. Waiting for processes to exit.
+Nov 22 06:57:18 node-c systemd-logind[633]: Removed session 33.
+==== boot -4: last lines
+Nov 22 07:25:14 node-c k3s[876]: E1122 07:25:14.802550     876 nestedpendingoperations.go:348] Operation for "{volumeName:kubernetes.io/secret/2a835dd7-84ab-486e-a843-f38857f0395e-key podName:2a835dd7-84ab-486e-a843-f38857f0395e n
+Nov 22 07:25:15 node-c k3s[876]: E1122 07:25:15.207463     876 projected.go:293] Couldn't get configMap tester-agent/kube-root-ca.crt: object "tester-agent"/"kube-root-ca.crt" not registered
+Nov 22 07:25:15 node-c k3s[876]: E1122 07:25:15.207678     876 projected.go:198] Error preparing data for projected volume kube-api-access-85bpv for pod tester-agent/tester-agent-tdj7n: object "tester-agent"/"kube-root-ca.crt" not
+Nov 22 07:25:15 node-c k3s[876]: E1122 07:25:15.207823     876 nestedpendingoperations.go:348] Operation for "{volumeName:kubernetes.io/projected/2a835dd7-84ab-486e-a843-f38857f0395e-kube-api-access-85bpv podName:2a835dd7-84ab-486
+Nov 22 07:25:15 node-c k3s[876]: E1122 07:25:15.401535     876 kubelet_pods.go:2214] "failed to read memory cgroup config for the pod" err="failed to read memory.max for cgroup /sys/fs/cgroup/kubepods.slice/kubepods-besteffort.sli
+Nov 22 07:25:15 node-c k3s[876]: E1122 07:25:15.401812     876 kubelet_pods.go:2219] "failed to read memory cgroup limits for the pod" err="failed to read cpu.max file for cgroup /sys/fs/cgroup/kubepods.slice/kubepods-besteffort.s
+Nov 22 07:25:15 node-c k3s[876]: E1122 07:25:15.412367     876 secret.go:191] Couldn't get secret tester-agent/tester-key: object "tester-agent"/"tester-key" not registered
+Nov 22 07:25:15 node-c k3s[876]: E1122 07:25:15.467576     876 nestedpendingoperations.go:348] Operation for "{volumeName:kubernetes.io/secret/2a835dd7-84ab-486e-a843-f38857f0395e-key podName:2a835dd7-84ab-486e-a843-f38857f0395e n
+==== boot -3: last lines
+Nov 22 07:39:57 node-c k3s[859]: E1122 07:39:57.470233     859 nestedpendingoperations.go:348] Operation for "{volumeName:kubernetes.io/secret/2a835dd7-84ab-486e-a843-f38857f0395e-key podName:2a835dd7-84ab-486e-a843-f38857f0395e n
+Nov 22 07:39:57 node-c k3s[859]: E1122 07:39:57.819956     859 projected.go:293] Couldn't get configMap tester-agent/kube-root-ca.crt: object "tester-agent"/"kube-root-ca.crt" not registered
+Nov 22 07:39:57 node-c k3s[859]: E1122 07:39:57.820308     859 projected.go:198] Error preparing data for projected volume kube-api-access-85bpv for pod tester-agent/tester-agent-tdj7n: object "tester-agent"/"kube-root-ca.crt" not
+Nov 22 07:39:57 node-c k3s[859]: E1122 07:39:57.838228     859 nestedpendingoperations.go:348] Operation for "{volumeName:kubernetes.io/projected/2a835dd7-84ab-486e-a843-f38857f0395e-kube-api-access-85bpv podName:2a835dd7-84ab-486
+Nov 22 07:39:57 node-c k3s[859]: E1122 07:39:57.928255     859 kubelet_pods.go:2214] "failed to read memory cgroup config for the pod" err="failed to read memory.max for cgroup /sys/fs/cgroup/kubepods.slice/kubepods-besteffort.sli
+Nov 22 07:39:57 node-c k3s[859]: E1122 07:39:57.929155     859 kubelet_pods.go:2219] "failed to read memory cgroup limits for the pod" err="failed to read cpu.max file for cgroup /sys/fs/cgroup/kubepods.slice/kubepods-besteffort.s
+Nov 22 07:40:10 node-c systemd-logind[624]: Session 1 logged out. Waiting for processes to exit.
+Nov 22 07:40:10 node-c systemd-logind[624]: Removed session 1.
+==== boot -2: last lines
+Nov 22 07:48:41 node-c systemd[1]: Finished systemd-update-utmp.service - Record System Boot/Shutdown in UTMP.
+Nov 22 07:48:49 node-c systemd[1]: Starting systemd-logind.service - User Login Management...
+Nov 22 07:48:50 node-c systemd-logind[638]: New seat seat0.
+Nov 22 07:48:50 node-c systemd[1]: Started systemd-logind.service - User Login Management.
+Nov 22 07:48:51 node-c systemd-logind[638]: Watching system buttons on /dev/input/event0 (Power Button)
+Nov 22 07:48:51 node-c systemd-logind[638]: Watching system buttons on /dev/input/event1 (Sleep Button)
+Nov 22 07:48:52 node-c systemd[1]: Started unattended-upgrades.service - Unattended Upgrades Shutdown.
+Nov 22 07:48:52 node-c systemd-logind[638]: Watching system buttons on /dev/input/event2 (AT Translated Set 2 keyboard)
+
+[17:39:58] ANALYSIS from the journal above (all UTC):
+[17:39:58]  - Boot -5 ran 04:59:20 -> 06:59:55. The scenario was submitted at 06:59:48; the journal stops 7 s later WITHOUT a clean systemd shutdown sequence (no 'Stopping'/'Reached target Power-Off' lines), i.e. the VM was cut off, consistent with wipe_and_shutdown.
+[17:39:58]  - Boots -4 (07:10:18 -> 07:25:29) and -3 (07:38:35 -> 07:40:18) also ended abruptly, 1.7 to 15 minutes after boot (boots -2 and -1 were NOT inspected in this dump), and the last lines of boots -4 and -3 are kubelet errors for the tester-agent pod (tester-agent/kube-root-ca.crt and tester-agent/tester-key 'not registered'): the agent pod on node-c was being (re)started when the VM died. This supports, but does not prove, the hypothesis that the agent on node-c re-ran the shutdown step after each boot because the configmap tester-run still said status=go for run b6791206d82a (the agent's own 'done' marker lived on the wiped disk). The agent log of that pod could not be read at the time.
+[17:39:59]  - The run was superseded at 07:43 UTC by running 'practice schema' through the agent (tester-run became id 6e89da8197a6). After that the VM still did not come up cleanly (console hangs at 'Loading essential drivers' were seen; boots -2 08:01 and -1 08:08 ended without being inspected here), and boot 0 started at 08:11:45 UTC (manual start by the user) and has stayed up until the time of this analysis.
+[17:39:59]  - So the 'node DOWN more than 17 minutes' is the sum of: VM powered off by the scenario, repeated cold starts that were powered off or stuck in early boot, and manual recovery. The platform side (ring) answered with identical checksums during the whole outage and repaired node-c automatically once it was back (see the wipe-node file in this folder).
+

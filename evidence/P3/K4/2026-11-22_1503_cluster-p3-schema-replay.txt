@@ -1,0 +1,10 @@
+# P3-K1/K2/K4/K5: PVMBG mock mode "rename" -> park -> adjust mapper -> replay
+# date: 2026-11-22T15:03:01.921Z  label: PROSES NYATA di cluster k3s (bukan simulasi)
+# nodes: node-a v1.37.2+k3s1 node-b v1.37.2+k3s1 node-c v1.37.2+k3s1
+# code: AAT-bebasss @ 45b265c; drill: scripts/cluster/drills/cluster-p3-schema-replay.mjs
+[15:03:14] baseline: PVMBG events=583, parked PVMBG=0, BMKG events=577
+[15:03:19] schema change: 0
+[15:06:23] parked after the change: 0; reasons: 
+[15:06:23] [FAIL] K1/K2: incompatible records are parked with a reason, source and status (not stored, not guessed)
+[15:06:23] [PASS] K2: records parked as non-retryable are kept apart from retryable ones (field `retryable` present) (non-retryable 0, retryable 0)
+[15:06:48] RESULT: FAIL  -> <repo>\AAT-docs\m2\evidence\P3\K4\2026-11-22_1503_cluster-p3-schema-replay.txt

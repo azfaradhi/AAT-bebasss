@@ -1,0 +1,23 @@
+=== Static Verification of Kubernetes Manifests (TA-6, PLAT-6, PLAT-8, Lampiran B) ===
+Command: node scripts/verify/verify-manifests.mjs deploy/k8s/overlays/demo
+
+=== Verifying Kustomize overlay: deploy/k8s/overlays/demo ===
+[PASS] Deployment/grafana (ns=observability, role=other) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/otel-collector (ns=observability, role=other) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/prometheus (ns=observability, role=other) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/tempo (ns=observability, role=other) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/aggregator (ns=sistem-informasi-kebencanaan-bnpb, role=aggregator) -> memory requests=256Mi, limits=512Mi
+[PASS] Deployment/analytics-dashboard (ns=sistem-informasi-kebencanaan-bnpb, role=other) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/auth-service (ns=sistem-informasi-kebencanaan-bnpb, role=api) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/bmkg-mock (ns=sistem-informasi-kebencanaan-bnpb, role=mock) -> memory requests=64Mi, limits=128Mi
+[PASS] Deployment/client-api (ns=sistem-informasi-kebencanaan-bnpb, role=api) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/dashboard-updater (ns=sistem-informasi-kebencanaan-bnpb, role=consumer) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/field-report-processor (ns=sistem-informasi-kebencanaan-bnpb, role=consumer) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/notifier (ns=sistem-informasi-kebencanaan-bnpb, role=consumer) -> memory requests=128Mi, limits=256Mi
+[PASS] Deployment/pvmbg-mock (ns=sistem-informasi-kebencanaan-bnpb, role=mock) -> memory requests=64Mi, limits=128Mi
+[PASS] Deployment/satellite-processor (ns=sistem-informasi-kebencanaan-bnpb, role=broker) -> memory requests=512Mi, limits=1Gi
+[PASS] Deployment/sensor-pantai (ns=sistem-informasi-kebencanaan-bnpb, role=sensor) -> memory requests=128Mi, limits=256Mi
+[PASS] StatefulSet/rabbitmq (ns=sistem-informasi-kebencanaan-bnpb, role=broker) -> memory requests=512Mi, limits=1Gi
+[PASS] DaemonSet/storage-unit (ns=sistem-informasi-kebencanaan-bnpb, role=store) -> memory requests=512Mi, limits=1Gi
+[PASS] NetworkPolicies verified: store-ingress (role=store <- [aggregator, store]) and rabbitmq-ingress (app=rabbitmq <- [aggregator, api, consumer, broker])
+[OK] All 13 application workloads + 4 observability workloads + 2 NetworkPolicies verified cleanly.

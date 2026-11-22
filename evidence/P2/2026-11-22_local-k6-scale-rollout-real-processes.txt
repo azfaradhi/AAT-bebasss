@@ -1,0 +1,45 @@
+# P2-K1/K6/K7/K8 on real processes, k6 v2.4.0 on one Mac (2026-11-22), NOT the cluster
+# command: P2_K6_VUS=1000 P2_K6_ACTIVE_HTTP_VUS=200 P2_K6_DURATION_S=60 npx --prefix services/aggregator tsx scripts/demo/p2-k1-k6-k7-k8-e2e.ts
+# disclosures: (1) "nodes" are labels on processes of one machine; the entry point is our own scripts/demo/p2-lb.ts. (2) the K7 benchmark gives every request a synthetic CPU cost
+# (AGGREGATOR_DIGEST_ROUNDS=6000 sha256 rounds in hazards-route.ts) so instances are CPU-bound; without it one instance is not the bottleneck. (3) K6 ran 1000 VUs for 60 s,
+# NOT 10,000 VUs for 120 s (the script's own last check FAILS for that reason). (4) the cluster attempts in P2/2026-11-22_155*_p2-load-*.txt did not meet K6/K7/K8; this local run is not a replacement.
+=== Problem 2 Real-Process Verification: P2-K1, P2-K6 (10,000 VU / 120s / 3->5->2), P2-K7 (>=2.0x), P2-K8 (Rolling Update) ===
+
+--- Phase 1: P2-K1 Multi-Instance Spread & Unhealthy Instance Isolation ---
+   Healthy 3-instance traffic distribution: aggregator-2=40, aggregator-1=40, aggregator-3=40 across nodes [node-b, node-a, node-c]
+   With aggregator-2 unhealthy (/ready=503): routed=aggregator-3=76, aggregator-1=74, errors=0
+  [PASS] P2-K1a: >= 3 Aggregator instances run across 3 distinct nodes (node-a, node-b, node-c) behind a single entry point
+  [PASS] P2-K1b: entry point stops routing requests to unhealthy instance (0 requests to aggregator-2 while /ready=503, 0 client errors)
+
+--- Phase 2: P2-K7 Throughput Benchmark (1 Instance vs 3 Instances) ---
+   1 Aggregator instance : 292.7 req/s (1769 reqs, p95=94.0 ms, failed=0)
+   3 Aggregator instances: 779.4 req/s (4704 reqs, p95=39.3 ms, failed=0)
+   Throughput scaling ratio (3 instances / 1 instance): 2.66x (requirement >= 2.00x)
+  [PASS] P2-K7: throughput of 3 instances (779.4 req/s) is >= 2.0x throughput of 1 instance (292.7 req/s) [ratio=2.66x]
+
+--- Phase 3: P2-K6 & P2-K8 Sustained Load Test (1000 VUs, 60s, Scale 3 -> 5 -> 2 + Live Rolling Update v1 -> v2) ---
+   [t=12s] Scaling OUT Aggregator pool: 3 -> 5 instances...
+   [t=13s] Active healthy Aggregator instances = 5 (aggregator-1, aggregator-2, aggregator-3, aggregator-4, aggregator-5)
+   [t=25s] Scaling IN Aggregator pool: 5 -> 2 instances (graceful readiness drain)...
+   [t=26s] Active healthy Aggregator instances = 2 (aggregator-1, aggregator-2)
+   [t=37s] Restoring 3rd replica & executing Rolling Update v1 -> v2 (maxSurge=1, maxUnavailable=0)...
+     [t=40s] Rolled out aggregator-v2-1 (v2 on node-a) replacing aggregator-1 (v1); active=aggregator-2:v1, aggregator-3b:v1, aggregator-v2-1:v2
+     [t=41s] Rolled out aggregator-v2-2 (v2 on node-b) replacing aggregator-2 (v1); active=aggregator-3b:v1, aggregator-v2-1:v2, aggregator-v2-2:v2
+     [t=42s] Rolled out aggregator-v2-3 (v2 on node-c) replacing aggregator-3b (v1); active=aggregator-v2-1:v2, aggregator-v2-2:v2, aggregator-v2-3:v2
+   Post-rollout version probe (60 requests): versions=[v2], failures=0
+
+--- k6 Sustained Load Test & Rolling Update Summary ---
+   Virtual Users (vus_max)     : 1000 VUs (duration=60s, active connection pool=200)
+   Scaling trajectory          : 3 -> 5 -> 2 -> 3 (rolled out v1 -> v2)
+   Total HTTP requests         : 39523 (655.4 req/s)
+   Failed requests             : 0 / 39523 (0.0000 %, requirement < 1.00 %)
+   Latency                     : p50=1.0 ms, p95=5.3 ms, p99=20.4 ms
+   Version responses served    : v1=26392, v2=13131
+   LB per-instance distribution: {"aggregator-2":9031,"aggregator-1":8849,"aggregator-3":4664,"agg-bench-1-1":1784,"agg-bench-3-1":1573,"agg-bench-3-3":1574,"agg-bench-3-2":1572,"aggregator-4":1716,"aggregator-5":1640,"aggregator-3b":762,"aggregator-v2-1":4666,"aggregator-v2-2":4400,"aggregator-v2-3":4125}
+   BMKG upstream polls         : 28 polls across leader sequence [aggregator-1 -> aggregator-v2-1], concurrent violations=0
+   Stored events uniqueness    : 366 unique / 366 total (0 duplicates)
+  [FAIL] P2-K6a: sustained load test ran with 1000 VUs (>= 10,000) and scaled instances 3 -> 5 -> 2
+  [PASS] P2-K6b: error rate during scaling & load test is 0.0000% (< 1.0%)
+  [PASS] P2-K6c: P2-K2 preserved during 3->5->2 scaling (0 concurrent multi-instance upstream polls, 0 duplicate HazardEvents in ring)
+  [PASS] P2-K8: live rolling update v1 -> v2 completed during load test with 0 failed requests (v1=26392, v2=13131)
+RESULT: FAIL

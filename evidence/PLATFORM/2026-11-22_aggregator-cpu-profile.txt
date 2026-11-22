@@ -1,0 +1,26 @@
+# Evidence: aggregator CPU profile on k3s (diagnostic, not a spec criterion)
+# Date: 2026-11-22. Label: PROSES NYATA (k3s, 3 VirtualBox VMs on one laptop). Method: kill -USR1 1 in the pod, kubectl port-forward 9229,
+# Node inspector Profiler.start/stop for 12 s, 1 ms sampling; inclusive time of frames under /app/. Script is a throwaway (not in the repo).
+# Symptom: kubectl top pods showed each aggregator replica at its 500m CPU limit with only probe requests in the log; HPA stayed at 164-461% of the 70% target and pinned 5 replicas.
+
+## BEFORE (image with idle outbox polling, OUTBOX_DISPATCH_INTERVAL_MS ignored = 500 ms)
+ 18.9%  (anon)        shared-types/src/ring/http-storage-client.js:7
+ 14.1%  send          shared-types/src/ring/http-storage-client.js:73
+  9.1%  claimOutbox   shared-types/src/ring/http-storage-client.js:337
+  7.1%  outboxPending shared-types/src/ring/http-storage-client.js:357
+  2.2%  drainM2Storage services/aggregator/src/publisher/outbox-dispatcher.js:81
+Reading: on every idle tick (2/s) each replica fanned out claimOutbox + outboxPending to every storage-unit over HTTP.
+
+## Change (working tree, not committed)
+- outbox-dispatcher.ts: refresh the outboxPending gauge only every 10th empty tick.
+- config.ts/index.ts: OUTBOX_DISPATCH_INTERVAL_MS (already in aggregator-config and .env.example, but never read) now configures the dispatcher; ConfigMap value 500 -> 1000 ms.
+
+## AFTER (one replica, right after rollout)
+ 29.6%  (anon)        http-storage-client.js:7
+ 17.4%  states        http-storage-client.js:56
+ 16.0%  fenceBarrier  http-storage-client.js:368
+  8.5%  upsertEvent   http-storage-client.js:104
+  5.0%  claimOutbox    http-storage-client.js:337
+Reading: claimOutbox fell from 9.1% to 5.0% and outboxPending left the list, but replicas still sat near 250-500m CPU (kubectl top, 5 replicas)
+because the leader's polling writes fan out per event (fenceBarrier + states calls to every unit). That is real work, not an idle loop,
+and was NOT optimized. Open item: batch the fence check per poll instead of per event, or raise the CPU limit (500m) if measured need is higher.

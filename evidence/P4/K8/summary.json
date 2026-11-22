@@ -1,0 +1,22 @@
+{
+  "mode": "disconnect",
+  "feed": "satellite.naufarrel.dev",
+  "profile": "practice",
+  "speed": 60,
+  "duration_s": 150,
+  "started_at_offset": 2328691,
+  "first_offset": 2328691,
+  "last_offset": 2330941,
+  "frames": 2251,
+  "gaps": 0,
+  "duplicates_delivered_to_sink": 0,
+  "reconnects": 12,
+  "forced_cuts": 12,
+  "event_to_store_p95_s": 0.336,
+  "final_lag_frames": 62,
+  "open_fires": 39,
+  "singles_total": 231,
+  "late_applied": 1668,
+  "late_beyond_bound": 0,
+  "events_stored": 39
+}

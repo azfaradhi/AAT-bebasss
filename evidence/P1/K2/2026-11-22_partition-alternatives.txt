@@ -1,0 +1,9 @@
+# P1-L3: partition-key alternatives on the K2 workloads (3 units; spread = (max-min)/mean of writes per unit; moved = share of keys whose primary changes when a 4th unit joins)
+# command: npx --prefix services/aggregator tsx scripts/demo/p1-alternatives-measure.ts
+strategy                                     dataset (3 units)      one-region burst       moved on 3->4
+by region (hash(area) mod N)                 750/1500/750 75%       0/0/3000 300%          50%
+by time (hour bucket mod N)                  1008/1008/984 2%       0/0/3000 300%          75%
+hash(id) mod N                               977/1035/988 6%        969/978/1053 8%        74%
+consistent hashing, 1 vnode/unit             671/2136/193 194%      713/2086/201 189%      8%
+consistent hashing, 64 vnodes/unit (ours)    933/1047/1020 11%      918/1073/1009 16%      25%
+consistent hashing, 256 vnodes/unit          1045/976/979 7%        1011/1008/981 3%       26%

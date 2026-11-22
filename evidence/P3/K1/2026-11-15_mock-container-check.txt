@@ -1,0 +1,7 @@
+# cmd: docker build + run both mock images with --memory 128m (Docker Desktop, local, not the cluster)
+# date: 2026-11-15  branch ms2-prob3-prob4 @ 93c134e
+pvmbg-mock: /ready 200; /metrics serves mock_http_requests_total{service="pvmbg-mock",...}; POST /admin/schema-version {"mode":"rename"} -> {"mode":"rename","confidence_level_enabled":false}; /admin/request-log lists the POST (health/ready not logged)
+bmkg-mock:  /ready 200; /metrics serves mock_http_requests_total{service="bmkg-mock",...}; /admin/request-log lists the request (a POST to the non-existent /admin/schema-version returned 404, as designed: BMKG has no schema mode)
+docker stats --no-stream: t02p mem=20.48MiB / 128MiB (16.00%), t02b mem=20.39MiB / 128MiB (15.93%)
+docker inspect: t02p restarts=0 oom=false ; t02b restarts=0 oom=false
+Not covered: Kubernetes limits 64Mi request / 128Mi limit under real load; no k8s manifest exists yet.

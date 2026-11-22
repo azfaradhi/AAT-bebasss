@@ -1,0 +1,12 @@
+﻿# P2-K3 on k3s: delete the pod that holds the bmkg Lease, measure takeover and check the mock sees one caller at a time
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Lease duration 10 s (manifest). Method: kubectl delete pod <holder> --grace-period=0 --force, then poll the Lease holder every second.
+
+[16:55:51] holder before: aggregator-5d4dd8dd4f-lqmmf
+[16:55:54] deleted pod aggregator-5d4dd8dd4f-lqmmf (force)
+[16:56:10] RESULT: new holder = aggregator-5d4dd8dd4f-v62nd after 18.9 s (spec: <= 60 s; manifest lease 10 s)
+[16:56:30] $ kubectl -n sistem-informasi-kebencanaan-bnpb get lease bmkg pvmbg -o custom-columns=NAME:.metadata.name,HOLDER:.spec.holderIdentity,RENEW:.spec.renewTime
+    NAME    HOLDER                        RENEW
+    bmkg    aggregator-5d4dd8dd4f-v62nd   2026-11-22T09:56:29.026000Z
+    pvmbg   aggregator-5d4dd8dd4f-6dns5   2026-11-22T09:56:28.789000Z
+[16:56:38] mock request log, last 90 s, runs of consecutive callers: [{"c":"aggregator-5d4dd8dd4f-lqmmf","from":"2026-11-22T09:55:08.464Z","n":28},{"c":"aggregator-5d4dd8dd4f-v62nd","from":"2026-11-22T09:56:13.311Z","n":16}]

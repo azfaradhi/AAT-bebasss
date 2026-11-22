@@ -1,0 +1,19 @@
+baseline: 90 stored, 10 parked (default stream of 100, 10 violations)
+injected stale=obs-000101, missing=obs-000102, null=obs-000103; parked reasons seen: contract_violation:conflicting_duplicate_observation_id | contract_violation:invalid_quality_flag | contract_violation:out_of_physical_range | contract_violation:unknown_station_id | contract_violation:type_mismatch | contract_violation:stale_observation
+  [PASS] B1/B3: stale, missing-field and null-field observations are parked with a reason (3 more parked)
+  [PASS] B1/B3: none of the three was stored as an event
+  truncated 3000 ms: healthz=200, calls to /v1/observations during the fault window: 9 (polls would be 10), poller alive=true, newly parked=1
+  [PASS] B8 truncated: /healthz stays 200, poller process survives
+  [PASS] B8 truncated: the unreadable response is parked as a batch, not parsed, not stored
+  garbage   3000 ms: healthz=200, calls to /v1/observations during the fault window: 9 (polls would be 10), poller alive=true, newly parked=1
+  [PASS] B8 garbage: /healthz stays 200, poller process survives
+  [PASS] B8 garbage: the unreadable response is parked as a batch, not parsed, not stored
+  hang      5000 ms: healthz=200, calls to /v1/observations during the fault window: 3 (polls would be 15), poller alive=true, newly parked=0
+  [PASS] B8 hang: /healthz stays 200, poller process survives
+  429       3000 ms: healthz=200, calls to /v1/observations during the fault window: 4 (polls would be 10), poller alive=true, newly parked=0
+  [PASS] B8 429: /healthz stays 200, poller process survives
+  500       3000 ms: healthz=200, calls to /v1/observations during the fault window: 0 (polls would be 10), poller alive=true, newly parked=0
+  [PASS] B8 500: /healthz stays 200, poller process survives
+  [PASS] recovery: after all faults the poller polls again and still parks a new stale item
+  [PASS] nothing was lost or duplicated: valid observations stored exactly once
+RESULT: PASS

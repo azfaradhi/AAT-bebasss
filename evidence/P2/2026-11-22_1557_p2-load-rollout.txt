@@ -1,0 +1,504 @@
+# P2 load drill, MODE=rollout, 2026-11-22_1557. Label: see the verdict lines at the end; nothing here is claimed in advance.
+# nodes: 3; aggregator image: node-a:5000/bnpb-aggregator:m2
+# k6: k6.exe v2.4.0 (commit/dd9395906d, go1.26.11, windows/amd64); VUS=2 DURATION=120s RAMP=10s THINK_S=1; load machine: MINGW64_NT-10.0-26300 x86_64
+# NOTE: record host hardware and whether the load generator shared the machine with the cluster VMs.
+[15:57:56] aggregator replicas -> 3
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: load-tests/p2/aggregator-scale.k6.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 2 max VUs, 2m30s max duration (incl. graceful stop):
+              * sustained: Up to 2 looping VUs for 2m20s over 3 stages (gracefulRampDown: 10s, gracefulStop: 30s)
+
+
+running (0m01.0s), 0/2 VUs, 0 complete and 0 interrupted iterations
+sustained   [   1% ] 0/2 VUs  0m00.9s/2m20.0s
+
+running (0m02.0s), 0/2 VUs, 0 complete and 0 interrupted iterations
+sustained   [   1% ] 0/2 VUs  0m01.9s/2m20.0s
+
+running (0m03.0s), 0/2 VUs, 0 complete and 0 interrupted iterations
+sustained   [   2% ] 0/2 VUs  0m02.9s/2m20.0s
+
+running (0m04.0s), 0/2 VUs, 0 complete and 0 interrupted iterations
+sustained   [   3% ] 0/2 VUs  0m03.9s/2m20.0s
+
+running (0m05.0s), 0/2 VUs, 0 complete and 0 interrupted iterations
+sustained   [   4% ] 0/2 VUs  0m04.9s/2m20.0s
+
+running (0m06.0s), 1/2 VUs, 0 complete and 0 interrupted iterations
+sustained   [   4% ] 1/2 VUs  0m05.9s/2m20.0s
+
+running (0m07.0s), 1/2 VUs, 1 complete and 0 interrupted iterations
+sustained   [   5% ] 1/2 VUs  0m06.9s/2m20.0s
+
+running (0m08.0s), 1/2 VUs, 1 complete and 0 interrupted iterations
+sustained   [   6% ] 1/2 VUs  0m07.9s/2m20.0s
+
+running (0m09.0s), 1/2 VUs, 2 complete and 0 interrupted iterations
+sustained   [   6% ] 1/2 VUs  0m08.9s/2m20.0s
+
+running (0m10.0s), 1/2 VUs, 2 complete and 0 interrupted iterations
+sustained   [   7% ] 1/2 VUs  0m09.9s/2m20.0s
+
+running (0m11.0s), 2/2 VUs, 3 complete and 0 interrupted iterations
+sustained   [   8% ] 2/2 VUs  0m10.9s/2m20.0s
+
+running (0m12.0s), 2/2 VUs, 5 complete and 0 interrupted iterations
+sustained   [   9% ] 2/2 VUs  0m11.9s/2m20.0s
+
+running (0m13.0s), 2/2 VUs, 5 complete and 0 interrupted iterations
+sustained   [   9% ] 2/2 VUs  0m12.9s/2m20.0s
+
+running (0m14.0s), 2/2 VUs, 7 complete and 0 interrupted iterations
+sustained   [  10% ] 2/2 VUs  0m13.9s/2m20.0s
+
+running (0m15.0s), 2/2 VUs, 7 complete and 0 interrupted iterations
+sustained   [  11% ] 2/2 VUs  0m14.9s/2m20.0s
+
+running (0m16.0s), 2/2 VUs, 7 complete and 0 interrupted iterations
+sustained   [  11% ] 2/2 VUs  0m15.9s/2m20.0s
+
+running (0m17.0s), 2/2 VUs, 9 complete and 0 interrupted iterations
+sustained   [  12% ] 2/2 VUs  0m16.9s/2m20.0s
+
+running (0m18.0s), 2/2 VUs, 10 complete and 0 interrupted iterations
+sustained   [  13% ] 2/2 VUs  0m17.9s/2m20.0s
+
+running (0m19.0s), 2/2 VUs, 11 complete and 0 interrupted iterations
+sustained   [  14% ] 2/2 VUs  0m18.9s/2m20.0s
+
+running (0m20.0s), 2/2 VUs, 13 complete and 0 interrupted iterations
+sustained   [  14% ] 2/2 VUs  0m19.9s/2m20.0s
+
+running (0m21.0s), 2/2 VUs, 13 complete and 0 interrupted iterations
+sustained   [  15% ] 2/2 VUs  0m20.9s/2m20.0s
+
+running (0m22.0s), 2/2 VUs, 15 complete and 0 interrupted iterations
+sustained   [  16% ] 2/2 VUs  0m21.9s/2m20.0s
+
+running (0m23.0s), 2/2 VUs, 16 complete and 0 interrupted iterations
+sustained   [  16% ] 2/2 VUs  0m22.9s/2m20.0s
+
+running (0m24.0s), 2/2 VUs, 17 complete and 0 interrupted iterations
+sustained   [  17% ] 2/2 VUs  0m23.9s/2m20.0s
+
+running (0m25.0s), 2/2 VUs, 18 complete and 0 interrupted iterations
+sustained   [  18% ] 2/2 VUs  0m24.9s/2m20.0s
+
+running (0m26.0s), 2/2 VUs, 20 complete and 0 interrupted iterations
+sustained   [  19% ] 2/2 VUs  0m25.9s/2m20.0s
+
+running (0m27.0s), 2/2 VUs, 20 complete and 0 interrupted iterations
+sustained   [  19% ] 2/2 VUs  0m26.9s/2m20.0s
+
+running (0m28.0s), 2/2 VUs, 22 complete and 0 interrupted iterations
+sustained   [  20% ] 2/2 VUs  0m27.9s/2m20.0s
+
+running (0m29.0s), 2/2 VUs, 23 complete and 0 interrupted iterations
+sustained   [  21% ] 2/2 VUs  0m28.9s/2m20.0s
+
+running (0m30.0s), 2/2 VUs, 24 complete and 0 interrupted iterations
+sustained   [  21% ] 2/2 VUs  0m29.9s/2m20.0s
+
+running (0m31.0s), 2/2 VUs, 26 complete and 0 interrupted iterations
+sustained   [  22% ] 2/2 VUs  0m30.9s/2m20.0s
+
+running (0m32.0s), 2/2 VUs, 26 complete and 0 interrupted iterations
+sustained   [  23% ] 2/2 VUs  0m31.9s/2m20.0s
+
+running (0m33.0s), 2/2 VUs, 28 complete and 0 interrupted iterations
+sustained   [  24% ] 2/2 VUs  0m32.9s/2m20.0s
+
+running (0m34.0s), 2/2 VUs, 28 complete and 0 interrupted iterations
+sustained   [  24% ] 2/2 VUs  0m33.9s/2m20.0s
+
+running (0m35.0s), 2/2 VUs, 30 complete and 0 interrupted iterations
+sustained   [  25% ] 2/2 VUs  0m34.9s/2m20.0s
+
+running (0m36.0s), 2/2 VUs, 31 complete and 0 interrupted iterations
+sustained   [  26% ] 2/2 VUs  0m35.9s/2m20.0s
+
+running (0m37.0s), 2/2 VUs, 32 complete and 0 interrupted iterations
+sustained   [  26% ] 2/2 VUs  0m36.9s/2m20.0s
+
+running (0m38.0s), 2/2 VUs, 33 complete and 0 interrupted iterations
+sustained   [  27% ] 2/2 VUs  0m37.9s/2m20.0s
+
+running (0m39.0s), 2/2 VUs, 33 complete and 0 interrupted iterations
+sustained   [  28% ] 2/2 VUs  0m38.9s/2m20.0s
+
+running (0m40.0s), 2/2 VUs, 34 complete and 0 interrupted iterations
+sustained   [  29% ] 2/2 VUs  0m39.9s/2m20.0s
+
+running (0m41.0s), 2/2 VUs, 36 complete and 0 interrupted iterations
+sustained   [  29% ] 2/2 VUs  0m40.9s/2m20.0s
+
+running (0m42.0s), 2/2 VUs, 36 complete and 0 interrupted iterations
+sustained   [  30% ] 2/2 VUs  0m41.9s/2m20.0s
+
+running (0m43.0s), 2/2 VUs, 36 complete and 0 interrupted iterations
+sustained   [  31% ] 2/2 VUs  0m42.9s/2m20.0s
+
+running (0m44.0s), 2/2 VUs, 37 complete and 0 interrupted iterations
+sustained   [  31% ] 2/2 VUs  0m43.9s/2m20.0s
+
+running (0m45.0s), 2/2 VUs, 38 complete and 0 interrupted iterations
+sustained   [  32% ] 2/2 VUs  0m44.9s/2m20.0s
+
+running (0m46.0s), 2/2 VUs, 39 complete and 0 interrupted iterations
+sustained   [  33% ] 2/2 VUs  0m45.9s/2m20.0s
+
+running (0m47.0s), 2/2 VUs, 40 complete and 0 interrupted iterations
+sustained   [  34% ] 2/2 VUs  0m46.9s/2m20.0s
+
+running (0m48.0s), 2/2 VUs, 41 complete and 0 interrupted iterations
+sustained   [  34% ] 2/2 VUs  0m47.9s/2m20.0s
+
+running (0m49.0s), 2/2 VUs, 41 complete and 0 interrupted iterations
+sustained   [  35% ] 2/2 VUs  0m48.9s/2m20.0s
+
+running (0m50.0s), 2/2 VUs, 43 complete and 0 interrupted iterations
+sustained   [  36% ] 2/2 VUs  0m49.9s/2m20.0s
+
+running (0m51.0s), 2/2 VUs, 43 complete and 0 interrupted iterations
+sustained   [  36% ] 2/2 VUs  0m50.9s/2m20.0s
+
+running (0m52.0s), 2/2 VUs, 45 complete and 0 interrupted iterations
+sustained   [  37% ] 2/2 VUs  0m51.9s/2m20.0s
+
+running (0m53.0s), 2/2 VUs, 45 complete and 0 interrupted iterations
+sustained   [  38% ] 2/2 VUs  0m52.9s/2m20.0s
+
+running (0m54.0s), 2/2 VUs, 47 complete and 0 interrupted iterations
+sustained   [  39% ] 2/2 VUs  0m53.9s/2m20.0s
+
+running (0m55.0s), 2/2 VUs, 47 complete and 0 interrupted iterations
+sustained   [  39% ] 2/2 VUs  0m54.9s/2m20.0s
+
+running (0m56.0s), 2/2 VUs, 49 complete and 0 interrupted iterations
+sustained   [  40% ] 2/2 VUs  0m55.9s/2m20.0s
+
+running (0m57.0s), 2/2 VUs, 49 complete and 0 interrupted iterations
+sustained   [  41% ] 2/2 VUs  0m56.9s/2m20.0s
+
+running (0m58.0s), 2/2 VUs, 51 complete and 0 interrupted iterations
+sustained   [  41% ] 2/2 VUs  0m57.9s/2m20.0s
+
+running (0m59.0s), 2/2 VUs, 52 complete and 0 interrupted iterations
+sustained   [  42% ] 2/2 VUs  0m58.9s/2m20.0s
+
+running (1m00.0s), 2/2 VUs, 52 complete and 0 interrupted iterations
+sustained   [  43% ] 2/2 VUs  0m59.9s/2m20.0s
+
+running (1m01.0s), 2/2 VUs, 54 complete and 0 interrupted iterations
+sustained   [  44% ] 2/2 VUs  1m00.9s/2m20.0s
+
+running (1m02.0s), 2/2 VUs, 54 complete and 0 interrupted iterations
+sustained   [  44% ] 2/2 VUs  1m01.9s/2m20.0s
+
+running (1m03.0s), 2/2 VUs, 55 complete and 0 interrupted iterations
+sustained   [  45% ] 2/2 VUs  1m02.9s/2m20.0s
+
+running (1m04.0s), 2/2 VUs, 56 complete and 0 interrupted iterations
+sustained   [  46% ] 2/2 VUs  1m03.9s/2m20.0s
+
+running (1m05.0s), 2/2 VUs, 56 complete and 0 interrupted iterations
+sustained   [  46% ] 2/2 VUs  1m04.9s/2m20.0s
+
+running (1m06.0s), 2/2 VUs, 58 complete and 0 interrupted iterations
+sustained   [  47% ] 2/2 VUs  1m05.9s/2m20.0s
+
+running (1m07.0s), 2/2 VUs, 58 complete and 0 interrupted iterations
+sustained   [  48% ] 2/2 VUs  1m06.9s/2m20.0s
+
+running (1m08.0s), 2/2 VUs, 60 complete and 0 interrupted iterations
+sustained   [  49% ] 2/2 VUs  1m07.9s/2m20.0s
+
+running (1m09.0s), 2/2 VUs, 61 complete and 0 interrupted iterations
+sustained   [  49% ] 2/2 VUs  1m08.9s/2m20.0s
+
+running (1m10.0s), 2/2 VUs, 61 complete and 0 interrupted iterations
+sustained   [  50% ] 2/2 VUs  1m09.9s/2m20.0s
+[15:59:07] rollout started
+
+running (1m11.0s), 2/2 VUs, 63 complete and 0 interrupted iterations
+sustained   [  51% ] 2/2 VUs  1m10.9s/2m20.0s
+Waiting for deployment spec update to be observed...
+Waiting for deployment "aggregator" rollout to finish: 0 out of 3 new replicas have been updated...
+Waiting for deployment "aggregator" rollout to finish: 1 out of 3 new replicas have been updated...
+
+running (1m12.0s), 2/2 VUs, 63 complete and 0 interrupted iterations
+sustained   [  51% ] 2/2 VUs  1m11.9s/2m20.0s
+
+running (1m13.0s), 2/2 VUs, 65 complete and 0 interrupted iterations
+sustained   [  52% ] 2/2 VUs  1m12.9s/2m20.0s
+
+running (1m14.0s), 2/2 VUs, 65 complete and 0 interrupted iterations
+sustained   [  53% ] 2/2 VUs  1m13.9s/2m20.0s
+
+running (1m15.0s), 2/2 VUs, 66 complete and 0 interrupted iterations
+sustained   [  54% ] 2/2 VUs  1m14.9s/2m20.0s
+
+running (1m16.0s), 2/2 VUs, 67 complete and 0 interrupted iterations
+sustained   [  54% ] 2/2 VUs  1m16.0s/2m20.0s
+
+running (1m17.0s), 2/2 VUs, 68 complete and 0 interrupted iterations
+sustained   [  55% ] 2/2 VUs  1m17.0s/2m20.0s
+
+running (1m18.0s), 2/2 VUs, 68 complete and 0 interrupted iterations
+sustained   [  56% ] 2/2 VUs  1m17.9s/2m20.0s
+
+running (1m19.0s), 2/2 VUs, 70 complete and 0 interrupted iterations
+sustained   [  56% ] 2/2 VUs  1m18.9s/2m20.0s
+
+running (1m20.0s), 2/2 VUs, 70 complete and 0 interrupted iterations
+sustained   [  57% ] 2/2 VUs  1m19.9s/2m20.0s
+
+running (1m21.0s), 2/2 VUs, 70 complete and 0 interrupted iterations
+sustained   [  58% ] 2/2 VUs  1m20.9s/2m20.0s
+
+running (1m22.0s), 2/2 VUs, 72 complete and 0 interrupted iterations
+sustained   [  59% ] 2/2 VUs  1m21.9s/2m20.0s
+
+running (1m23.0s), 2/2 VUs, 72 complete and 0 interrupted iterations
+sustained   [  59% ] 2/2 VUs  1m22.9s/2m20.0s
+
+running (1m24.0s), 2/2 VUs, 73 complete and 0 interrupted iterations
+sustained   [  60% ] 2/2 VUs  1m23.9s/2m20.0s
+
+running (1m25.0s), 2/2 VUs, 74 complete and 0 interrupted iterations
+sustained   [  61% ] 2/2 VUs  1m24.9s/2m20.0s
+
+running (1m26.0s), 2/2 VUs, 74 complete and 0 interrupted iterations
+sustained   [  61% ] 2/2 VUs  1m25.9s/2m20.0s
+
+running (1m27.0s), 2/2 VUs, 75 complete and 0 interrupted iterations
+sustained   [  62% ] 2/2 VUs  1m26.9s/2m20.0s
+
+running (1m28.0s), 2/2 VUs, 75 complete and 0 interrupted iterations
+sustained   [  63% ] 2/2 VUs  1m27.9s/2m20.0s
+
+running (1m29.0s), 2/2 VUs, 76 complete and 0 interrupted iterations
+sustained   [  64% ] 2/2 VUs  1m29.0s/2m20.0s
+
+running (1m30.0s), 2/2 VUs, 77 complete and 0 interrupted iterations
+sustained   [  64% ] 2/2 VUs  1m29.9s/2m20.0s
+
+running (1m31.0s), 2/2 VUs, 77 complete and 0 interrupted iterations
+sustained   [  65% ] 2/2 VUs  1m30.9s/2m20.0s
+
+running (1m32.0s), 2/2 VUs, 79 complete and 0 interrupted iterations
+sustained   [  66% ] 2/2 VUs  1m31.9s/2m20.0s
+
+running (1m33.0s), 2/2 VUs, 79 complete and 0 interrupted iterations
+sustained   [  66% ] 2/2 VUs  1m32.9s/2m20.0s
+
+running (1m34.0s), 2/2 VUs, 79 complete and 0 interrupted iterations
+sustained   [  67% ] 2/2 VUs  1m33.9s/2m20.0s
+
+running (1m35.0s), 2/2 VUs, 81 complete and 0 interrupted iterations
+sustained   [  68% ] 2/2 VUs  1m34.9s/2m20.0s
+
+running (1m36.0s), 2/2 VUs, 82 complete and 0 interrupted iterations
+sustained   [  69% ] 2/2 VUs  1m35.9s/2m20.0s
+
+running (1m37.0s), 2/2 VUs, 82 complete and 0 interrupted iterations
+sustained   [  69% ] 2/2 VUs  1m36.9s/2m20.0s
+
+running (1m38.0s), 2/2 VUs, 84 complete and 0 interrupted iterations
+sustained   [  70% ] 2/2 VUs  1m37.9s/2m20.0s
+
+running (1m39.0s), 2/2 VUs, 84 complete and 0 interrupted iterations
+sustained   [  71% ] 2/2 VUs  1m38.9s/2m20.0s
+
+running (1m40.0s), 2/2 VUs, 84 complete and 0 interrupted iterations
+sustained   [  71% ] 2/2 VUs  1m39.9s/2m20.0s
+
+running (1m41.0s), 2/2 VUs, 86 complete and 0 interrupted iterations
+sustained   [  72% ] 2/2 VUs  1m40.9s/2m20.0s
+
+running (1m42.0s), 2/2 VUs, 87 complete and 0 interrupted iterations
+sustained   [  73% ] 2/2 VUs  1m41.9s/2m20.0s
+Waiting for deployment "aggregator" rollout to finish: 1 out of 3 new replicas have been updated...
+
+running (1m43.0s), 2/2 VUs, 89 complete and 0 interrupted iterations
+sustained   [  74% ] 2/2 VUs  1m42.9s/2m20.0s
+
+running (1m44.0s), 2/2 VUs, 89 complete and 0 interrupted iterations
+sustained   [  74% ] 2/2 VUs  1m43.9s/2m20.0s
+
+running (1m45.0s), 2/2 VUs, 89 complete and 0 interrupted iterations
+sustained   [  75% ] 2/2 VUs  1m44.9s/2m20.0s
+Waiting for deployment "aggregator" rollout to finish: 1 out of 3 new replicas have been updated...
+
+running (1m46.0s), 2/2 VUs, 90 complete and 0 interrupted iterations
+sustained   [  76% ] 2/2 VUs  1m45.9s/2m20.0s
+Waiting for deployment "aggregator" rollout to finish: 2 out of 3 new replicas have been updated...
+
+running (1m47.0s), 2/2 VUs, 91 complete and 0 interrupted iterations
+sustained   [  76% ] 2/2 VUs  1m46.9s/2m20.0s
+
+running (1m48.0s), 2/2 VUs, 92 complete and 0 interrupted iterations
+sustained   [  77% ] 2/2 VUs  1m47.9s/2m20.0s
+
+running (1m49.0s), 2/2 VUs, 93 complete and 0 interrupted iterations
+sustained   [  78% ] 2/2 VUs  1m48.9s/2m20.0s
+
+running (1m50.0s), 2/2 VUs, 93 complete and 0 interrupted iterations
+sustained   [  79% ] 2/2 VUs  1m49.9s/2m20.0s
+
+running (1m51.0s), 2/2 VUs, 93 complete and 0 interrupted iterations
+sustained   [  79% ] 2/2 VUs  1m50.9s/2m20.0s
+
+running (1m52.0s), 2/2 VUs, 95 complete and 0 interrupted iterations
+sustained   [  80% ] 2/2 VUs  1m52.0s/2m20.0s
+
+running (1m53.0s), 2/2 VUs, 95 complete and 0 interrupted iterations
+sustained   [  81% ] 2/2 VUs  1m52.9s/2m20.0s
+
+running (1m54.0s), 2/2 VUs, 96 complete and 0 interrupted iterations
+sustained   [  81% ] 2/2 VUs  1m53.9s/2m20.0s
+
+running (1m55.0s), 2/2 VUs, 97 complete and 0 interrupted iterations
+sustained   [  82% ] 2/2 VUs  1m54.9s/2m20.0s
+
+running (1m56.0s), 2/2 VUs, 98 complete and 0 interrupted iterations
+sustained   [  83% ] 2/2 VUs  1m55.9s/2m20.0s
+
+running (1m57.0s), 2/2 VUs, 98 complete and 0 interrupted iterations
+sustained   [  84% ] 2/2 VUs  1m56.9s/2m20.0s
+
+running (1m58.0s), 2/2 VUs, 99 complete and 0 interrupted iterations
+sustained   [  84% ] 2/2 VUs  1m57.9s/2m20.0s
+
+running (1m59.0s), 2/2 VUs, 101 complete and 0 interrupted iterations
+sustained   [  85% ] 2/2 VUs  1m58.9s/2m20.0s
+
+running (2m00.0s), 2/2 VUs, 101 complete and 0 interrupted iterations
+sustained   [  86% ] 2/2 VUs  1m59.9s/2m20.0s
+Waiting for deployment "aggregator" rollout to finish: 2 out of 3 new replicas have been updated...
+
+running (2m01.0s), 2/2 VUs, 101 complete and 0 interrupted iterations
+sustained   [  86% ] 2/2 VUs  2m00.9s/2m20.0s
+
+running (2m02.0s), 2/2 VUs, 103 complete and 0 interrupted iterations
+sustained   [  87% ] 2/2 VUs  2m01.9s/2m20.0s
+
+running (2m03.0s), 2/2 VUs, 104 complete and 0 interrupted iterations
+sustained   [  88% ] 2/2 VUs  2m02.9s/2m20.0s
+
+running (2m04.0s), 2/2 VUs, 105 complete and 0 interrupted iterations
+sustained   [  89% ] 2/2 VUs  2m03.9s/2m20.0s
+
+running (2m05.0s), 2/2 VUs, 106 complete and 0 interrupted iterations
+sustained   [  89% ] 2/2 VUs  2m04.9s/2m20.0s
+
+running (2m06.0s), 2/2 VUs, 106 complete and 0 interrupted iterations
+sustained   [  90% ] 2/2 VUs  2m05.9s/2m20.0s
+
+running (2m07.0s), 2/2 VUs, 107 complete and 0 interrupted iterations
+sustained   [  91% ] 2/2 VUs  2m06.9s/2m20.0s
+
+running (2m08.0s), 2/2 VUs, 108 complete and 0 interrupted iterations
+sustained   [  91% ] 2/2 VUs  2m07.9s/2m20.0s
+
+running (2m09.0s), 2/2 VUs, 109 complete and 0 interrupted iterations
+sustained   [  92% ] 2/2 VUs  2m08.9s/2m20.0s
+
+running (2m10.0s), 2/2 VUs, 109 complete and 0 interrupted iterations
+sustained   [  93% ] 2/2 VUs  2m09.9s/2m20.0s
+
+running (2m11.0s), 2/2 VUs, 111 complete and 0 interrupted iterations
+sustained   [  94% ] 2/2 VUs  2m10.9s/2m20.0s
+
+running (2m12.0s), 2/2 VUs, 111 complete and 0 interrupted iterations
+sustained   [  94% ] 2/2 VUs  2m11.9s/2m20.0s
+
+running (2m13.0s), 2/2 VUs, 113 complete and 0 interrupted iterations
+sustained   [  95% ] 2/2 VUs  2m12.9s/2m20.0s
+
+running (2m14.0s), 2/2 VUs, 113 complete and 0 interrupted iterations
+sustained   [  96% ] 2/2 VUs  2m13.9s/2m20.0s
+
+running (2m15.0s), 2/2 VUs, 113 complete and 0 interrupted iterations
+sustained   [  96% ] 2/2 VUs  2m14.9s/2m20.0s
+Waiting for deployment "aggregator" rollout to finish: 2 out of 3 new replicas have been updated...
+
+running (2m16.0s), 2/2 VUs, 114 complete and 0 interrupted iterations
+sustained   [  97% ] 2/2 VUs  2m15.9s/2m20.0s
+
+running (2m17.0s), 1/2 VUs, 115 complete and 0 interrupted iterations
+sustained   [  98% ] 1/2 VUs  2m16.9s/2m20.0s
+Waiting for deployment "aggregator" rollout to finish: 2 out of 3 new replicas have been updated...
+
+running (2m18.0s), 1/2 VUs, 115 complete and 0 interrupted iterations
+sustained   [  99% ] 1/2 VUs  2m17.9s/2m20.0s
+
+running (2m19.0s), 1/2 VUs, 116 complete and 0 interrupted iterations
+sustained   [  99% ] 1/2 VUs  2m18.9s/2m20.0s
+
+running (2m20.0s), 1/2 VUs, 116 complete and 0 interrupted iterations
+sustained   [ 100% ] 1/2 VUs  2m19.9s/2m20.0s
+
+
+  █ THRESHOLDS 
+
+    p2_controlled_429
+    ✓ 'count==0' count=0
+
+    p2_non_2xx
+    ✗ 'count==0' count=18
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 117    0.832229/s
+    checks_succeeded...: 84.61% 99 out of 117
+    checks_failed......: 15.38% 18 out of 117
+
+    ✗ status is 200 or controlled 429
+      ↳  84% — ✓ 99 / ✗ 18
+
+    CUSTOM
+    p2_controlled_429..............: 0      0/s
+    p2_error_rate..................: 15.38% 18 out of 117
+    p2_non_2xx.....................: 18     0.128035/s
+    p2_status_200..................: 99     0.704194/s
+    p2_status_503..................: 18     0.128035/s
+
+    HTTP
+    http_req_duration..............: avg=1.16s    p(50)=1.01s    p(95)=2.19s p(99)=2.38s max=2.47s
+      { expected_response:true }...: avg=987.68ms p(50)=888.04ms p(95)=2.02s p(99)=2.18s max=2.19s
+    http_req_failed................: 14.51% 18 out of 124
+    http_reqs......................: 124    0.882021/s
+
+    EXECUTION
+    iteration_duration.............: avg=2.23s    p(50)=2.11s    p(95)=3.2s  p(99)=3.39s max=3.48s
+    iterations.....................: 117    0.832229/s
+    vus............................: 1      min=0         max=2
+    vus_max........................: 2      min=2         max=2
+
+    NETWORK
+    data_received..................: 1.9 MB 14 kB/s
+    data_sent......................: 50 kB  355 B/s
+
+
+
+
+running (2m20.6s), 0/2 VUs, 117 complete and 0 interrupted iterations
+sustained ✓ [ 100% ] 0/2 VUs  2m20s
+time="2026-11-22T16:00:17+07:00" level=error msg="thresholds on metrics 'p2_non_2xx' have been crossed"
+[k6 finished: ../AAT-docs/m2/evidence/P2/2026-11-22_1557_p2-load-rollout.summary.json]
+Waiting for deployment "aggregator" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "aggregator" rollout to finish: 1 old replicas are pending termination...
+Waiting for deployment "aggregator" rollout to finish: 1 old replicas are pending termination...
+deployment "aggregator" successfully rolled out

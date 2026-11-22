@@ -1,0 +1,34 @@
+# date: 2026-11-22T07:07:25Z
+# command: npx --prefix services/aggregator tsx scripts/demo/p1-p2-cross-x10-x11-x12-e2e.ts
+# environment: 3 real storage-unit processes (unit-0..2 on node-a..c) + 3 real aggregator processes (aggregator-1..3) + 1 real analytics-dashboard process
+
+=== Cross-Member & Deep Verification: X-10, P2-K5 (Direct FENCED 409), X-11, X-12 ===
+
+1. X-10: Monotonic & Immutable ingested_at Across Leader Failover (+45 s -> -30 s clock jump):
+   Leader 1 (+45 s) last ingested_at : 2026-11-20T10:00:45.140Z
+   Leader 2 (-30 s) first ingested_at: 2026-11-20T10:00:45.141Z (monotonic floor applied!)
+   Leader 2 (-30 s) last ingested_at : 2026-11-20T10:00:45.155Z
+  [PASS] X-10a: existing events keep their original ingested_at on re-upsert (100% immutable)
+  [PASS] X-10b: ingested_at is strictly monotonic across all 30 events despite Leader 1 (+45 s) -> Leader 2 (-30 s) failover
+  [PASS] X-10c: Audit API since=2026-11-20T10:00:45.141Z + paginated cursor across instances returns exactly the 15 Leader-2 events in order
+
+2. P2-K5: Direct Observation of Storage Unit Fencing Rejection (HTTP 409 FENCED):
+   Direct storage-unit response to deposed Leader 1 (fence=1 < barrier=2): HTTP 409 {"code":"FENCED","fence_name":"bmkg","got":1,"current":2}
+   Caught FencedError in StorageCanonicalStore: fenced: bmkg token 1 < 2
+  [PASS] P2-K5: storage-unit directly rejects zombie leader write with HTTP 409 FENCED (got=1, current=2)
+  [PASS] P2-K5: bnpb_fencing_rejections_total{name="bmkg"} metric is incremented on /metrics
+
+3. X-12: Stateless Multi-Instance Audit API Consistency Across 3 Aggregator Instances:
+   Instance 1..3 BMKG checksum : f556efd9e0cf9346... == f556efd9e0cf9346... == f556efd9e0cf9346... (count=60)
+   Instance 1..3 events count  : 150 == 150 == 150
+  [PASS] X-12a: /internal/audit/events is byte-for-byte identical across all 3 Aggregator instances
+  [PASS] X-12b: /internal/audit/checksum is identical across all 3 Aggregator instances
+  [PASS] X-12c: /internal/audit/location and /internal/audit/ring agree across all 3 Aggregator instances
+
+4. X-11: Analytics Dashboard Matches Audit API Under Concurrent Write Load & Node Failure:
+   Under healthy 3-node ring: Audit total=190, Dashboard total=190, by_severity sum=190, by_area sum=190, partial=false
+  [PASS] X-11a: Analytics Dashboard total (190), severity sum (190), and area sum (190) equal Audit API event count (190)
+  [PASS] X-11b: with 1 storage unit killed (RF=2), dashboard still serves all 190 events without error (partial=false)
+   With 2 storage units down: Dashboard total=115, Audit visible=115, partial=true, unavailable_units=["unit-1","unit-2"]
+  [PASS] X-11c: when degraded beyond RF (2 units down), dashboard explicitly flags partial=true with unavailable_units=["unit-1","unit-2"] and matches Audit API visible count
+RESULT: PASS

@@ -1,0 +1,20 @@
+game day starts +0.0s; sensor stream is running
++1.9s FAULT broker paused for 14 s (sensor stream keeps producing critical observations)
++2.9s FAULT sensor outage for 4 s
++4.4s FAULT aggregator agg-2 (pantai leader) killed
++5.9s FAULT storage unit-1 killed
++16.3s broker back
++16.3s Lease taken over by agg-1 (no operator action)
+game day over +48.3s
+critical alerts: 10 delivered of 10 expected; notifier p95 7.658 s; max 7.7 s; 9 within 5 s
+reads: SEISMIC 1669 (ok 100.00 %, p95 17 ms, max 644 ms); COASTAL 834 (ok 100.00 %, stale-marked 177, p95 16 ms)
+failed reads: 0
+error budget (SLO: 99 % of SEISMIC reads ok and < 300 ms): 3 bad of 1669; budget 16.7 bad allowed; consumed 18 %
+error budget (SLO: 95 % of critical alerts delivered within 5 s): 1 late of 10 = 10 % late; allowed 5 %; consumed 200 %
+  [PASS] P5-K6: every valid observation stored exactly once despite four overlapping faults (270 of 270, 270 distinct)
+  [PASS] P5-K6: no critical alert lost (10 delivered of 10), ids match
+  [PASS] P5-K6: no event lost on the exchange (0 missing), outbox drained (0 pending), 45 at-least-once re-deliveries on the exchange, deduplicated by message_id at consumers)
+  [PASS] P5-K6: recovery without intervention (Lease taken over by agg-1; stream finished; sensor, broker back by themselves)
+  [PASS] P5-K3: SEISMIC reads keep M1 latency during the sensor outage (p95 17 ms < 300 ms)
+  [PASS] P5-K4: COASTAL reads stayed available (100.0 % ok)
+RESULT: PASS

@@ -1,0 +1,13 @@
+﻿# P1-K7 on k3s: analytics-dashboard numbers vs Audit counts, then 2 of 3 storage units killed -> partial banner
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Dashboard data endpoint: GET /api/summary (service analytics-dashboard:8110); the page renders the banner text 'Data belum lengkap: unit penyimpanan tidak terjangkau (...)' when partial=true (services/analytics-dashboard/src/page.ts). Mocks are at 0 replicas so totals are stable.
+
+[17:23:12] ring before: ERR
+[17:23:28] BASELINE dashboard: {"http":200,"total":829,"partial":false,"unavailable_units":[],"as_of":"2026-11-22T10:23:25.115Z","by_severity":{"NORMAL":218,"WASPADA":300,"SIAGA":261,"AWAS":50}}
+[17:24:07] BASELINE Audit counts: sum=0 (BMKG=ERR PVMBG=ERR SATELIT=ERR SENSOR_PANTAI=ERR)
+[17:24:08] killing 2 of 3 storage units (pods without wiping): storage-unit-cn4wf, storage-unit-mwkpm
+[17:24:29] WHILE 2 UNITS DOWN dashboard: {"http":503}
+[17:24:56] WHILE 2 UNITS DOWN ring: ERR
+[17:25:27] WHILE 2 UNITS DOWN Audit counts: sum=0 (BMKG=ERR PVMBG=ERR SATELIT=ERR SENSOR_PANTAI=ERR)
+
+[NOTE] The Audit lines in this attempt are INVALID: a variable collision in the drill script made the Audit helper call the dashboard endpoint (ERR). Only the dashboard lines are valid. Redone in 2026-11-22_dashboard-vs-audit-redo.txt.

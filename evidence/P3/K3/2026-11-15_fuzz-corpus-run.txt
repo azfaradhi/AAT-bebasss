@@ -1,0 +1,19 @@
+# cmd: scripts/demo/p3-k3-fuzz.sh  (pvmbg-mock via tsx + in-process aggregator PvmbgClient with InMemoryStorage; no cluster)
+# date: 2026-11-15 19:50 node v20.20.2 branch ms2-prob3-prob4 (T03 working tree, uncommitted)
+case                 | declared                   | observed                                                     | time     | verdict
+truncated_json       | MALFORMED_JSON             | parked 1 as MALFORMED_JSON, poll failed cleanly              |     8 ms | PASS
+deep_nesting         | NESTING_TOO_DEEP           | parked 1 as NESTING_TOO_DEEP, poll failed cleanly            |     3 ms | PASS
+invalid_utf8         | INVALID_UTF8               | parked 1 as INVALID_UTF8, poll failed cleanly                |     3 ms | PASS
+huge_body            | PAYLOAD_TOO_LARGE          | parked 1 as PAYLOAD_TOO_LARGE, poll failed cleanly           |    38 ms | PASS
+empty_body           | MALFORMED_JSON             | parked 1 as MALFORMED_JSON, poll failed cleanly              |     2 ms | PASS
+wrong_content_type   | MALFORMED_JSON             | parked 1 as MALFORMED_JSON, poll failed cleanly              |     3 ms | PASS
+nul_bytes            | MALFORMED_JSON             | parked 1 as MALFORMED_JSON, poll failed cleanly              |     2 ms | PASS
+bom                  | 1 healthy + 0 parked       | 1 healthy stored, 0 parked (-)                               |     4 ms | PASS
+mixed_batch          | 2 healthy + 4 parked       | 2 healthy stored, 4 parked (UNKNOWN_ENUM_VALUE,SCHEMA_INCOMPATIBLE,SCHEMA_INCOMPATIBLE,SCHEMA_INCOMPATIBLE) |     3 ms | PASS
+baseline after fuzz  | >= 20 healthy              | 25 healthy stored, mock alive=true                           |          | PASS
+
+listUnprocessed total: 11 (reasons: UNKNOWN_ENUM_VALUE, SCHEMA_INCOMPATIBLE, MALFORMED_JSON, PAYLOAD_TOO_LARGE, NESTING_TOO_DEEP, INVALID_UTF8)
+rss after run: 109 MiB, driver process still alive
+
+PASS: every hostile input was parked or absorbed, healthy messages still stored
+NOTE: restartCount check skipped (no AGGREGATOR_NAMESPACE/kubectl); this run proves the in-process path only

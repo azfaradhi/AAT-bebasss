@@ -1,0 +1,68 @@
+# P5-K7/K8 on real processes with a REAL Prometheus (prom/prometheus:v2.51.2, the manifests' image) running the manifests' slo_rules.yml, 2026-11-22
+# command: OBS=1 npx --prefix services/aggregator tsx scripts/demo/p5-gameday-e2e.ts   (Docker: rabbitmq + prometheus; no Grafana, no screenshots, no client-api/satellite in this run, so their panels are EMPTY by construction)
+prometheus up on :20260, scraping 2 aggregators, the notifier and 3 storage units every 2 s
+game day starts +0.0s; sensor stream is running
++1.7s FAULT broker paused for 14 s (sensor stream keeps producing critical observations)
++2.7s FAULT sensor outage for 4 s
++4.2s FAULT aggregator agg-1 (pantai leader) killed
++5.7s FAULT storage unit-1 killed
++15.8s broker back
++15.8s Lease taken over by agg-2 (no operator action)
++17.8s FAULT second sensor outage for 7 s (new leader polling)
+game day over +52.0s
+critical alerts: 10 delivered of 10 expected; notifier p95 7.074 s; max 7.1 s; 9 within 5 s
+reads: SEISMIC 1933 (ok 100.00 %, p95 6 ms, max 199 ms); COASTAL 965 (ok 100.00 %, stale-marked 439, p95 7 ms)
+failed reads: 0
+error budget (SLO: 99 % of SEISMIC reads ok and < 300 ms): 0 bad of 1933; budget 19.3 bad allowed; consumed 0 %
+error budget (SLO: 95 % of critical alerts delivered within 5 s): 1 late of 10 = 10 % late; allowed 5 %; consumed 200 %
+  [PASS] P5-K6: every valid observation stored exactly once despite four overlapping faults (270 of 270, 270 distinct)
+  [PASS] P5-K6: no critical alert lost (10 delivered of 10), ids match
+  [PASS] P5-K6: no event lost on the exchange (0 missing), outbox drained (0 pending), 12 at-least-once re-deliveries on the exchange, deduplicated by message_id at consumers)
+  [PASS] P5-K6: recovery without intervention (Lease taken over by agg-2; stream finished; sensor, broker back by themselves)
+  [PASS] P5-K3: SEISMIC reads keep M1 latency during the sensor outage (p95 6 ms < 300 ms)
+  [PASS] P5-K4: COASTAL reads stayed available (100.0 % ok)
+prometheus targets: unit-0=0 unit-1=0 unit-2=0 agg-1=0 agg-2=1 notifier=1
+dashboard panels and recorded rules, queried at +55 s (range over the whole game day):
+  DATA   6 series   99 pts  [P1 — Distributed Storage Rin] Storage Unit Health (bnpb_storage_unit_up)
+  DATA   1 series   29 pts  [P1 — Distributed Storage Rin] Ring Epoch (bnpb_ring_epoch)
+  EMPTY  0 series    0 pts  [P1 — Distributed Storage Rin] Partial Responses Rate (bnpb_partial_responses_total)
+  DATA   6 series   99 pts  [P1 — Distributed Storage Rin] Keys Stored per Unit (bnpb_unit_keys)
+  DATA   6 series  168 pts  [P1 — Distributed Storage Rin] Writes/sec per Unit (bnpb_unit_writes_total)
+  DATA   6 series   81 pts  [P2 — Leader Election, Fencin] Active Leader per Lease (bnpb_leader)
+  EMPTY  0 series    0 pts  [P2 — Leader Election, Fencin] Fencing Token Rejections (bnpb_fencing_rejections_total)
+  DATA   1 series   28 pts  [P2 — Leader Election, Fencin] Request Distribution Across Aggregator Replicas
+  DATA   2 series   56 pts  [P3 — Data Quality, Poison-Pi] Ingest Events by Source & Outcome (bnpb_ingest_events_total)
+  DATA   1 series   29 pts  [P3 — Data Quality, Poison-Pi] Parked / Retrying Messages by Reason (bnpb_parked_messages)
+  EMPTY  0 series    0 pts  [P3 — Data Quality, Poison-Pi] Field Reports Throughput (bnpb_field_reports_total)
+  EMPTY  0 series    0 pts  [P4 — Satellite Stream (VIIRS] Satellite Stream Offset Lag (bnpb_sat_offset_lag)
+  EMPTY  0 series    0 pts  [P4 — Satellite Stream (VIIRS] Event-to-Store Latency p95 (bnpb_sat_event_to_store_seconds)
+  EMPTY  0 series    0 pts  [P4 — Satellite Stream (VIIRS] Late Detections Applied vs Beyond Bound
+  EMPTY  0 series    0 pts  [P4 — Satellite Stream (VIIRS] Late Detections Applied vs Beyond Bound
+  DATA   1 series   28 pts  [P5 — Sensor Pantai Resilienc] Critical Alert E2E Latency p95 (SLO <= 5s)
+  DATA   4 series   66 pts  [P5 — Sensor Pantai Resilienc] Circuit Breaker State (0=CLOSED, 1=HALF_OPEN, 2=OPEN)
+  EMPTY  0 series    0 pts  [P5 — Sensor Pantai Resilienc] SLO-1 Error Budget Remaining & Burn Rate
+  EMPTY  0 series    0 pts  [P5 — Sensor Pantai Resilienc] SLO-1 Error Budget Remaining & Burn Rate
+  DATA   1 series   29 pts  [P5 — Sensor Pantai Resilienc] Outbox Pending Messages (bnpb_outbox_pending)
+  EMPTY  0 series    0 pts  [P5 — Sensor Pantai Resilienc] Priority Load Shedding by Identity Class (bnpb_shed_total)
+  DATA   3 series   84 pts  [P5 — Sensor Pantai Resilienc] Critical Alerts Delivered vs Published (bnpb_critical_total)
+  DATA   2 series   56 pts  [P5 — Sensor Pantai Resilienc] HTTP Server Request Rate & Latency p99 by Service (RED)
+  EMPTY  0 series    0 pts  [SLO rule] sli:client_api_availability:ratio_rate5m
+  EMPTY  0 series    0 pts  [SLO rule] sli:client_api_latency_p99:seconds_5m
+  EMPTY  0 series    0 pts  [SLO rule] slo:client_api_error_budget_remaining:ratio
+  EMPTY  0 series    0 pts  [SLO rule] slo:client_api_burn_rate:5m
+  DATA   1 series   28 pts  [SLO rule] sli:critical_alert_e2e_p95:seconds_5m
+  DATA   1 series   28 pts  [SLO rule] sli:storage_units_healthy:count
+prometheus view of the alert path: critical e2e p95 = 7.999999999999997 s (notifier-reported p95 7.074 s)
+timeline rebuilt from Prometheus only (seconds since start) vs injected:
+  sensor-pantai circuit breaker first OPEN : 22.6   (second sensor outage injected at 17.8, 7 s long)
+  aggregator agg-1 target down (up=0)  : 6.6   (process killed at 4.2)
+  pantai lease gauge last 1 on agg-1    : 5.6; first 1 on agg-2: 10.6
+  outbox backlog peak 21 at 14.6, last non-zero at 17.6   (broker paused 1.5..15.7)
+  critical alerts by outcome: published=15 delivered=10 dedup=10
+  [PASS] P5-K7: from metrics alone, the second sensor outage shows as a breaker OPEN during the outage
+  [PASS] P5-K7: from metrics alone, the killed aggregator shows as up=0 within 4 s of the kill (2 s scrape interval)
+  [PASS] P5-K7: from metrics alone, the lease holder change is visible (old holder gauge stops, new holder reads 1)
+  [PASS] P5-K7: from metrics alone, the broker outage shows as an outbox backlog that rises during the pause and drains after it
+prometheus: 15 of 29 expressions return data; 14 empty
+  [PASS] P5-K7/K8: Prometheus scraped all targets (up) and the SLO rules from the manifests evaluate
+RESULT: PASS

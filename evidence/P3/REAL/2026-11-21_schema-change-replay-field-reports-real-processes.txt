@@ -1,0 +1,18 @@
+# P3 on real processes (2026-11-21)
+# command: npx tsx scripts/demo/p3-e2e.ts  (AAT-bebasss @ integration)
+# processes: 3 storage-unit, aggregator ring-host (v1 then restarted as v2), fake apiserver (Lease), poller-host, bmkg-mock, pvmbg-mock (live reports every 1 s), client-api, field-report-processor
+# schema change = POST /admin/schema-version {mode:rename} on the real PVMBG mock; 'system adjusted' = ring-host restarted with VOLCANIC_MAPPER_VERSION=v2
+baseline: 26 PVMBG and 25 BMKG events stored
+parked after the schema change: 3 PVMBG record(s), reasons schema_incompatible: required field missing: volcano_id
+  [PASS] K1/K2: renamed records are parked (not stored, not guessed) with a reason, source and status "parked"
+  [PASS] K3: the poller process kept running (same pid, no restart) and BMKG events kept flowing
+  [PASS] K5: media 403, lapangan 403, internal 200, direct aggregator route without the key 401
+replay after switching the mapper to v2: {"considered":3,"recovered":3,"still_failing":0,"skipped_already_recovered":0,"per_key_order_violations":0}; parked 3 -> 0; PVMBG events 27 -> 30
+  [PASS] K4: replay recovered the parked records (they leave the unprocessed list and become events)
+  [PASS] K4: no duplicate events (one event per source_ref_id)
+  [PASS] K4: a second replay changes nothing ({"considered":0,"recovered":0,"still_failing":0,"skipped_already_recovered":3,"per_key_order_violations":0})
+  [PASS] K6: 40 reports accepted (202) while the processor is paused (p95 82.0 ms)
+field reports: accepted=110 processed=110 duplicates_dropped=10, still pending=0, processor killed 5x
+  [PASS] K6: every 202 was processed exactly once (accepted == processed == 110 unique keys), nothing left pending
+  [PASS] K6: repeats were counted as duplicates, not stored twice (10 client retries)
+RESULT: PASS

@@ -1,0 +1,8 @@
+﻿# P4 on k3s: satellite-processor cannot read the external feed (HTTP 401)
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Feed URL in ConfigMap satellite-processor-config: SAT_FEED_BASE_URL=https://satellite.naufarrel.dev (hosted by the assistants; needs the GROUP token in the secret key SAT_AUTH_TOKEN).
+
+[18:25:26] satellite-processor log summary (last 10 min): 39 x error 'feed returned HTTP 401', 1 x warn 'fetch failed'. Audit counts for source SATELIT stay 0.
+[18:25:26] CAUSE: SAT_AUTH_TOKEN in the untracked .env.local is IDENTICAL to the value in .env.local.example (length 21, not changed), so the real group token was never installed; the secret bnpb-secrets carries that placeholder. (Value not printed.)
+[18:25:26] CONSEQUENCE: every P4 drill that needs the real feed is NOT RUN: leader kill with a second replica that must not open a connection (feed answers 429), catch-up 60x within 60 s with p95, export comparison with the fault-free digest on the real feed, live run, reconnect. The earlier LOCAL-process evidence for P4 (fixture feed) is unaffected.
+[18:25:26] TO UNBLOCK: put the group token into .env.local (SAT_AUTH_TOKEN), run 'make secrets' and restart the satellite-processor (kubectl -n sistem-informasi-kebencanaan-bnpb rollout restart deploy/satellite-processor). Then run the P4 drills.

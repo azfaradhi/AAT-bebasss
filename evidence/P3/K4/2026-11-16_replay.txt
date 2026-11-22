@@ -1,0 +1,14 @@
+# cmd: scripts/demo/p3-k4-replay.sh  (pvmbg-mock via tsx, modes baseline/rename/type_change/drop_required -> PvmbgClient mapper v1 -> Parker; then mapper v2 + POST /internal/ops/replay; InMemoryStorage; no cluster)
+# date: 2026-11-16 15:31 node v20.20.2 branch ms2-prob3-prob4 (T08 working tree, uncommitted)
+before replay: stored 9, parked {"SCHEMA_INCOMPATIBLE":17}
+replay #1: {"considered":17,"recovered":13,"still_failing":4,"skipped_already_recovered":0,"per_key_order_violations":0}
+replay #2: {"considered":4,"recovered":0,"still_failing":4,"skipped_already_recovered":13,"per_key_order_violations":0}
+records seen / stored by v1 / parked                       | 26 / 9 / 17                              | PASS
+parked before -> recovered / still failing                 | 17 -> 13 / 4                             | PASS
+stored events == expected set (all but dropped field)      | 22 of 22                                 | PASS
+duplicate events                                           | 0                                        | PASS
+still parked = dropped required field (cannot be mapped)   | {"SCHEMA_INCOMPATIBLE":4}                | PASS
+content digest vs fault-free run                           | 7020f404d555a708 vs 7020f404d555a708     | PASS
+second replay changes nothing                              | considered 4, recovered 0                | PASS
+
+PASS: all recoverable messages recovered, no duplicates, replay is idempotent

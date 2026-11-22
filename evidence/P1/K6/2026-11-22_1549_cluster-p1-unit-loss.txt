@@ -1,0 +1,23 @@
+# P1-K5/K6: unit node-c wiped and rejoined, then unit node-b wiped; checksums vs baseline
+# date: 2026-11-22T15:49:41.430Z  label: PROSES NYATA di cluster k3s (bukan simulasi)
+# nodes: node-a v1.37.2+k3s1 node-b v1.37.2+k3s1 node-c v1.37.2+k3s1
+# code: AAT-bebasss @ f4ebd2a; drill: scripts/cluster/drills/cluster-p1-unit-loss.mjs
+[15:49:42] mocks bmkg-mock, pvmbg-mock scaled to 0 so Audit checksums of BMKG/PVMBG are stable (restored at the end)
+[15:49:57] BASELINE ring node-a:STABLE/371 node-b:STABLE/472 node-c:STABLE/443 redundancy_ok=true
+[15:49:57] BASELINE BMKG 275/0e2d79338cc3c207 partial=false | PVMBG 275/836feb87414df257 partial=false
+[15:49:59] K5: node-c unit removed (label off), wiped
+[15:50:07]   ring  redundancy_ok=undefined
+[15:50:12]   ring node-a:STABLE/371 node-b:STABLE/472 node-c:JOINING/2 redundancy_ok=false
+[15:50:17]   ring node-a:STABLE/371 node-b:STABLE/472 node-c:STABLE/443 redundancy_ok=true
+[15:50:17] after K5 (20s) ring node-a:STABLE/371 node-b:STABLE/472 node-c:STABLE/443 redundancy_ok=true
+[15:50:17] after K5 BMKG 275/0e2d79338cc3c207 partial=false | PVMBG 275/836feb87414df257 partial=false
+[15:50:17] [PASS] K5: node-c rejoined empty, STABLE, redundancy_ok in 20 s
+[15:50:17] [PASS] K5: counts+checksums equal the baseline (no event lost)
+[15:50:18] K6: node-b unit removed (label off), wiped
+[15:50:27]   ring  redundancy_ok=undefined
+[15:50:32]   ring node-a:STABLE/371 node-b:STABLE/472 node-c:STABLE/443 redundancy_ok=true
+[15:50:32] after K6 (15s) ring node-a:STABLE/371 node-b:STABLE/472 node-c:STABLE/443 redundancy_ok=true
+[15:50:32] after K6 BMKG 275/0e2d79338cc3c207 partial=false | PVMBG 275/836feb87414df257 partial=false
+[15:50:32] [PASS] K6: second loss (node-b) recovered to STABLE in 15 s
+[15:50:32] [PASS] K6: counts+checksums equal the baseline after the second loss
+[15:50:32] RESULT: PASS  -> <repo>\AAT-docs\m2\evidence\P1\K6\2026-11-22_1549_cluster-p1-unit-loss.txt

@@ -1,0 +1,53 @@
+# date: 2026-11-22T07:48:49Z
+# command: npx --prefix services/aggregator tsx scripts/demo/p1-k1-catalogue-loader.ts
+# environment: 3-node (3 shards) & 2-node (4 shards, Changelog 20/11/2026) real storage-unit processes + aggregator ring-host, RF=2, 64 vnodes, catalogue=scripts/demo/fixtures/katalog-gempa-historis.csv (3600 historical Indonesian earthquakes + 1500 single-region surge)
+
+=== P1-K1 & P1-K2: Historical Earthquake Catalogue Sharding & Skew Evaluation ===
+Catalogue file: <repo>/AAT-bebasss/scripts/demo/fixtures/katalog-gempa-historis.csv (3600 historical earthquake events)
+
+1. Natural Regional Skew in Dataset (Top 8 of 22 regions):
+   - Pesisir Selatan, Sumatera Barat       :  292 events (8.1 %)
+   - Nias Selatan, Sumatera Utara          :  282 events (7.8 %)
+   - Bengkulu Selatan, Bengkulu            :  276 events (7.7 %)
+   - Kepulauan Mentawai, Sumatera Barat    :  270 events (7.5 %)
+   - Simeulue, Aceh                        :  248 events (6.9 %)
+   - Malang Selatan, Jawa Timur            :  211 events (5.9 %)
+   - Pangandaran, Jawa Barat               :  204 events (5.7 %)
+   - Pacitan, Jawa Timur                   :  200 events (5.6 %)
+   Top-5 regions account for 38.0 % of the dataset (strong natural geographic skew).
+
+2. P1-K1 Shard (Unit) & Node Placement After Loading 3600 Historical Earthquakes (1498 ms):
+   Ring configuration: 64 virtual nodes/unit, RF=2, 3 storage units across 3 nodes
+   ---------------------------------------------------------------------------------------------------------
+   Node     | Unit   | State  | Primary Role (Writes) | Replica Role (Backup) | Total Keys Stored (% of all)
+   ---------------------------------------------------------------------------------------------------------
+   node-a   | unit-0 | STABLE |  1110 ( 30.8 %)       |  1153 ( 32.0 %)       |  2263 / 3600 ( 62.9 %)
+   node-b   | unit-1 | STABLE |  1242 ( 34.5 %)       |  1324 ( 36.8 %)       |  2566 / 3600 ( 71.3 %)
+   node-c   | unit-2 | STABLE |  1248 ( 34.7 %)       |  1123 ( 31.2 %)       |  2371 / 3600 ( 65.9 %)
+   ---------------------------------------------------------------------------------------------------------
+   Audit API sample location (hz-12c3df7faf79): [{"node":"node-a","unit":"unit-0","role":"primary"},{"node":"node-c","unit":"unit-2","role":"replica"}]
+   Audit API checksum: count=3600, sha256=f4f5600a9afce2b0e3be78efdef9f52372c6ee398a717d4e12dfbbd9e987c6d0
+
+3. P1-K2 Per-Node Load Measurement (Historical Dataset Load vs Single-Region Surge):
+   - Historical catalogue load (3600 events, 81% concentrated in top-3 tectonic belts):
+     Per-node writes: node-a=2263, node-b=2566, node-c=2371 (imbalance 12.6 % of mean)
+   - Single-region surge (1500 events, 100% in "Donggala, Sulawesi Tengah"):
+     Per-node writes: node-a=929, node-b=1066, node-c=1005 (imbalance 13.7 % of mean)
+
+4. Verification Checks:
+  [PASS] P1-K1: loaded 3600 historical earthquake events from catalogue file
+  [PASS] P1-K1: no single unit holds all data (each unit holds ~66.7% at RF=2: 2263 / 2566 / 2371 < 3600)
+  [PASS] P1-K1: primary role is distributed across all 3 nodes (1110 / 1242 / 1248, max skew 11.5% < 15%)
+  [PASS] P1-K1: 100% of events (3600/3600) have their replica on a different node from their primary
+  [PASS] P1-K1: Audit API SHA-256 checksum matches the loaded historical earthquake catalogue
+  [PASS] P1-K2: natural regional skew absorbed during catalogue load (write imbalance 12.6% < 15%)
+  [PASS] P1-K2: single-region surge absorbed evenly (write imbalance 13.7% < 15%)
+
+5. Changelog (20/11/2026) 2-Node Cluster Verification (4 Shards across 2 Nodes: shard-a1, shard-a2 on node-a; shard-b1, shard-b2 on node-b):
+   node-a   | shard-a1 | primary= 748 | replica= 788 | total_keys=1536 / 3600 (42.7 %)
+   node-a   | shard-a2 | primary= 983 | replica=1081 | total_keys=2064 / 3600 (57.3 %)
+   node-b   | shard-b1 | primary= 824 | replica= 911 | total_keys=1735 / 3600 (48.2 %)
+   node-b   | shard-b2 | primary=1045 | replica= 820 | total_keys=1865 / 3600 (51.8 %)
+   After killing entire worker node-b (both shard-b1 & shard-b2): count=3600, checksum_match=true, partial=false
+  [PASS] P1-K1/K4 (2-Node 4-Shard Changelog mode): no shard holds all data (max=2064 < 3600), 100% (3600/3600) cross-node replicas, and killing entire worker node-b loses 0 events
+RESULT: PASS

@@ -1,0 +1,40 @@
+# MB1-T01 Parker + guards unit/conformance run — 2026-11-13 12:38 local
+# env: aggregator@44b7ed0 (branch ms2-prob3-prob4), node v20.20.2, in-memory storage (3 units, RF=2 fake); UNIT level only, not the cluster fuzz (that is MB1-T03)
+
+ RUN  v3.2.7 <repo>/AAT-bebasss/services/aggregator
+
+ ✓ src/ingest/parker.test.ts > Parker conformance: real StorageBackedParker (ingest/) > K1 guard: valid JSON passes 1ms
+ ✓ src/ingest/parker.test.ts > Parker conformance: real StorageBackedParker (ingest/) > K2 guard classifies malformed input without throwing (truncated JSON, invalid UTF-8, too deep, too large) 0ms
+ ✓ src/ingest/parker.test.ts > Parker conformance: real StorageBackedParker (ingest/) > K3 guard order: size is checked before UTF-8/JSON (an oversized garbage body is PAYLOAD_TOO_LARGE) 0ms
+ ✓ src/ingest/parker.test.ts > Parker conformance: real StorageBackedParker (ingest/) > K4 retryable reasons become status=retrying with next_attempt_at; permanent reasons become parked immediately 1ms
+ ✓ src/ingest/parker.test.ts > Parker conformance: real StorageBackedParker (ingest/) > K5 parking the same bytes twice is idempotent (one record, attempts increments) and raw bytes are kept intact 1ms
+ ✓ src/ingest/parker.test.ts > Parker conformance: real StorageBackedParker (ingest/) > K6 retries exhausted → parked with RETRIES_EXHAUSTED, still retryable=true 1ms
+ ✓ src/ingest/parker.test.ts > Parker conformance: real StorageBackedParker (ingest/) > K7 listUnprocessed paginates and never shows recovered messages 1ms
+ ✓ src/ingest/parker.test.ts > Parker conformance: real StorageBackedParker (ingest/) > K8 replay is sequential per ordering_key (arrival order), idempotent, and stops a key at its first failure 14ms
+ ✓ src/ingest/parker.test.ts > Parker conformance: real StorageBackedParker (ingest/) > K9 replay failure leaves the message parked, bumps attempts, and does not process later messages of the same key 6ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > valid 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > empty body 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > whitespace only 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > truncated 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > NUL byte outside string 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > NUL byte inside string 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > trailing garbage 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > html error page 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > UTF-8 BOM is tolerated and stripped 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > invalid UTF-8 variants 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > deep nesting: arrays, objects, mixed, and brackets hidden in strings do not count 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > huge string value: ok just under the size limit, PAYLOAD_TOO_LARGE just over 5ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > size is measured in bytes, not characters 0ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > 50 MB body is rejected by size without being decoded 6ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > never throws on random bytes 7ms
+ ✓ src/ingest/parker.test.ts > guard classes (P3-K3) > content-type mismatch is rejected before parsing, size first 0ms
+ ✓ src/ingest/parker.test.ts > configurable limits > env overrides and defaults 1ms
+ ✓ src/ingest/parker.test.ts > configurable limits > parker applies limits and PARK_MAX_ATTEMPTS 0ms
+ ✓ src/ingest/parker.test.ts > configurable limits > each reason code maps to the right retryable/status 0ms
+ ✓ src/ingest/parker.test.ts > configurable limits > oversized raw is stored truncated with hash and size intact 2ms
+
+ Test Files  1 passed (1)
+      Tests  29 passed (29)
+   Start at  12:38:04
+   Duration  364ms (transform 107ms, setup 0ms, collect 121ms, tests 51ms, environment 0ms, prepare 40ms)
+

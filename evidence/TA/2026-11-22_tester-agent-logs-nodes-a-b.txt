@@ -1,0 +1,21 @@
+﻿# kubectl logs of the Tester Agent pods on node-a and node-b (hash-chained action log; seq/prev/mac fields come from the agent). Date 2026-11-22. Pod on node-c was unreachable (node powered off by wipe_and_shutdown).
+
+
+===== tester-agent-tmlq5 =====
+2026/11/22 05:30:05 tester-agent mulai di node node-a; sha256 biner=86d511c735a67b21a406116da594a12927585867cb391dfdd4d6a222965aa418
+
+===== tester-agent-z6zsb =====
+2026/11/22 05:30:06 tester-agent mulai di node node-b; sha256 biner=86d511c735a67b21a406116da594a12927585867cb391dfdd4d6a222965aa418
+{"seq":1,"ts":"2026-11-22T06:53:54Z","action":"[L] skenario \"partition\" (practice) mulai; 1 langkah","prev":""}
+{"seq":2,"ts":"2026-11-22T06:53:59Z","action":"[L] langkah 1 mulai: block_internode selama 30s"}
+{"seq":3,"ts":"2026-11-22T06:53:59Z","action":"[L] langkah 1 gagal: biner iptables tidak ditemukan di host (/host/sbin, /host/usr/sbin, dsb)"}
+{"seq":4,"ts":"2026-11-22T06:53:59Z","action":"[L] skenario selesai"}
+{"seq":5,"ts":"2026-11-22T06:53:59Z","action":"[L] pemulihan akhir selesai; keadaan bersih"}
+{"seq":6,"ts":"2026-11-22T06:57:58Z","action":"[L] skenario \"schema\" (practice) mulai; 1 langkah"}
+{"seq":7,"ts":"2026-11-22T06:58:03Z","action":"[L] langkah 1 mulai: call_mock_admin POST /admin/schema-version"}
+{"seq":8,"ts":"2026-11-22T06:58:03Z","action":"[L] langkah 1 gagal: Post \"http://10.43.139.20:8081/admin/schema-version\": dial tcp 10.43.139.20:8081: connect: connection refused"}
+{"seq":9,"ts":"2026-11-22T06:58:03Z","action":"[L] skenario selesai"}
+{"seq":10,"ts":"2026-11-22T06:58:03Z","action":"[L] pemulihan akhir selesai; keadaan bersih"}
+2026/11/22 07:07:03 koordinasi: Put "https://10.43.0.1:443/apis/coordination.k8s.io/v1/namespaces/tester-agent/leases/tester-agent-node-node-b": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+2026/11/22 07:08:08 koordinasi: Put "https://10.43.0.1:443/apis/coordination.k8s.io/v1/namespaces/tester-agent/leases/tester-agent-node-node-b": context deadline exceeded (Client.Timeout exceeded while awaiting headers)
+2026/11/22 07:08:23 koordinasi: Get "https://10.43.0.1:443/apis/coordination.k8s.io/v1/namespaces/tester-agent/leases/tester-agent-node-node-b": context deadline exceeded (Client.Timeout exceeded while awaiting headers)

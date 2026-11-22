@@ -1,0 +1,1 @@
+{"captured":"2026-11-13 ~12:24 local, while a from=0 stream was open (~8 s in)","status":429,"retry_after_header":null,"body":{"error":{"code":"too_many_connections","message":"koneksi aktif lain ditutup; sambung ulang"}}}

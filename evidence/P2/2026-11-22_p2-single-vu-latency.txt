@@ -1,0 +1,111 @@
+# Single virtual user, no think time, 15 s, against client-api -> aggregator -> ring (3 VMs on one laptop). Date 2026-11-22, after the storage-unit startupProbe fix.
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+
+     execution: local
+        script: load-tests/p2/aggregator-scale.k6.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 1 max VUs, 27s max duration (incl. graceful stop):
+              * sustained: Up to 1 looping VUs for 17s over 3 stages (gracefulRampDown: 10s, gracefulStop: 30s)
+
+
+Run         [ 100% ] setup()
+sustained   [   0% ]
+
+running (02.0s), 0/1 VUs, 0 complete and 0 interrupted iterations
+sustained   [   5% ] 0/1 VUs  00.9s/17.0s
+
+running (03.0s), 1/1 VUs, 0 complete and 0 interrupted iterations
+sustained   [  11% ] 1/1 VUs  01.9s/17.0s
+
+running (04.0s), 1/1 VUs, 3 complete and 0 interrupted iterations
+sustained   [  17% ] 1/1 VUs  02.9s/17.0s
+
+running (05.0s), 1/1 VUs, 6 complete and 0 interrupted iterations
+sustained   [  23% ] 1/1 VUs  03.9s/17.0s
+
+running (06.0s), 1/1 VUs, 10 complete and 0 interrupted iterations
+sustained   [  29% ] 1/1 VUs  04.9s/17.0s
+
+running (07.0s), 1/1 VUs, 13 complete and 0 interrupted iterations
+sustained   [  35% ] 1/1 VUs  05.9s/17.0s
+
+running (08.0s), 1/1 VUs, 16 complete and 0 interrupted iterations
+sustained   [  41% ] 1/1 VUs  06.9s/17.0s
+
+running (09.0s), 1/1 VUs, 21 complete and 0 interrupted iterations
+sustained   [  47% ] 1/1 VUs  07.9s/17.0s
+
+running (10.0s), 1/1 VUs, 22 complete and 0 interrupted iterations
+sustained   [  52% ] 1/1 VUs  08.9s/17.0s
+
+running (11.0s), 1/1 VUs, 25 complete and 0 interrupted iterations
+sustained   [  58% ] 1/1 VUs  09.9s/17.0s
+
+running (12.0s), 1/1 VUs, 28 complete and 0 interrupted iterations
+sustained   [  64% ] 1/1 VUs  10.9s/17.0s
+
+running (13.0s), 1/1 VUs, 33 complete and 0 interrupted iterations
+sustained   [  70% ] 1/1 VUs  11.9s/17.0s
+
+running (14.0s), 1/1 VUs, 34 complete and 0 interrupted iterations
+sustained   [  76% ] 1/1 VUs  12.9s/17.0s
+
+running (15.0s), 1/1 VUs, 39 complete and 0 interrupted iterations
+sustained   [  82% ] 1/1 VUs  13.9s/17.0s
+
+running (16.0s), 1/1 VUs, 41 complete and 0 interrupted iterations
+sustained   [  88% ] 1/1 VUs  14.9s/17.0s
+
+running (17.0s), 1/1 VUs, 44 complete and 0 interrupted iterations
+sustained   [  94% ] 1/1 VUs  15.9s/17.0s
+
+running (18.0s), 1/1 VUs, 48 complete and 0 interrupted iterations
+sustained   [ 100% ] 1/1 VUs  16.9s/17.0s
+
+
+  █ THRESHOLDS 
+
+    p2_error_rate
+    ✓ 'rate<0.01' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......: 49      2.629727/s
+    checks_succeeded...: 100.00% 49 out of 49
+    checks_failed......: 0.00%   0 out of 49
+
+    ✓ status is 200 or controlled 429
+
+    CUSTOM
+    p2_error_rate..................: 0.00%  0 out of 49
+    p2_status_200..................: 49     2.629727/s
+
+    HTTP
+    http_req_duration..............: avg=331.4ms  p(50)=211.57ms p(95)=895.91ms p(99)=1.21s max=1.27s
+      { expected_response:true }...: avg=331.4ms  p(50)=211.57ms p(95)=895.91ms p(99)=1.21s max=1.27s
+    http_req_failed................: 0.00%  0 out of 50
+    http_reqs......................: 50     2.683395/s
+
+    EXECUTION
+    iteration_duration.............: avg=337.87ms p(50)=214.15ms p(95)=901.89ms p(99)=1.22s max=1.28s
+    iterations.....................: 49     2.629727/s
+    vus............................: 1      min=0       max=1
+    vus_max........................: 1      min=1       max=1
+
+    NETWORK
+    data_received..................: 958 kB 51 kB/s
+    data_sent......................: 21 kB  1.1 kB/s
+
+
+
+
+running (18.6s), 0/1 VUs, 49 complete and 0 interrupted iterations
+sustained ✓ [ 100% ] 0/1 VUs  17s

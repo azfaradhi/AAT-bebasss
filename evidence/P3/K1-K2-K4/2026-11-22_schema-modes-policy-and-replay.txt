@@ -1,0 +1,30 @@
+﻿# P3 on k3s: pvmbg-mock schema modes (additive, rename, type_change, drop_required), parked vs stored, retryable flag, then replay
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# Method: POST pvmbg-mock /admin/schema-version {mode}, POST /admin/generate {count:20}, wait 25 s, read PVMBG count and PVMBG parked items (Audit), finally reset to baseline and POST aggregator /internal/ops/replay. The Tester Agent's own schema step cannot reach pvmbg-mock (see the schema rerun file), so the admin endpoint is called directly.
+
+[17:59:46] BASELINE: PVMBG count=ERR parked: ERR
+[18:00:15] mode additive: set -> 200 {"mode":"additive","confidence_level_enabled":false}
+[18:00:34] mode additive: generate 20 -> 200 {"generated":20,"mode":"additive"}
+[18:02:14] mode additive: PVMBG count 455 -> 482; parked: total=0 
+[18:02:47] mode rename: set -> 200 {"mode":"rename","confidence_level_enabled":false}
+[18:02:59] mode rename: generate 20 -> 200 {"generated":20,"mode":"rename"}
+[18:04:31] mode rename: PVMBG count 490 -> 492; parked: total=3 [parked/retryable=False/schema_incompatible: required field missing: volcano_id] x3
+[18:05:06] mode type_change: set -> 200 {"mode":"type_change","confidence_level_enabled":false}
+[18:05:17] mode type_change: generate 20 -> 200 {"generated":20,"mode":"type_change"}
+[18:06:48] mode type_change: PVMBG count 94 -> 78; parked: total=2 [parked/retryable=False/schema_incompatible: required field missing: volcano_id] x2
+[18:06:59] mode drop_required: set -> 200 {"mode":"drop_required","confidence_level_enabled":false}
+[18:07:04] mode drop_required: generate 20 -> 200 {"generated":20,"mode":"drop_required"}
+[18:08:03] mode drop_required: PVMBG count 492 -> 492; parked: total=3 [parked/retryable=False/schema_incompatible: field eruption_count_Nh expected number, got string] x2 [parked/retryable=False/schema_incompatible: required field missing: volcano_id] x1
+[18:08:11] reset baseline -> 200 {"mode":"baseline","confidence_level_enabled":false}
+[18:09:13] BEFORE replay: PVMBG count=494 parked: ERR
+[18:09:34] replay response: error: pod, type/name or --filename must be specified
+[18:10:32] AFTER replay: PVMBG count=ERR parked: ERR
+[18:10:57] NOTE: the replay step above failed because the script found no Ready aggregator pod at that moment (script/cluster glitch); its 'parked: ERR' and 'replay response: error' lines are INVALID. Replay redone below.
+[18:11:00] REPLAY BEFORE: PVMBG count=ERR parked: ERR error: pod, type/name or --filename must be specified
+[18:11:01] replay response: error: pod, type/name or --filename must be specified
+[18:12:13] REPLAY AFTER: PVMBG count=97 parked: total=8 [parked/retryable=False/schema_incompatible: field eruption_count_Nh expected number, got string] x4 [parked/retryable=False/schema_incompatible: required field missing: volcano_id] x4
+[18:15:12] REPLAY2 BEFORE: PVMBG count=496 partial=False parked: total=3 [parked/retryable=False/schema_incompatible: field eruption_count_Nh expected number, got string] x2 [parked/retryable=False/schema_incompatible: required field missing: volcano_id] x1
+[18:20:19] REPLAY2 response: node:internal/deps/undici/undici:14976       Error.captureStackTrace(err);             ^ System.Management.Automation.RemoteException TypeError: fetch failed     at node:internal/deps/undici/undici:14976:13     at async eval (eval at <anonymous> ([eval]:1:1), <anonymous>:1:20) {   [cause]: HeadersTimeoutError: Headers Timeout Error       at FastTimer.onParserTimeout [as _onTimeout] (node:internal/deps/undici/undici:6391:32)       at Timeout.onTick [as _onTimeout] (node:internal/deps/undici/undici:2354:17)       at listOnTimeout (node:internal/timers:581:17)       at process.processTimers (node:internal/timers:519:7) {     code: 'UND_ERR_HEADERS_TIMEOUT',     [Symbol(undici.error.UND_ERR)]: true,     [Symbol(undici.error.UND_ERR_HEADERS_TIMEOUT)]: true   } } System.Management.Automation.RemoteException Node.js v20.20.2 command terminated with exit code 1
+[18:21:09] REPLAY2 AFTER: PVMBG count=567 partial=False parked: total=3 [parked/retryable=False/schema_incompatible: field eruption_count_Nh expected number, got string] x2 [parked/retryable=False/schema_incompatible: required field missing: volcano_id] x1
+[18:21:09] ANALYSIS: policy observed on k3s: additive -> stored (PVMBG count rose 455->482, parked 0); rename, type_change and drop_required -> parked with reason schema_incompatible (required field missing: volcano_id; field eruption_count_24h expected number, got string), retryable=False, never stored. The loop kept running and no pod restarted. The Audit count printed for some steps jumps (94 -> 78 vs 490 -> 492) because the ring/Audit answers were partial or slow on the loaded VMs at those instants: read these counts as indicative, not exact. 'replay' of non-retryable items after the schema returned to baseline: see REPLAY2 lines.
+[18:21:17] RESULT replay (P3-K4 'replay -> exact recovery'): NOT DEMONSTRATED. POST /internal/ops/replay {source:PVMBG, include_retryable:true} did not return within the client's 300 s headers timeout (HeadersTimeoutError) and the 3 parked PVMBG items were still parked afterwards (count 496 -> 567 only from new polls). The first replay attempt (18:09) had also failed for an unrelated script reason. Needs a follow-up: time the endpoint in isolation on a quiet cluster and read the aggregator log for 'replay finished'.

@@ -1,0 +1,26 @@
+# date: 2026-11-22T07:17:41Z
+# command: npx --prefix services/aggregator tsx scripts/demo/bon3-autoscaling-e2e.ts
+# environment: 3 real storage-unit processes + multi-worker HTTP Load Balancer + 3..5 real aggregator processes, HpaController (minReplicas=3, maxReplicas=5, targetAverageUtilization=70%, stabilizationWindow=3s)
+
+=== BON-3 (MB2-C1): Self-Adjusting Capacity (Autoscaling 3 -> 5 -> 3 Replicas Following Load) ===
+
+Time | Phase            | Target Load | Avg Replica Load | Avg Util % | Replicas | HPA Action
+-------------------------------------------------------------------------------------------------
+t= 1s | 1. Baseline Low  |      90 r/s |           36 r/s |       36 % |  3 -> 3  | noop
+t= 2s | 1. Baseline Low  |      90 r/s |           38 r/s |       38 % |  3 -> 3  | noop
+t= 3s | 1. Baseline Low  |      90 r/s |           35 r/s |       35 % |  3 -> 3  | noop
+t= 4s | 2. Traffic Surge |     380 r/s |         99.7 r/s |     99.7 % |  3 -> 5  | scale_up
+t= 5s | 2. Traffic Surge |     380 r/s |        223.4 r/s |    223.4 % |  5 -> 5  | noop
+t= 6s | 2. Traffic Surge |     380 r/s |         74.6 r/s |     74.6 % |  5 -> 5  | noop
+t= 7s | 2. Traffic Surge |     380 r/s |           69 r/s |       69 % |  5 -> 5  | noop
+t= 8s | 3. Cool-down     |      90 r/s |         33.8 r/s |     33.8 % |  5 -> 5  | noop
+t= 9s | 3. Cool-down     |      90 r/s |         27.4 r/s |     27.4 % |  5 -> 5  | noop
+t=10s | 3. Cool-down     |      90 r/s |           28 r/s |       28 % |  5 -> 3  | scale_down
+t=11s | 3. Cool-down     |      90 r/s |           50 r/s |       50 % |  3 -> 3  | noop
+t=12s | 3. Cool-down     |      90 r/s |           38 r/s |       38 % |  3 -> 3  | noop
+
+Autoscaling summary: total HTTP requests=2557, failed=0, replica trajectory=3->3->3->5->5->5->5->5->5->3->3->3
+  [PASS] BON-3a: capacity automatically scaled OUT from 3 to 5 instances when load rose above 70% target utilization
+  [PASS] BON-3b: capacity automatically scaled IN from 5 back to 3 instances after load dropped and stabilization window elapsed
+  [PASS] BON-3c: 0 failed requests during automatic scale-up and scale-down (0/2557 failed)
+RESULT: PASS

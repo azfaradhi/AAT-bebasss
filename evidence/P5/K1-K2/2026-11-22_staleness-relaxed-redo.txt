@@ -1,0 +1,20 @@
+﻿# P5 on k3s EXPERIMENT (redo): real sensor-pantai (practice) with PANTAI_MAX_STALENESS_S raised from 3600 to 99999999
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# NOT the demo configuration. Purpose: see which behaviours are quarantined besides staleness and whether critical observations reach the notifier. Config restored at the end (patch files used, the earlier attempt failed on shell quoting).
+
+[18:39:19] patch: configmap/aggregator-config patched
+[18:39:19] cm value now: 99999999
+[18:41:42] rollout: deployment "aggregator" successfully rolled out
+[18:42:45] t+63s stored SENSOR_PANTAI=95; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:43:48] t+127s stored SENSOR_PANTAI=352; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:44:53] t+191s stored SENSOR_PANTAI=654; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:46:03] t+262s stored SENSOR_PANTAI=939; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:47:09] t+327s stored SENSOR_PANTAI=1259; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:48:15] t+394s stored SENSOR_PANTAI=1513; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:49:23] t+461s stored SENSOR_PANTAI=1832; parked=997 [parked/contract_violation: invalid_quality_flag: expected 'ok', got 'suspect'] x6 [parked/contract_violation: stale_observation: age Ns exceeds max Ns] x991
+[18:49:29] critical-deliveries: 200 {"items":[],"total":0,"p95_seconds":null,"next_cursor":null}
+[18:49:30] config restored: PANTAI_MAX_STALENESS_S=3600; aggregators restarted
+[18:50:13] ANALYSIS: with the staleness guard relaxed the real sensor's backlog IS accepted: stored SENSOR_PANTAI events grew from 95 (t+63 s) to 1832 (t+461 s), about 3.7 events/s (the poller is designed for pages of 100 every 2 s, i.e. up to 50/s; the loaded cluster delivers a fraction of that).
+[18:50:13] ANALYSIS: the 997 parked items are not all new: 991 'stale_observation' items were parked by the earlier run with the 3600 s limit and stay in the quarantine list; the 6 'invalid_quality_flag: expected ok, got suspect' are NEW and come from the relaxed run, i.e. suspect-quality observations ARE quarantined with an explicit reason (P5-K2 'quarantine with reasons' for another behaviour, not only staleness).
+[18:50:13] ANALYSIS: critical-deliveries returned total=0 after 8 minutes. The 3 critical=true observations are among the first 6000 items but at about 3.7 events/s they were not reached yet, so P5-K1 (0 critical lost, p95 <= 5 s) was NOT demonstrated; nothing can be concluded about delivery latency from this run.
+[18:50:13] CAVEAT: this was an experiment; the guard is back at 3600 s (ConfigMap restored) and the aggregators were restarted.

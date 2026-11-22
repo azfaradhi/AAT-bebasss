@@ -1,0 +1,93 @@
+# Evidence: MB3-T00 — Preflight Image Architecture Inspection & Host Hardware Probe
+# Timestamp: 2026-11-13 13:55 WIB
+# Author: Member 3 (Rafif Farras)
+# Criteria: PLAT-2, PLAT-6, TOPO-1, TA-1, Risk R2, Risk R3
+# Environment: Host node-a (Windows 11 x64, 12th Gen Intel Core i5-12450H, 12 logical CPUs, 31.65 GiB RAM), Docker Engine 27.x
+
+================================================================================
+1. COMMAND: docker buildx imagetools inspect (pinned spec digests)
+================================================================================
+$ docker buildx imagetools inspect sustuna/tester-agent@sha256:b3143da159cf23a8744ede12b847da6208353754234d53a5a7b46d071cf277ec
+Name:      docker.io/sustuna/tester-agent@sha256:b3143da159cf23a8744ede12b847da6208353754234d53a5a7b46d071cf277ec
+MediaType: application/vnd.docker.distribution.manifest.v2+json
+Digest:    sha256:b3143da159cf23a8744ede12b847da6208353754234d53a5a7b46d071cf277ec
+
+$ docker buildx imagetools inspect sustuna/sensor-pantai@sha256:51fbd90d3891ad6e9f5768ad330ffb65205644cb29e50da65c7538f2e0b4397d
+Name:      docker.io/sustuna/sensor-pantai@sha256:51fbd90d3891ad6e9f5768ad330ffb65205644cb29e50da65c7538f2e0b4397d
+MediaType: application/vnd.docker.distribution.manifest.v2+json
+Digest:    sha256:51fbd90d3891ad6e9f5768ad330ffb65205644cb29e50da65c7538f2e0b4397d
+
+================================================================================
+2. COMMAND: docker manifest inspect -v (platform/architecture verification)
+================================================================================
+$ docker manifest inspect -v sustuna/tester-agent@sha256:b3143da159cf23a8744ede12b847da6208353754234d53a5a7b46d071cf277ec
+{
+  "Ref": "docker.io/sustuna/tester-agent@sha256:b3143da159cf23a8744ede12b847da6208353754234d53a5a7b46d071cf277ec",
+  "Descriptor": {
+    "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+    "digest": "sha256:b3143da159cf23a8744ede12b847da6208353754234d53a5a7b46d071cf277ec",
+    "size": 734,
+    "platform": {
+      "architecture": "amd64",
+      "os": "linux"
+    }
+  }
+}
+
+$ docker manifest inspect -v sustuna/sensor-pantai@sha256:51fbd90d3891ad6e9f5768ad330ffb65205644cb29e50da65c7538f2e0b4397d
+{
+  "Ref": "docker.io/sustuna/sensor-pantai@sha256:51fbd90d3891ad6e9f5768ad330ffb65205644cb29e50da65c7538f2e0b4397d",
+  "Descriptor": {
+    "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+    "digest": "sha256:51fbd90d3891ad6e9f5768ad330ffb65205644cb29e50da65c7538f2e0b4397d",
+    "size": 734,
+    "platform": {
+      "architecture": "amd64",
+      "os": "linux"
+    }
+  }
+}
+
+FINDING (R3):
+Both assistant-supplied images are single-architecture `linux/amd64` (SchemaV2Manifest, no arm64 manifest list).
+All three team laptops are x86_64 (Intel/AMD), so all 3 Linux VMs run `linux/amd64` natively without QEMU emulation.
+
+================================================================================
+3. HOST HARDWARE PROBE (node-a physical host)
+================================================================================
+$ node -e "const os=require('os'); console.log({arch:os.arch(), platform:os.platform(), cpus:os.cpus().length, model:os.cpus()[0]?.model, ramGB:(os.totalmem()/1024/1024/1024).toFixed(2)})"
+{
+  arch: 'x64',
+  platform: 'win32',
+  cpus: 12,
+  model: '12th Gen Intel(R) Core(TM) i5-12450H',
+  ramGB: '31.65'
+}
+
+================================================================================
+4. CAPACITY CALCULATION SUMMARY (Lampiran B)
+================================================================================
+App Namespace (`sistem-informasi-kebencanaan-bnpb`):
+- aggregator (role=aggregator, 3 replicas):          3 x 256Mi / 512Mi  =  768Mi req /  1536Mi lim
+- storage-unit (role=store, DaemonSet 3 pods):       3 x 512Mi / 1024Mi = 1536Mi req /  3072Mi lim
+- rabbitmq (role=broker, StatefulSet 3 pods):        3 x 512Mi / 1024Mi = 1536Mi req /  3072Mi lim
+- satellite-processor (role=broker, 2 replicas):     2 x 512Mi / 1024Mi = 1024Mi req /  2048Mi lim
+- auth-service (role=api, 2 replicas):               2 x 128Mi / 256Mi  =  256Mi req /   512Mi lim
+- client-api (role=api, 2 replicas):                 2 x 128Mi / 256Mi  =  256Mi req /   512Mi lim
+- field-report-processor (role=consumer, 2 rep):     2 x 128Mi / 256Mi  =  256Mi req /   512Mi lim
+- notifier-lapangan (role=consumer, 1 replica):      1 x 128Mi / 256Mi  =  128Mi req /   256Mi lim
+- dashboard-updater (role=consumer, 1 replica):      1 x 128Mi / 256Mi  =  128Mi req /   256Mi lim
+- analytics-dashboard (role=other, 1 replica):       1 x 128Mi / 256Mi  =  128Mi req /   256Mi lim
+- bmkg-mock (role=mock, 1 replica):                  1 x  64Mi / 128Mi  =   64Mi req /   128Mi lim
+- pvmbg-mock (role=mock, 1 replica):                 1 x  64Mi / 128Mi  =   64Mi req /   128Mi lim
+- sensor-pantai (role=sensor, 1 replica, Q4):        1 x 128Mi / 256Mi  =  128Mi req /   256Mi lim
+Subtotal App Namespace (21 pods):                    6272Mi (6.125 GiB) req / 12544Mi (12.25 GiB) lim
+
+Observability Namespace (`observability`, Q3):
+- prometheus, grafana, otel-collector, tempo (4):    4 x 128Mi / 256Mi  =  512Mi req /  1024Mi lim
+
+Total Cluster (25 managed pods + 3 tester-agent DaemonSet pods):
+- Total Requests: 6784 MiB (~6.63 GiB) -> ~2.21 GiB/node average across 3 nodes
+- Total Limits:   13568 MiB (13.25 GiB) -> ~4.42 GiB/node average across 3 nodes
+- VM Allocation:  node-a = 8 GiB RAM (4 vCPU), node-b = 6-8 GiB RAM (4 vCPU), node-c = 6-8 GiB RAM (4 vCPU)
+- Total VM RAM:   20-24 GiB across 3 nodes (> 45% headroom above total limits, > 65% above total requests)

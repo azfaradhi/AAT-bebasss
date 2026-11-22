@@ -1,0 +1,54 @@
+﻿# Round 2 / Step 1: where does a slow read spend its time? (read loop + vmstat + direct unit calls + top + writes/s)
+# Date 2026-11-22. Label: PROSES NYATA (k3s; 3 VirtualBox VMs on ONE laptop, not separate physical hosts). Times are WIB (UTC+7) unless marked Z.
+# State: ring 3 units STABLE, mocks 1 replica, observability 0, 5 aggregator replicas, images rebuilt after the merge.
+
+[21:50:24] vmstat node .101 : 
+[21:50:28] vmstat node .102 : 
+[21:50:33] vmstat node .103 : 
+[21:50:34] direct to unit on node-a (10.42.0.141) 10x /u/events?limit=5 [ms]: 267 180 84 59 37 19 16 58 15 15
+[21:50:36] direct to unit on node-b (10.42.1.67) 10x /u/events?limit=5 [ms]: 396 46 19 137 42 62 34 23 175 20
+[21:50:37] direct to unit on node-c (10.42.2.102) 10x /u/events?limit=5 [ms]: 599 62 9 27 28 8 8 8 47 9
+[21:50:37] $ kubectl top pod -n sistem-informasi-kebencanaan-bnpb --containers --sort-by=cpu
+    POD                                       NAME                     CPU(cores)   MEMORY(bytes)   
+    aggregator-548598ccd-4xvvw                aggregator               528m         46Mi            
+    aggregator-548598ccd-xxgsx                aggregator               512m         42Mi            
+    aggregator-548598ccd-2zgw7                aggregator               501m         52Mi            
+    satellite-processor-696f69bfdb-ffj6g      satellite-processor      494m         51Mi            
+    aggregator-548598ccd-kzf9l                aggregator               456m         42Mi            
+    aggregator-548598ccd-c8g5f                aggregator               383m         46Mi            
+    storage-unit-59sck                        storage-unit             330m         69Mi            
+    storage-unit-nvl9j                        storage-unit             267m         155Mi           
+    storage-unit-2jp42                        storage-unit             219m         61Mi            
+    field-report-processor-7fc5f9659b-m5782   field-report-processor   34m          29Mi            
+    rabbitmq-0                                rabbitmq                 28m          157Mi           
+    rabbitmq-1                                rabbitmq                 23m          160Mi           
+    dashboard-updater-549f7f9675-98fdd        dashboard-updater        13m          20Mi            
+    satellite-processor-696f69bfdb-b2f2w      satellite-processor      7m           48Mi            
+    auth-service-79f59bdf69-gjnzt             auth-service             6m           18Mi            
+    notifier-b8774b695-rzz86                  notifier                 6m           19Mi            
+    client-api-6cb9cbf9d9-wrvb8               client-api               5m           19Mi            
+    pvmbg-mock-8fd944949-74lf9                pvmbg-mock               5m           15Mi            
+    bmkg-mock-6457584598-b9j4b                bmkg-mock                5m           15Mi            
+    auth-service-79f59bdf69-xv7jw             auth-service             5m           38Mi            
+    client-api-6cb9cbf9d9-jhjdp               client-api               4m           32Mi            
+    sensor-pantai-78f588f5b9-qmdgn            sensor                   3m           43Mi            
+    analytics-dashboard-747fd59bc8-xjnmv      analytics-dashboard      2m           14Mi
+[21:50:38] read loop via aggregator Service (20 x limit=5, 0.5 s apart) [ms]: 1078 9 1550 21 1877 10 968 12 1153 10 834 9 570 14 904 16 1111 6 957 13 
+[21:50:39] writes_total 1st read: node-a=3344 node-b=4353 node-c=4171
+[21:50:39] writes_total 2nd read (23 s later): node-a=5213 node-b=6286 node-c=5999
+[21:50:47] (the three 'vmstat' lines above are EMPTY: awk quoting error; raw vmstat below. columns: r b swpd free buff cache si so bi bo in cs us sy id wa st)
+[21:50:51] vmstat node .101 (3 samples):
+     0  0      0 6364904  49888 1128960    0    0     0     0 6356 6180 21 22 57  0  0  0
+     2  0      0 6364040  49888 1129004    0    0     0    12 5973 5930 12 16 71  0  0  0
+     0  0      0 6363788  50040 1129052    0    0     0   780 6338 6017 26 29 41  3  0  0
+[21:50:54] vmstat node .102 (3 samples):
+     1  0      0 4998844  72344 843904    0    0     0     4 4051 2844 19 25 56  0  0  0
+     5  0      0 4996352  72344 843948    0    0     0     4 4107 3321 24 35 41  0  0  0
+     3  0      0 4996352  72352 844004    0    0     0    92 3825 2745 25 30 44  1  0  0
+[21:51:01] vmstat node .103 (3 samples):
+     4  0      0 4438548 107600 1299872    0    0     0     0 4582 4121 23 32 45  0  0  0
+     0  0      0 4437036 107600 1299952    0    0     0     4 4409 3799 19 33 48  0  0  0
+     3  0      0 4436784 107600 1300008    0    0     0     0 4176 4128 23 34 43  0  0  0
+[21:51:15] VERDICT 1/3: units are NOT slow: straight to each unit (bypassing the ring) /u/events?limit=5 takes 8-60 ms after a 267-599 ms first call; vmstat shows no VM disk or network problem (wa 0-3 %, st 0, si/so 0, us+sy 45-55 %).
+[21:51:15] VERDICT 2/3: reads through the aggregator Service are bimodal: about 10 ms on some replicas and 0.6-1.9 s on others (20 reads: 1078 9 1550 21 1877 10 968 12 ...). All 5 aggregator replicas sit at 380-530 m CPU and each unit writes about 80 docs/s even idle (writes_total +1869/+1933/+1828 in 23 s), so a read that lands on a busy replica queues behind constant background work in its single event loop.
+[21:51:16] VERDICT 3/3 (aggregator slow, not unit / network / VM disk): the cost is write amplification from the pollers, outbox and fence/doc writes (about 240 writes/s across 3 units while idle) competing with reads inside the aggregator. Direction for the code fix: cut the idle write rate (skip unchanged checkpoint/doc writes, batch fence barriers) before touching the read path.

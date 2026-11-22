@@ -1,0 +1,13 @@
+# cmd: scripts/demo/p4-k1-multi-satellite.sh  (FireSink + InMemoryStorage; synthetic pair + real captured slice offsets 11900..14899; no cluster, no audit API)
+# date: 2026-11-16 14:30 node v20.20.2 branch ms2-prob3-prob4 (T06 working tree, uncommitted)
+example multi-satellite fire: hz-1704374813bd Bali sat=["N20","N21"] detections=2 severity=WASPADA
+synthetic: N + N20 within 1 km / 15 min              | 1 event                                      | PASS
+synthetic: satellites on the one event               | ["N","N20"]                                  | PASS
+real slice: fires (events)                           | 51                                           | PASS
+real slice: fires seen by >= 2 satellites            | 51                                           | PASS
+real slice: duplicate events per fire                | 0                                            | PASS
+real slice: every fire has >= 2 detections           | min 2                                        | PASS
+real slice: singletons reported (FIRE-5)             | 283                                          | PASS
+real slice: a detection in two fires                 | 0                                            | PASS
+
+PASS (k1)

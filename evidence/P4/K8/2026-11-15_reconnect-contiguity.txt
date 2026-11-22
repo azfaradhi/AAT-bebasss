@@ -1,0 +1,11 @@
+# cmd: scripts/demo/p4-k8-reconnect.sh  (fixture feed server 1500 fps, 25 forced disconnects, in-process satellite-processor with in-memory Coordinator/Storage; no cluster)
+# date: 2026-11-15 20:04 node v20.20.2 branch ms2-prob3-prob4 (T04 working tree, uncommitted)
+connections killed mid-stream        | 25 (target 25)                           | PASS
+server-side connections opened       | 29                                       | PASS
+unique offsets delivered             | 3000 (11900..14899)                      | PASS
+gaps in delivered offsets            | 0                                        | PASS
+duplicate deliveries to the sink     | 0                                        | PASS
+committed offset == latest           | 14899 / 14899                            | PASS
+frames sent by server vs delivered   | 3000 sent, 3000 delivered                | PASS
+
+PASS: contiguous offsets, no duplicates across forced reconnects
