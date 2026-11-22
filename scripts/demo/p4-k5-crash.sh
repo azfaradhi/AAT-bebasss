@@ -6,7 +6,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PORT="${FEED_FIXTURE_PORT:-18097}"
 export FEED_URL="http://127.0.0.1:$PORT"
-if [[ "${KUBE:-}" == "1" ]]; then echo "cluster mode is not implemented yet: services are not deployed (see handoffs)"; exit 2; fi
+if [[ "${KUBE:-}" == "1" ]]; then echo "cluster mode: use scripts/cluster/drills/ (see README section 5c)"; exit 2; fi
 
 PORT="$PORT" node "$ROOT/tools/feed-fixture-server/server.mjs" >/dev/null 2>&1 &
 FEED_PID=$!
