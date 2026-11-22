@@ -47,10 +47,15 @@ spec:
             httpGet: { path: /ready, port: http }
             initialDelaySeconds: 2
             periodSeconds: 3
+            timeoutSeconds: 5
+            failureThreshold: 6
+          # Under a flood on the 3-VM cluster /healthz answered after >1 s and the pods were restarted mid-test (k3s P5-K5 round 2); give it room.
           livenessProbe:
             httpGet: { path: /healthz, port: http }
             initialDelaySeconds: 5
             periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 6
           lifecycle:
             preStop:
               exec: { command: ["/bin/sh", "-c", "sleep ${PRESTOP_DRAIN_SECONDS:-3}"] }
