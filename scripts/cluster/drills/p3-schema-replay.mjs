@@ -8,7 +8,7 @@ const ev = new Evidence('P3/K4', 'cluster-p3-schema-replay', `P3-K1/K2/K4/K5: PV
 const aggregator = expose('aggregator', 8090), client = expose('client-api', 8080), auth = expose('auth-service', 8091), pv = expose('pvmbg-mock', 8082);
 const A = audit(aggregator);
 const post = (mode) => timed(`${pv}/admin/schema-version`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode }) });
-const ops = async (role, path, init = {}) => timed(`${client}${path}`, { ...init, headers: { authorization: `Bearer ${await clientToken(auth, role)}`, 'content-type': 'application/json', ...(init.headers ?? {}) } });
+const ops = async (role, path, init = {}) => timed(`${client}${path}`, { ...init, headers: { authorization: `Bearer ${await clientToken(auth, role)}`, 'content-type': 'application/json', ...(init.headers ?? {}) } }, 120_000);
 try {
   await post('baseline');
   const bmkgBefore = (await A.checksum('BMKG')).count, pvmbgBefore = (await A.checksum('PVMBG')).count;

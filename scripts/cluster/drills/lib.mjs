@@ -12,7 +12,7 @@ export const now = () => new Date().toISOString().slice(11, 19);
 
 export function kubectl(args, { ns = true, allowFail = false } = {}) {
   const full = ns ? ['-n', NS, ...args] : args;
-  const r = spawnSync('kubectl', full, { encoding: 'utf8', shell: process.platform === 'win32', maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnSync('kubectl', full, { encoding: 'utf8', shell: false, maxBuffer: 64 * 1024 * 1024 });
   if (r.status !== 0 && !allowFail) throw new Error(`kubectl ${full.join(' ')} failed: ${r.stderr || r.stdout}`);
   return (r.stdout ?? '').trim();
 }

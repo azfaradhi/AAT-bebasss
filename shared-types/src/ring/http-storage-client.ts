@@ -27,7 +27,11 @@ const fetchUnitDefault = (timeoutMs: number): UnitFetch => async (u, method, pat
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(timeoutMs),
   });
-  return { status: res.status, body: await res.json().catch(() => null) };
+  // A 200 whose body cannot be read (timeout while streaming a large body, truncated JSON) must count as "unit unreachable"
+  // (send() turns the throw into null). Returning body:null made callers crash on p.body.rows / .entries (found on k3s, P1-K6 and P3-K4).
+  const parsed = await res.json().then((b) => ({ ok: true as const, b }), () => ({ ok: false as const, b: null }));
+  if (res.status === 200 && !parsed.ok) throw new Error(`unit ${u.unit} ${path}: 200 but body unreadable`);
+  return { status: res.status, body: parsed.b };
 };
 
 const strip = (r: UnitRow): HazardEvent => {
