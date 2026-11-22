@@ -224,6 +224,8 @@ export interface PantaiPollerOptions {
   coordinator: Coordinator;
   parker: Parker;
   criticalPublisher?: CriticalAlertFastPublisher;
+  // Lets client reads report stale_since for coastal data without calling the sensor (P5-K4).
+  syncState?: { markSourceStale(s: 'SENSOR_PANTAI'): Promise<void>; markSourceFresh(s: 'SENSOR_PANTAI'): Promise<void> };
   clock?: () => number;
   fetchFn?: typeof fetch;
 }
@@ -240,6 +242,7 @@ export class PantaiPoller {
   private readonly fetchFn: typeof fetch;
   private lastSuccessAt: string | null = null;
   private stopped = false;
+  private markedStale: boolean | null = null;
 
   constructor(private readonly opts: PantaiPollerOptions) {
     this.pollIntervalMs = opts.pollIntervalMs ?? 2000;
@@ -282,8 +285,10 @@ export class PantaiPoller {
       while (!signal.aborted && !this.stopped) {
         try {
           await this.pollOnce(fence, signal);
+          await this.syncStale(false);
         } catch {
           // Errors are classified & metered inside pollOnce; loop continues until leadership is lost
+          await this.syncStale(true);
         }
         if (signal.aborted || this.stopped) break;
         await new Promise<void>((resolve) => {
@@ -292,6 +297,18 @@ export class PantaiPoller {
         });
       }
     });
+  }
+
+  // Writes the stale marker only on a state change (or after a failed write), so a 2 s poll does not become a 2 s write.
+  private async syncStale(stale: boolean): Promise<void> {
+    if (!this.opts.syncState || this.markedStale === stale) return;
+    try {
+      if (stale) await this.opts.syncState.markSourceStale('SENSOR_PANTAI');
+      else await this.opts.syncState.markSourceFresh('SENSOR_PANTAI');
+      this.markedStale = stale;
+    } catch {
+      // Not recorded; the next cycle retries because markedStale is unchanged
+    }
   }
 
   stop(): void {

@@ -43,7 +43,7 @@ export function staleSourcesFor(hazardType?: HazardType): HazardSource[] {
   if (hazardType === 'VOLCANIC') return ['PVMBG'];
   if (hazardType === 'WILDFIRE') return ['SATELIT'];
   if (hazardType === 'COASTAL') return ['SENSOR_PANTAI'];
-  return ['BMKG', 'PVMBG'];
+  return ['BMKG', 'PVMBG', 'SENSOR_PANTAI'];
 }
 
 export function clampLimit(limit?: number): number {

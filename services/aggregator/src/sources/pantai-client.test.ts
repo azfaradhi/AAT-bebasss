@@ -293,4 +293,35 @@ describe('Sensor Pantai Poller, Behavior-Based Validation & Resilience (MB3-T08,
     expect(health.stale).toBe(true);
     expect(renderPrometheusMetrics()).toContain('bnpb_breaker_state{target="sensor-pantai"} 2');
   });
+  it('marks SENSOR_PANTAI stale once on outage and fresh once on recovery, without a write per poll (P5-K4)', async () => {
+    const storage = new InMemoryStorage();
+    const coordinator = new InMemoryCoordinator(storage, 'agg-pod-1');
+    const parker = new StorageBackedParker(storage);
+    const calls: string[] = [];
+    let down = true;
+    const poller = new PantaiPoller({
+      baseUrl: 'http://sensor-pantai:8080',
+      authToken: 'test-token',
+      instanceId: 'agg-pod-1',
+      pollIntervalMs: 5,
+      breakerFailureThreshold: 100,
+      storage,
+      coordinator,
+      parker,
+      syncState: {
+        markSourceStale: async () => { calls.push('stale'); },
+        markSourceFresh: async () => { calls.push('fresh'); },
+      },
+      fetchFn: async () => down
+        ? new Response('boom', { status: 500 })
+        : new Response(JSON.stringify({ generated_at: new Date().toISOString(), items: [], next_cursor: null }), { status: 200 }),
+    });
+    poller.setStationsForTest(STATIONS);
+    void poller.start();
+    await new Promise((r) => setTimeout(r, 150));
+    down = false;
+    await new Promise((r) => setTimeout(r, 150));
+    poller.stop();
+    expect(calls).toEqual(['stale', 'fresh']);
+  });
 });

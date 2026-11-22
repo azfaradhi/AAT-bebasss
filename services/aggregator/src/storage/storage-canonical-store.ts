@@ -17,6 +17,13 @@ export interface StorageCanonicalStoreOptions {
 }
 
 // CanonicalStore over the replicated ring. Outbox publication is served by OutboxDispatcher directly on the StorageClient.
+// Lease (fence) name that guards writes for a source; SENSOR_PANTAI is polled under the 'pantai' lease.
+export function leaseNameFor(source: HazardSource): string {
+  if (source === 'SENSOR_PANTAI') return 'pantai';
+  if (source === 'SATELIT') return 'satellite';
+  return source.toLowerCase();
+}
+
 export class StorageCanonicalStore implements CanonicalStore {
   private readonly clock: () => number;
   private readonly cache = new Map<string, { at: number; value: HazardEventResponse }>();
@@ -30,7 +37,7 @@ export class StorageCanonicalStore implements CanonicalStore {
   async close(): Promise<void> {}
 
   private ctx(source: HazardSource, key: string, correlationId: string, outbox?: WriteCtx['outbox']): WriteCtx {
-    return { fence: this.opts.fence?.(source) ?? 1, fenceName: source.toLowerCase(), idempotencyKey: key, correlationId, outbox };
+    return { fence: this.opts.fence?.(source) ?? 1, fenceName: leaseNameFor(source), idempotencyKey: key, correlationId, outbox };
   }
 
   private advanceFloor(source: HazardSource, candidateIso?: string | null): void {

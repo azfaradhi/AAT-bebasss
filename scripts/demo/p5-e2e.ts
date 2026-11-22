@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { discoverUnits } from '../../shared-types/src/ring/factory';
+import { StorageCanonicalStore } from '../../services/aggregator/src/storage/storage-canonical-store';
 import { HttpStorageClient } from '../../shared-types/src/ring/http-storage-client';
 
 const ROOT = join(__dirname, '../..');
@@ -82,8 +83,19 @@ async function main(): Promise<void> {
   // sensor outage: poller survives, other sources keep flowing, recovers
   const bmkgBefore = ((await j(`${BM}/admin/request-log`)).data as any[]).length;
   const aliveBefore = [...procs.entries()].filter(([k, v]) => k.startsWith('poller') && v.exitCode === null && k !== leader).length;
+  // Reads go through the same store class the client path uses (listCacheMs 0 so each read hits the ring).
+  const readStore = new StorageCanonicalStore({ storage: ring, listCacheMs: 0 });
+  const timedList = async () => { const t = Date.now(); const r = await readStore.list({ hazardType: 'COASTAL', limit: 20 }); return { ms: Date.now() - t, r }; };
+  const before = await timedList();
   await fetch(`${SENSOR}/admin/outage?ms=6000`, { method: 'POST' });
-  await sleep(7000);
+  const duringStale = await until('stale_since appears on coastal reads', async () => { const x = await timedList(); return x.r.meta.stale_since ? x : null; }, 6000);
+  const seismicDuring = await readStore.list({ hazardType: 'SEISMIC', limit: 5 });
+  await sleep(6000);
+  const recovered = await until('stale_since clears after the sensor recovers', async () => { const x = await timedList(); return x.r.meta.stale_since === null ? x : null; }, 15_000);
+  line(`coastal read before outage: ${before.ms} ms stale_since=${before.r.meta.stale_since}; during: ${duringStale.ms} ms stale_since=${duringStale.r.meta.stale_since} (${duringStale.r.data.length} events still served); seismic stale_since=${seismicDuring.meta.stale_since}; after: stale_since=${recovered.r.meta.stale_since}`);
+  check('P5-K4: during the outage coastal reads stay fast (<500 ms), still return the stored events, and carry stale_since', duringStale.ms < 500 && duringStale.r.data.length > 0 && !!duringStale.r.meta.stale_since);
+  check('P5-K4: other hazard types are not marked stale by the sensor outage', seismicDuring.meta.stale_since === null);
+  check('P5-K4: the poller clears stale_since by itself once the sensor is back (no operator action)', recovered.r.meta.stale_since === null);
   const bmkgAfter = ((await j(`${BM}/admin/request-log`)).data as any[]).length;
   const failed = ((await j(`${SENSOR}/admin/request-log`)).data as any[]).filter((e) => e.status === 503).length;
   check(`P5-K3/K4: sensor outage (${failed} refused requests): poller process stays up and BMKG polling continues (${bmkgAfter - bmkgBefore} more BMKG calls)`, aliveBefore === 1 && procs.get(next)!.exitCode === null && bmkgAfter - bmkgBefore >= 3 && failed >= 1);

@@ -10,14 +10,14 @@ import { CircuitBreaker } from '../src/resilience/circuit-breaker';
 import { ConcurrencyLimiter } from '../src/resilience/concurrency-limiter';
 import { BmkgClient } from '../src/sources/bmkg-client';
 import { PvmbgClient } from '../src/sources/pvmbg-client';
-import { StorageCanonicalStore } from '../src/storage/storage-canonical-store';
+import { StorageCanonicalStore, leaseNameFor } from '../src/storage/storage-canonical-store';
 
 async function main(): Promise<void> {
   const logger = createLogger('aggregator-poller-host');
   const podName = process.env.POD_NAME ?? 'poller-host';
   const storage = await createStorageFromEnv();
   const coordinator = coordinatorFromEnv(storage, podName) ?? new InMemoryCoordinator(storage, podName);
-  const store = new StorageCanonicalStore({ storage, fence: (source) => coordinator.currentFence(source.toLowerCase()) });
+  const store = new StorageCanonicalStore({ storage, fence: (source) => coordinator.currentFence(leaseNameFor(source)) });
   const ingest = createIngestContext({ storage });
   const timeoutMs = Number(process.env.SOURCE_TIMEOUT_MS ?? 3000);
   const scheduler = new PollingScheduler({
@@ -30,7 +30,7 @@ async function main(): Promise<void> {
   scheduler.start();
   // Optional Sensor Pantai poller (PANTAI_BASE_URL + PANTAI_AUTH_TOKEN), same wiring as the Aggregator's index.ts but without the broker.
   const pantai = process.env.PANTAI_BASE_URL && process.env.PANTAI_AUTH_TOKEN
-    ? new PantaiPoller({ baseUrl: process.env.PANTAI_BASE_URL, authToken: process.env.PANTAI_AUTH_TOKEN, instanceId: podName, pollIntervalMs: Number(process.env.PANTAI_POLL_INTERVAL_MS ?? 2000), timeoutMs, storage, coordinator, parker: ingest.parker })
+    ? new PantaiPoller({ baseUrl: process.env.PANTAI_BASE_URL, authToken: process.env.PANTAI_AUTH_TOKEN, instanceId: podName, pollIntervalMs: Number(process.env.PANTAI_POLL_INTERVAL_MS ?? 2000), timeoutMs, storage, coordinator, parker: ingest.parker, syncState: store })
     : null;
   if (pantai) void pantai.start();
   process.on('SIGTERM', async () => { scheduler.stop(); pantai?.stop(); await coordinator.stop(); process.exit(0); });

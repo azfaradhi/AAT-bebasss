@@ -12,7 +12,7 @@ describe('staleSourcesFor', () => {
   });
 
   it('considers every source when no hazard type is requested', () => {
-    expect(staleSourcesFor()).toEqual(['BMKG', 'PVMBG']);
+    expect(staleSourcesFor()).toEqual(['BMKG', 'PVMBG', 'SENSOR_PANTAI']);
   });
 });
 

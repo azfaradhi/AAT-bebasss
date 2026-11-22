@@ -9,7 +9,7 @@ import { ConcurrencyLimiter } from './resilience/concurrency-limiter';
 import { BmkgClient } from './sources/bmkg-client';
 import { PvmbgClient } from './sources/pvmbg-client';
 import { PostgresCanonicalStore, type CanonicalStore } from './storage/canonical-store';
-import { StorageCanonicalStore } from './storage/storage-canonical-store';
+import { StorageCanonicalStore, leaseNameFor } from './storage/storage-canonical-store';
 import { createStorageFromEnv, startMembershipLoop, startRepairLoop } from '../../../shared-types/src/ring';
 import { registerPlacementRoute } from './audit/placement-route';
 import { registerAudit } from './audit/audit-router';
@@ -55,7 +55,7 @@ async function main(): Promise<void> {
   const podName = process.env.POD_NAME ?? 'aggregator-local';
   const coordinator: Coordinator | null = storage ? (coordinatorFromEnv(storage, podName) ?? new InMemoryCoordinator(storage, podName)) : null;
   const store: CanonicalStore = storage
-    ? new StorageCanonicalStore({ storage, fence: (source) => coordinator?.currentFence(source.toLowerCase()) ?? 1 })
+    ? new StorageCanonicalStore({ storage, fence: (source) => coordinator?.currentFence(leaseNameFor(source)) ?? 1 })
     : new PostgresCanonicalStore(config.databaseUrl!);
   await store.init();
   const stopRepair = storage ? startRepairLoop(storage, config.storageRepairIntervalMs, (err) => logger.error({ err: String(err) }, 'ring repair failed')) : null;
@@ -138,7 +138,7 @@ async function main(): Promise<void> {
     ? new PantaiPoller({
         baseUrl: config.pantaiBaseUrl, authToken: config.pantaiAuthToken, instanceId: podName,
         pollIntervalMs: config.pantaiPollIntervalMs, timeoutMs: config.pantaiTimeoutMs, maxStalenessSeconds: config.pantaiMaxStalenessS,
-        storage, coordinator, parker: ingest.parker, criticalPublisher: publisher,
+        storage, coordinator, parker: ingest.parker, criticalPublisher: publisher, syncState: store,
       })
     : null;
   if (pantai) void pantai.start().catch((err) => logger.error({ err: String(err) }, 'sensor-pantai poller stopped'));
