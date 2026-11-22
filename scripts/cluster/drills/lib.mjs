@@ -22,7 +22,7 @@ export const secret = (key, name = 'bnpb-secrets') => Buffer.from(kubectl(['get'
 export class Evidence {
   constructor(dir, name, what) {
     const stamp = new Date().toISOString().slice(0, 16).replace('T', '_').replace(':', '');
-    this.dir = join(REPO, '..', 'AAT-docs', 'm2', 'evidence', dir);
+    this.dir = join(REPO, 'evidence', dir);
     mkdirSync(this.dir, { recursive: true });
     this.file = join(this.dir, `${stamp}_${name}.txt`);
     this.checks = [];

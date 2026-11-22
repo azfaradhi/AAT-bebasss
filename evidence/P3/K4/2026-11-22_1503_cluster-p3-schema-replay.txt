@@ -7,4 +7,4 @@
 [15:06:23] parked after the change: 0; reasons: 
 [15:06:23] [FAIL] K1/K2: incompatible records are parked with a reason, source and status (not stored, not guessed)
 [15:06:23] [PASS] K2: records parked as non-retryable are kept apart from retryable ones (field `retryable` present) (non-retryable 0, retryable 0)
-[15:06:48] RESULT: FAIL  -> <repo>\AAT-docs\m2\evidence\P3\K4\2026-11-22_1503_cluster-p3-schema-replay.txt
+[15:06:48] RESULT: FAIL  -> <repo>\evidence\P3\K4\2026-11-22_1503_cluster-p3-schema-replay.txt

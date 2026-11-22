@@ -7,4 +7,4 @@
 [16:00:08] [PASS] lapangan requests are served (>= 95 % answered 200)
 [16:00:08] [PASS] media requests are rejected in a controlled way (some 429, no 5xx)
 [16:00:08] [PASS] overload did not take lapangan down (p95 < 5000 ms)
-[16:00:08] RESULT: PASS  -> <repo>\AAT-docs\m2\evidence\P5\K5\2026-11-22_1559_cluster-p5-priority-shed.txt
+[16:00:08] RESULT: PASS  -> <repo>\evidence\P5\K5\2026-11-22_1559_cluster-p5-priority-shed.txt

@@ -1,7 +1,7 @@
 # Cluster drills (k3s)
 
 One script per spec criterion, run **against the live cluster** with `kubectl` and plain Node (>= 18, no dependencies). Each writes an evidence file
-`AAT-docs/m2/evidence/<criterion>/<date>_<name>.txt` (header: date, nodes, code commit) with `[PASS]/[FAIL]` lines and a final `RESULT:`; commit that file and add a row to `evidence/INDEX.md`.
+`evidence/<criterion>/<date>_<name>.txt` (header: date, nodes, code commit) with `[PASS]/[FAIL]` lines and a final `RESULT:`; commit that file and add a row to `evidence/INDEX.md`.
 They reproduce, on the cluster, the scenarios that were already proven on local processes (`scripts/demo/*.ts`).
 
 Prerequisites: `kubectl` pointing at the cluster, the app deployed (`make up`), the Tester Agent installed, `node` on PATH. The drills read credentials from the cluster Secret `bnpb-secrets`

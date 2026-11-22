@@ -21,7 +21,7 @@ async function until<T>(what: string, fn: () => Promise<T | null | false>, ms = 
   for (;;) { const v = await fn().catch(() => null); if (v) return v; if (Date.now() > end) throw new Error(`timeout: ${what}`); await sleep(100); }
 }
 const j = (url: string) => fetch(url).then((r) => r.json() as Promise<any>);
-const IN_PROCESS_REFERENCE_SHA = 'd11898de253f4d7c'; // fault-free in-process export, m2/evidence/P4/K5/2026-11-16_crash-exactness.txt
+const IN_PROCESS_REFERENCE_SHA = 'd11898de253f4d7c'; // fault-free in-process export, evidence/P4/K5/2026-11-16_crash-exactness.txt
 
 interface Stack { ring: HttpStorageClient; sat: (id: string) => ChildProcess; feed: string; lease: () => Promise<any>; stop: () => void }
 async function stack(base: number, feedEnv: Record<string, string>): Promise<Stack> {

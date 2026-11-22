@@ -20,4 +20,4 @@
 [15:50:32] after K6 BMKG 275/0e2d79338cc3c207 partial=false | PVMBG 275/836feb87414df257 partial=false
 [15:50:32] [PASS] K6: second loss (node-b) recovered to STABLE in 15 s
 [15:50:32] [PASS] K6: counts+checksums equal the baseline after the second loss
-[15:50:32] RESULT: PASS  -> <repo>\AAT-docs\m2\evidence\P1\K6\2026-11-22_1549_cluster-p1-unit-loss.txt
+[15:50:32] RESULT: PASS  -> <repo>\evidence\P1\K6\2026-11-22_1549_cluster-p1-unit-loss.txt

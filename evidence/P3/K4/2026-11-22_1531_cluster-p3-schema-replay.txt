@@ -14,4 +14,4 @@
 [15:32:45] [FAIL] K4: replay recovered the parked records (parked 0 -> 0; the rest cannot be mapped by any mapper version)
 [15:32:45] [PASS] K4: no duplicate HazardEvent after the replay (165 events)
 [15:32:50] [FAIL] K4: a second replay changes nothing (null)
-[15:32:50] RESULT: FAIL  -> <repo>\AAT-docs\m2\evidence\P3\K4\2026-11-22_1531_cluster-p3-schema-replay.txt
+[15:32:50] RESULT: FAIL  -> <repo>\evidence\P3\K4\2026-11-22_1531_cluster-p3-schema-replay.txt

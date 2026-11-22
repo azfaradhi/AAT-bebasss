@@ -8,4 +8,4 @@
 [15:02:21] [PASS] SATELIT events kept arriving after the takeover (stream resumed from the stored offset) (297 -> 297)
 [15:02:23] [PASS] no duplicate fire (unique source_ref_id) and stable ids (297 events)
 [15:02:23] [PASS] the standby never got HTTP 429 from the feed (never opened a second connection)
-[15:02:23] RESULT: PASS  -> <repo>\AAT-docs\m2\evidence\P4\K5\2026-11-22_1500_cluster-p4-satellite-leader.txt
+[15:02:23] RESULT: PASS  -> <repo>\evidence\P4\K5\2026-11-22_1500_cluster-p4-satellite-leader.txt

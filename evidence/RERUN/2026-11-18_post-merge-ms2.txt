@@ -26,4 +26,4 @@ PASS: contract metric names and log fields present
 18 individual checks PASS
 
 ## contract package
-cd AAT-docs/contracts && npm test: 47 of 47 pass; shared-types/src/m2/types.ts identical to contracts/src/types.ts; ids.ts differs only by the ./types.js import
+cd contracts && npm test: 47 of 47 pass; shared-types/src/m2/types.ts identical to contracts/src/types.ts; ids.ts differs only by the ./types.js import

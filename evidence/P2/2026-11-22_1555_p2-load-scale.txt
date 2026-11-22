@@ -485,7 +485,7 @@ sustained   [ 100% ] 1/3 VUs  2m19.8s/2m20.0s
 running (2m20.4s), 0/3 VUs, 202 complete and 0 interrupted iterations
 sustained ✓ [ 100% ] 0/3 VUs  2m20s
 time="2026-11-22T15:57:42+07:00" level=error msg="thresholds on metrics 'p2_error_rate' have been crossed"
-[k6 finished: ../AAT-docs/m2/evidence/P2/2026-11-22_1555_p2-load-scale.summary.json]
+[k6 finished: evidence/P2/2026-11-22_1555_p2-load-scale.summary.json]
 NAME                          READY   STATUS    RESTARTS      AGE     IP           NODE     NOMINATED NODE   READINESS GATES
 aggregator-76f76b6c56-8sb8l   1/1     Running   4 (15m ago)   32m     10.42.1.45   node-b   <none>           <none>
 aggregator-76f76b6c56-fx89z   1/1     Running   0             6m47s   10.42.0.68   node-a   <none>           <none>

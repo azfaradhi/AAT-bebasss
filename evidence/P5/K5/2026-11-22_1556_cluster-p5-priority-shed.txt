@@ -7,4 +7,4 @@
 [15:57:44] [FAIL] lapangan requests are served (>= 95 % answered 200)
 [15:57:44] [FAIL] media requests are rejected in a controlled way (some 429, no 5xx)
 [15:57:44] [FAIL] overload did not take lapangan down (p95 < 5000 ms)
-[15:57:44] RESULT: FAIL  -> <repo>\AAT-docs\m2\evidence\P5\K5\2026-11-22_1556_cluster-p5-priority-shed.txt
+[15:57:44] RESULT: FAIL  -> <repo>\evidence\P5\K5\2026-11-22_1556_cluster-p5-priority-shed.txt

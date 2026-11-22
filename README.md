@@ -41,7 +41,7 @@ Seluruh sistem berjalan di atas klaster **Kubernetes 3-node (`k3s`; `k3d` hanya 
 > Ketiga node adalah **VM di satu laptop**, bukan tiga host fisik (tidak mengejar bonus host fisik). Tiap VM punya kernel sendiri; k3s asli (bukan kind/k3d/minikube). Nilai diukur lewat `nproc`/`free -m` pada 2026-11-22. flannel dipaksa memakai NIC host-only (`flannel-iface: enp0s8` di `/etc/rancher/k3s/config.yaml`).
 
 - **Arsitektur Image Asisten (`PLAT-4`):** `sustuna/satelit-feed@sha256:9fb2fe52...` dan `sustuna/sensor-pantai@sha256:51fbd90d...` dipin dengan digest SHA-256 pada arsitektur `linux/amd64`.
-- **Sumber daya (`PLAT-6`):** memori request/limit mengikuti Lampiran B; jumlah pada overlay `demo` (21 pod): request 1,5 vCPU / 5,5 GiB, limit 11,25 vCPU / 11 GiB (`AAT-docs/m2/evidence/PLATFORM/2026-11-21_manifest-static-verify-and-totals.txt`). Spesifikasi tidak menyebut batas total.
+- **Sumber daya (`PLAT-6`):** memori request/limit mengikuti Lampiran B; jumlah pada overlay `demo` (21 pod): request 1,5 vCPU / 5,5 GiB, limit 11,25 vCPU / 11 GiB (`evidence/PLATFORM/2026-11-21_manifest-static-verify-and-totals.txt`). Spesifikasi tidak menyebut batas total.
 - **Isolasi Jaringan (`PLAT-8`):** `NetworkPolicy` `store-ingress` membatasi akses TCP `8100` ke `storage-unit` hanya untuk layanan penyimpan/pemroses sah; `client-api` ditolak di tingkat jaringan jika mencoba mengakses `storage-unit` secara langsung.
 
 ---
@@ -179,7 +179,7 @@ cd services/consumers/dashboard-updater && npm test
 
 ### Problem 3: data tidak valid, DLQ, laporan lapangan
 
-Semua skrip berikut berjalan lokal tanpa cluster (in-process, penyimpanan in-memory) dan mencetak tabel PASS/FAIL. Hasilnya tersimpan di `AAT-docs/m2/evidence/P3/`.
+Semua skrip berikut berjalan lokal tanpa cluster (in-process, penyimpanan in-memory) dan mencetak tabel PASS/FAIL. Hasilnya tersimpan di `evidence/P3/`.
 
 | Skrip | Membuktikan |
 |---|---|
@@ -196,7 +196,7 @@ Kedua mock menyediakan `GET /admin/request-log?since=<ISO>` (log request dengan 
 
 ### Problem 4: aliran satelit
 
-`tools/feed-fixture-server` memutar ulang 3 000 frame hasil capture nyata dengan aturan feed asli (offset bersama, `from=` inklusif, `Last-Event-ID` eksklusif, koneksi kedua ditolak 429) dan dapat memutus koneksi. Hasil bukti di `AAT-docs/m2/evidence/P4/`.
+`tools/feed-fixture-server` memutar ulang 3 000 frame hasil capture nyata dengan aturan feed asli (offset bersama, `from=` inklusif, `Last-Event-ID` eksklusif, koneksi kedua ditolak 429) dan dapat memutus koneksi. Hasil bukti di `evidence/P4/`.
 
 | Skrip | Membuktikan |
 |---|---|
@@ -218,7 +218,7 @@ Statistik proses: `GET :8094/internal/satellite/stats` (watermark, kebakaran ter
 
 ## 5b. Skenario Demo, Pengujian Beban (`k6`), dan Verifikasi Problem 1, Problem 2, Audit API, & Bonus 3
 
-Seluruh skrip berikut menjalankan **proses sistem operasi nyata** (`storage-unit`, `aggregator`, `analytics-dashboard`, `client-api`, `bmkg-mock`, `pvmbg-mock`, `p2-lb`, dan `k6`) melalui HTTP dan mencetak hasil verifikasi `[PASS]/[FAIL]`. Bukti eksekusi tersimpan di `AAT-docs/m2/evidence/{P1,P2,INTEGRATION,BONUS}/`.
+Seluruh skrip berikut menjalankan **proses sistem operasi nyata** (`storage-unit`, `aggregator`, `analytics-dashboard`, `client-api`, `bmkg-mock`, `pvmbg-mock`, `p2-lb`, dan `k6`) melalui HTTP dan mencetak hasil verifikasi `[PASS]/[FAIL]`. Bukti eksekusi tersimpan di `evidence/{P1,P2,INTEGRATION,BONUS}/`.
 
 | Skrip | Kriteria | Membuktikan |
 |---|---|---|
@@ -239,7 +239,7 @@ Seluruh skrip berikut menjalankan **proses sistem operasi nyata** (`storage-unit
 
 ## 5c. Drill di Cluster k3s (`scripts/cluster/drills/`)
 
-Satu skrip Node (>= 18, tanpa dependensi) per kriteria spek yang dijalankan **terhadap cluster hidup** lewat `kubectl` dan Service NodePort sementara; tiap skrip menulis berkas bukti (`AAT-docs/m2/evidence/<kriteria>/…`) berisi baris `[PASS]/[FAIL]`. Daftar skrip, prasyarat, dan catatan ada di [`scripts/cluster/drills/README.md`](scripts/cluster/drills/README.md) (`p1-node-loss`, `p2-routing`, `p2-lease-failover`, `p2-clock-skew`, `p3-schema-replay`, `p3-field-reports`, `p4-satellite-leader`, `p5-sensor-outage`, `p5-priority-shed`). Sebaran primary/replica per node: `GET /internal/audit/placement` (token audit).
+Satu skrip Node (>= 18, tanpa dependensi) per kriteria spek yang dijalankan **terhadap cluster hidup** lewat `kubectl` dan Service NodePort sementara; tiap skrip menulis berkas bukti (`evidence/<kriteria>/…`) berisi baris `[PASS]/[FAIL]`. Daftar skrip, prasyarat, dan catatan ada di [`scripts/cluster/drills/README.md`](scripts/cluster/drills/README.md) (`p1-node-loss`, `p2-routing`, `p2-lease-failover`, `p2-clock-skew`, `p3-schema-replay`, `p3-field-reports`, `p4-satellite-leader`, `p5-sensor-outage`, `p5-priority-shed`). Sebaran primary/replica per node: `GET /internal/audit/placement` (token audit).
 
 ---
 

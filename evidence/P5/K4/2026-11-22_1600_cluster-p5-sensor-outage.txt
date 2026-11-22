@@ -11,4 +11,4 @@
 [16:02:15] sensor-pantai scaled back to 1; waiting for the aggregator to use it again without intervention
 [16:04:31] after recovery: reads p95 12 ms; SENSOR_PANTAI events 0 -> 0; breaker: bnpb_breaker_state{target="sensor-pantai"} 0
 [16:04:31] [FAIL] K4: the system returned to normal on its own (reads fine, breaker not open)
-[16:04:31] RESULT: FAIL  -> <repo>\AAT-docs\m2\evidence\P5\K4\2026-11-22_1600_cluster-p5-sensor-outage.txt
+[16:04:31] RESULT: FAIL  -> <repo>\evidence\P5\K4\2026-11-22_1600_cluster-p5-sensor-outage.txt

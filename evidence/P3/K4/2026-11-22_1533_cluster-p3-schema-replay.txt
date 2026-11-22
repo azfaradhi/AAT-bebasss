@@ -14,4 +14,4 @@
 [15:38:32] [FAIL] K4: replay recovered the parked records (parked 0 -> 0; the rest cannot be mapped by any mapper version)
 [15:38:32] [PASS] K4: no duplicate HazardEvent after the replay (206 events)
 [15:39:04] [FAIL] K4: a second replay changes nothing ({"error":{"code":"AGGREGATOR_UNAVAILABLE","message":"Replay could not reach the aggregator"}})
-[15:39:04] RESULT: FAIL  -> <repo>\AAT-docs\m2\evidence\P3\K4\2026-11-22_1533_cluster-p3-schema-replay.txt
+[15:39:04] RESULT: FAIL  -> <repo>\evidence\P3\K4\2026-11-22_1533_cluster-p3-schema-replay.txt

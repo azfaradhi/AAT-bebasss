@@ -183,7 +183,7 @@ sustained   [ 100% ] 03/20 VUs  39.9s/40.0s
 running (40.5s), 00/20 VUs, 332 complete and 0 interrupted iterations
 sustained ✓ [ 100% ] 00/20 VUs  40s
 time="2026-11-22T15:50:55+07:00" level=error msg="thresholds on metrics 'p2_error_rate' have been crossed"
-[k6 finished: ../AAT-docs/m2/evidence/P2/2026-11-22_1550_p2-load-throughput.n1.summary.json]
+[k6 finished: evidence/P2/2026-11-22_1550_p2-load-throughput.n1.summary.json]
 [15:50:56] aggregator replicas -> 3
 
          /\      Grafana   /‾‾/  
@@ -368,7 +368,7 @@ sustained ↓ [ 100% ] 06/20 VUs  40s
 running (41.5s), 00/20 VUs, 259 complete and 0 interrupted iterations
 sustained ✓ [ 100% ] 00/20 VUs  40s
 time="2026-11-22T15:51:58+07:00" level=error msg="thresholds on metrics 'p2_error_rate' have been crossed"
-[k6 finished: ../AAT-docs/m2/evidence/P2/2026-11-22_1550_p2-load-throughput.n3.summary.json]
+[k6 finished: evidence/P2/2026-11-22_1550_p2-load-throughput.n3.summary.json]
 throughput: 1 instance=8.2 req/s, 3 instances=6.3 req/s, ratio=0.76 (criterion >= 2.0)
 1 instance : {"all":8.222128713271967,"ok":0.39505723547252697,"okc":16,"err":0.9518072289156626}
 3 instances: {"all":6.261562230539841,"ok":1.396810036043503,"okc":58,"err":0.7760617760617761}
