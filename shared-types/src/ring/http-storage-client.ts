@@ -47,7 +47,7 @@ export class HttpStorageClient implements StorageClient {
 
   constructor(private readonly opts: HttpStorageOptions) {
     for (const u of opts.units) this.byName.set(u.unit, u);
-    this.ring = new Ring(opts.units.map((u) => u.unit), opts.rf ?? 2, opts.vnodes ?? 64);
+    this.ring = new Ring(opts.units.map((u) => u.unit), opts.rf ?? 2, opts.vnodes ?? 64, (u) => this.byName.get(u)?.node ?? u);
     this.call = opts.fetchUnit ?? fetchUnitDefault(opts.timeoutMs ?? 2000);
     this.ttl = opts.stateTtlMs ?? 1000;
     this.now = opts.now ?? Date.now;
@@ -65,7 +65,7 @@ export class HttpStorageClient implements StorageClient {
     const units = [...this.opts.units, ...fresh].sort((a, b) => a.unit.localeCompare(b.unit));
     for (const u of fresh) this.byName.set(u.unit, u);
     this.opts.units = units;
-    this.ring = new Ring(units.map((u) => u.unit), this.opts.rf ?? 2, this.opts.vnodes ?? 64);
+    this.ring = new Ring(units.map((u) => u.unit), this.opts.rf ?? 2, this.opts.vnodes ?? 64, (u) => this.byName.get(u)?.node ?? u);
     this.invalidate();
     return fresh.map((u) => u.unit);
   }

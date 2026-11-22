@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { AuditProviders, StorageClient } from '../../../../shared-types/src/m2/types';
 import type { HazardSource } from '../../../../shared-types/src/m2/types';
+import { incCounter, METRICS } from '../resilience/obs';
 
 export interface RegisterAuditOptions {
   storage: StorageClient;
@@ -100,6 +101,9 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
         cursor,
       });
 
+      if (res.partial) {
+        incCounter(METRICS.partialResponses, { endpoint: '/internal/audit/events' });
+      }
       return reply.send(res);
     } catch (err: unknown) {
       const error = err as { name?: string; message?: string };
@@ -128,6 +132,9 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
 
     try {
       const res = await storage.checksum(source);
+      if (res.partial) {
+        incCounter(METRICS.partialResponses, { endpoint: '/internal/audit/checksum' });
+      }
       return reply.send({
         source,
         algorithm: 'sha256',
@@ -157,6 +164,9 @@ export function registerAudit(app: FastifyInstance, options: RegisterAuditOption
       const res = await storage.locate(hazard_id);
       if (!res || !res.locations || res.locations.length === 0) {
         return sendError(reply, 404, ERROR_CODES.NOT_FOUND, `Hazard event not found: ${hazard_id}`);
+      }
+      if (res.partial) {
+        incCounter(METRICS.partialResponses, { endpoint: '/internal/audit/location' });
       }
 
       return reply.send({

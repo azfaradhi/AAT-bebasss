@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from 'fastify';
 import { FencedError, type UnitState } from '../../../shared-types/src/m2/types';
+import { registerHttpMetrics } from '../../../shared-types/src/obs-lite';
 import type { UnitCtx, UnitDump, UnitOutboxSpec, UnitRow } from '../../../shared-types/src/ring/protocol';
 import { UnitEngine } from './engine';
 
@@ -8,6 +9,7 @@ type Q = Record<string, string | undefined>;
 
 export function buildUnitApp(engine: UnitEngine): FastifyInstance {
   const app = Fastify({ logger: false, bodyLimit: 64 * 1024 * 1024 });
+  const httpMetrics = registerHttpMetrics(app, 'storage-unit');
 
   app.setErrorHandler((err, _req, reply) => {
     if (err instanceof FencedError) return reply.code(409).send({ code: 'FENCED', fence_name: err.fenceName, got: err.got, current: err.current });
@@ -18,6 +20,21 @@ export function buildUnitApp(engine: UnitEngine): FastifyInstance {
   app.get('/u/identity', async () => identity());
   app.get('/healthz', async () => ({ status: 'ok' }));
   app.get('/ready', async (_req, reply) => (engine.state === 'DOWN' ? reply.code(503).send({ status: 'down' }) : { status: 'ready' }));
+  app.get('/metrics', async (_req, reply) => {
+    const st = engine.stats();
+    const pendingCount = engine.pending().length;
+    const extra = [
+      `# TYPE bnpb_storage_unit_up gauge`,
+      `bnpb_storage_unit_up{node="${engine.node}",unit="${engine.unit}"} ${engine.state === 'STABLE' ? 1 : 0}`,
+      `# TYPE bnpb_unit_keys gauge`,
+      `bnpb_unit_keys{node="${engine.node}",unit="${engine.unit}"} ${st.keys}`,
+      `# TYPE bnpb_unit_writes_total counter`,
+      `bnpb_unit_writes_total{node="${engine.node}",unit="${engine.unit}"} ${st.writes_total}`,
+      `# TYPE bnpb_outbox_pending gauge`,
+      `bnpb_outbox_pending{node="${engine.node}",unit="${engine.unit}"} ${pendingCount}`,
+    ].join('\n') + '\n';
+    return reply.header('content-type', 'text/plain; version=0.0.4; charset=utf-8').send(httpMetrics.render() + extra);
+  });
   app.post<{ Body: { state: UnitState } }>('/u/state', async (req, reply) => {
     if (!STATES.includes(req.body?.state)) return reply.code(400).send({ code: 'BAD_REQUEST' });
     engine.state = req.body.state;

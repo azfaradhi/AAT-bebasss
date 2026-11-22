@@ -59,16 +59,26 @@ async function main(): Promise<void> {
   const truth = [...rows].sort((a, b) => (a.ingested_at < b.ingested_at ? -1 : a.ingested_at > b.ingested_at ? 1 : a.hazard_id < b.hazard_id ? -1 : 1)).map((e) => e.hazard_id);
   check(`K3: paginated Audit walk over all ${N} events in ${pages} pages equals the sorted ground truth (ingested_at, hazard_id), no gap or repeat`, walk.length === N && walk.every((id, i) => id === truth[i]));
 
-  // K3b: "latest 50 across all types" through client-api.
+  // K3b: "latest 50 across all types, with pagination" through client-api.
   const tok = (scope: string, expiresIn: number) => jwt.sign({ scope, purpose: 'access' }, 'demo-secret', { subject: `${scope}-user`, audience: 'bnpb-client', expiresIn, algorithm: 'HS256' });
-  const latestRes = await fetch(`${API}/hazard-events?limit=50`, { headers: { authorization: `Bearer ${tok('media', 300)}` } });
+  const mediaTok = tok('media', 300);
+  const latestRes = await fetch(`${API}/hazard-events?limit=50`, { headers: { authorization: `Bearer ${mediaTok}` } });
   const latest = await latestRes.json() as any;
   if (!latest.data) line(`diagnostics: /hazards -> ${latestRes.status} ${JSON.stringify(latest).slice(0, 300)}`);
-  const want = [...rows].sort((a, b) => (a.occurred_at < b.occurred_at ? 1 : -1)).slice(0, 50).map((e) => e.hazard_id);
-  const got = (latest.data as any[]).map((e) => e.hazard_id);
-  if (!(got.length === 50 && got.every((id, i) => id === want[i]))) line(`diagnostics: first got ${JSON.stringify(got.slice(0, 5))} want ${JSON.stringify(want.slice(0, 5))}; sample ${JSON.stringify((latest.data as any[])[0])}`);
+  const sortedNewest = [...rows].sort((a, b) => (a.occurred_at !== b.occurred_at ? (a.occurred_at < b.occurred_at ? 1 : -1) : a.hazard_id < b.hazard_id ? -1 : 1));
+  const want50 = sortedNewest.slice(0, 50).map((e) => e.hazard_id);
+  const got50 = (latest.data as any[]).map((e) => e.hazard_id);
   const types = new Set((latest.data as any[]).map((e) => e.hazard_type));
-  check(`K3: GET /hazard-events?limit=50 through client-api returns the 50 newest events of all types, newest first (${types.size} hazard types present)`, got.length === 50 && got.every((id, i) => id === want[i]) && types.size > 1);
+  check(`K3: GET /hazard-events?limit=50 through client-api returns the 50 newest events of all types, newest first (${types.size} hazard types present)`, got50.length === 50 && got50.every((id, i) => id === want50[i]) && types.size === 4);
+
+  // K3c: Multi-page cursor pagination on GET /hazard-events?limit=50&cursor=... through client-api (pages 1..3 = 150 newest events)
+  const page2Res = await fetch(`${API}/hazard-events?limit=50&cursor=${encodeURIComponent(latest.meta.next_cursor)}`, { headers: { authorization: `Bearer ${mediaTok}` } });
+  const page2 = await page2Res.json() as any;
+  const page3Res = await fetch(`${API}/hazard-events?limit=50&cursor=${encodeURIComponent(page2.meta.next_cursor)}`, { headers: { authorization: `Bearer ${mediaTok}` } });
+  const page3 = await page3Res.json() as any;
+  const got150 = [...got50, ...(page2.data as any[]).map((e) => e.hazard_id), ...(page3.data as any[]).map((e) => e.hazard_id)];
+  const want150 = sortedNewest.slice(0, 150).map((e) => e.hazard_id);
+  check(`K3: paginated GET /hazard-events?limit=50&cursor=... through client-api walks pages 1..3 (150 newest events across all types) in exact order without gap or duplicate`, got150.length === 150 && got150.every((id, i) => id === want150[i]));
 
   // X-09: wall-clock shift of the client-api process; the token lives 20 s, the declared tolerance is 60 s.
   const probe = async (offsetMs: number) => { writeFileSync(skewFile, String(offsetMs)); await sleep(120); const t = tok('media', 20); const r = await fetch(`${API}/hazard-events?limit=1`, { headers: { authorization: `Bearer ${t}` } }); return r.status; };

@@ -11,6 +11,7 @@ interface HazardsQuery {
   source?: string;
   since?: string;
   limit?: string;
+  cursor?: string;
 }
 
 const HAZARD_TYPES: readonly HazardType[] = ['SEISMIC', 'VOLCANIC', 'WILDFIRE', 'COASTAL'];
@@ -18,7 +19,7 @@ const HAZARD_SOURCES: readonly HazardSource[] = ['BMKG', 'PVMBG', 'SATELIT', 'SE
 
 export function registerHazardsRoute(app: FastifyInstance, aggregator: AggregatorClient): void {
   const handler = async (request: { query: HazardsQuery; clientScope?: ClientScope }): Promise<HazardEventResponse> => {
-    const { hazard_type, source, since, limit } = request.query;
+    const { hazard_type, source, since, limit, cursor } = request.query;
     if (hazard_type !== undefined && !HAZARD_TYPES.includes(hazard_type as HazardType)) {
       throw new AppError(400, 'BAD_REQUEST', 'hazard_type must be SEISMIC, VOLCANIC, WILDFIRE, or COASTAL');
     }
@@ -38,6 +39,7 @@ export function registerHazardsRoute(app: FastifyInstance, aggregator: Aggregato
       source: source as HazardSource | undefined,
       since,
       limit: parsedLimit,
+      ...(cursor !== undefined ? { cursor } : {}),
     });
     const scope = request.clientScope as ClientScope;
     return {

@@ -7,8 +7,10 @@ export const MAX_LIST_LIMIT = 1000;
 
 export interface HazardQuery {
   hazardType?: HazardType;
+  source?: HazardSource;
   since?: string;
   limit?: number;
+  cursor?: string;
 }
 
 export interface StoredHazard {
@@ -39,6 +41,8 @@ export interface CanonicalStore {
 export function staleSourcesFor(hazardType?: HazardType): HazardSource[] {
   if (hazardType === 'SEISMIC') return ['BMKG'];
   if (hazardType === 'VOLCANIC') return ['PVMBG'];
+  if (hazardType === 'WILDFIRE') return ['SATELIT'];
+  if (hazardType === 'COASTAL') return ['SENSOR_PANTAI'];
   return ['BMKG', 'PVMBG'];
 }
 

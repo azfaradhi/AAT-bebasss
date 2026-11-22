@@ -17,10 +17,29 @@ const app = buildApp(pino({ level: 'silent' }), { store, internalServiceKey: 'in
 const authorized = { 'x-internal-key': 'internal-key' };
 
 describe('aggregator HTTP skeleton', () => {
-  it('exposes the standard health endpoint', async () => {
+  it('exposes the standard health and healthz endpoints', async () => {
     const res = await app.inject({ method: 'GET', url: '/health' });
     expect(res.statusCode).toBe(200);
     expect(res.json()).toMatchObject({ status: 'ok', service: SERVICE_NAME });
+
+    const hz = await app.inject({ method: 'GET', url: '/healthz' });
+    expect(hz.statusCode).toBe(200);
+    expect(hz.json()).toMatchObject({ status: 'ok', service: SERVICE_NAME });
+  });
+
+  it('exposes /ready and /metrics and transitions /ready to 503 when draining', async () => {
+    let ready = true;
+    const drainApp = buildApp(pino({ level: 'silent' }), {
+      store,
+      internalServiceKey: 'internal-key',
+      readinessCheck: () => ready,
+    });
+    expect((await drainApp.inject({ method: 'GET', url: '/ready' })).statusCode).toBe(200);
+    ready = false;
+    expect((await drainApp.inject({ method: 'GET', url: '/ready' })).statusCode).toBe(503);
+    const metricsRes = await drainApp.inject({ method: 'GET', url: '/metrics' });
+    expect(metricsRes.statusCode).toBe(200);
+    expect(metricsRes.body).toContain('bnpb_http_server_request_duration_seconds');
   });
 
   it('returns the standard error envelope for an unknown route', async () => {
@@ -45,7 +64,7 @@ describe('aggregator HTTP skeleton', () => {
 });
 
 describe('GET /internal/hazard-events query validation', () => {
-  it('passes hazard_type, since, and limit through to the store', async () => {
+  it('passes hazard_type (including WILDFIRE and COASTAL), source, since, and limit through to the store', async () => {
     list.mockClear();
     await app.inject({
       method: 'GET',
@@ -53,6 +72,15 @@ describe('GET /internal/hazard-events query validation', () => {
       headers: authorized,
     });
     expect(list).toHaveBeenCalledWith({ hazardType: 'VOLCANIC', since: '2026-10-06T00:00:00.000Z', limit: 20 });
+
+    list.mockClear();
+    const wf = await app.inject({
+      method: 'GET',
+      url: '/internal/hazard-events?hazard_type=WILDFIRE&source=SATELIT&limit=10',
+      headers: authorized,
+    });
+    expect(wf.statusCode).toBe(200);
+    expect(list).toHaveBeenCalledWith({ hazardType: 'WILDFIRE', source: 'SATELIT', since: undefined, limit: 10 });
   });
 
   it('rejects an unknown hazard_type with 400 and the error envelope', async () => {

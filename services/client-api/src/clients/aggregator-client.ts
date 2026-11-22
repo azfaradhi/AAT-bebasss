@@ -9,6 +9,7 @@ export interface HazardsFilter {
   source?: HazardSource;
   since?: string;
   limit?: number;
+  cursor?: string;
 }
 
 export interface AggregatorClient {
@@ -29,6 +30,7 @@ export class HttpAggregatorClient implements AggregatorClient {
     if (filter.source) url.searchParams.set('source', filter.source);
     if (filter.since) url.searchParams.set('since', filter.since);
     if (filter.limit !== undefined) url.searchParams.set('limit', String(filter.limit));
+    if (filter.cursor) url.searchParams.set('cursor', filter.cursor);
     const started = Date.now();
     this.logger.info({ url: url.toString() }, 'aggregator request started');
     try {

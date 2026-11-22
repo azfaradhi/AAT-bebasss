@@ -1,14 +1,21 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import type { StorageClient } from '../../../../shared-types/src/m2/types';
 import { isoMs } from '../../../../shared-types/src/m2/ids';
+import { incCounter, METRICS } from '../resilience/obs';
 
 export interface RegisterAnalyticsOptions {
   storage: StorageClient;
   internalServiceKey?: string;
+  cacheTtlMs?: number;
 }
 
 export function registerAnalyticsRoutes(app: FastifyInstance, options: RegisterAnalyticsOptions): void {
-  const { storage, internalServiceKey = process.env.INTERNAL_SERVICE_KEY || 'changeme-internal-key' } = options;
+  const {
+    storage,
+    internalServiceKey = process.env.INTERNAL_SERVICE_KEY || 'changeme-internal-key',
+    cacheTtlMs = Number(process.env.ANALYTICS_CACHE_TTL_MS ?? 0),
+  } = options;
+  const summaryCache = new Map<string, { at: number; body: unknown }>();
 
   // GET /internal/analytics/summary
   app.get('/internal/analytics/summary', async (request: FastifyRequest<{
@@ -40,16 +47,31 @@ export function registerAnalyticsRoutes(app: FastifyInstance, options: RegisterA
         });
       }
 
+      const cacheKey = `${from ?? ''}|${to ?? ''}|${bucket}`;
+      if (cacheTtlMs > 0) {
+        const hit = summaryCache.get(cacheKey);
+        if (hit && Date.now() - hit.at < cacheTtlMs) {
+          return reply.send(hit.body);
+        }
+      }
+
       const res = await storage.aggregate({
         from,
         to,
         bucket,
       });
+      if (res.partial) {
+        incCounter(METRICS.partialResponses, { endpoint: '/internal/analytics/summary' });
+      }
 
-      return reply.send({
+      const payload = {
         ...res,
         as_of: isoMs(Date.now()),
-      });
+      };
+      if (cacheTtlMs > 0 && !res.partial) {
+        summaryCache.set(cacheKey, { at: Date.now(), body: payload });
+      }
+      return reply.send(payload);
     } catch (err: unknown) {
       const error = err as { name?: string; message?: string };
       if (error?.name === 'StorageUnavailableError') {
